@@ -4,6 +4,12 @@
 Next.js prototype. The product logic lives in `lib/harbor/model.ts`; the
 screens are `components/harbor/*.tsx`.
 
+**Settled 2026-09-10:** v0.1 targets the whole prototype, not Slack Tide
+alone. The prototype is the reference for product behaviour, resolved
+divergence by divergence below. The spelling is **Harbor**. The Android app
+and backend stay in this repo; `harvest-pulse` remains the v0-owned web
+prototype.
+
 Read this before extending the schema or the Kotlin model. The schema in
 `backend/supabase/migrations/0001_init.sql` was derived from the Slack Tide
 handoff alone, and the prototype turns out to describe a **substantially
@@ -65,25 +71,63 @@ Note also: `cueEligibility` and the Slack Tide screen both state the privacy
 boundary in user-facing copy. That copy is a commitment. Whatever the schema
 ends up allowing, it must not contradict those sentences.
 
-## Decisions needed
+## The blocker: does the parent get software?
 
-1. **Scope of v0.1.** The handoff phases Slack Tide alone into v0.1 and defers
-   the rest. The prototype shows the whole product. Which is the target for
-   the week-one study? This determines whether the schema grows by two tables
-   or by eight.
-2. **One repo or two.** `harvest-pulse` is v0-linked and auto-deploys on merge
-   to `main`, which does not mix well with branch protection or with Android
-   code living alongside it.
-3. **Spelling.** The prototype says `harbor`, this repo says `harbor`, the
-   GitHub repo says `harvest-pulse`. Pick one for the package, the schema and
-   the product name before more of each accumulates.
-4. **Is the prototype the spec?** If yes, `lib/harbor/model.ts` wins every
-   disagreement in the table above and the backend follows it. Say so
-   explicitly, because it is the cheapest way to settle items 1, 3, 9 and 10
-   at once.
+ADR-002 says the parent installs nothing, and that is load-bearing — it is the
+argument that killed the whole VoIP-fork category.
+
+Two prototype screens assume otherwise:
+
+- **Conversation** is two-way chat. `ChatMessage.mine: boolean` means someone
+  on the other end is sending.
+- **Harvest** stores `schedules[day] = { you, mom }` and computes overlapping
+  free windows. Mom's intervals have to come from somewhere.
+
+In the prototype both are local fakes — a seeded sample family in
+`localStorage`. That is fine for a demo and impossible for a week-long study
+with real people. Either the parent gets a surface, or these two screens mean
+something different in v0.1 than they appear to.
+
+This is unresolved and it gates the schema: chat and shared schedules are
+roughly half the tables in a whole-prototype build.
+
+## Divergence walkthrough
+
+Status as of 2026-09-10. "Adopt" means the prototype's behaviour is the
+target and the schema follows it.
+
+| # | Divergence | Decision | Notes |
+| --- | --- | --- | --- |
+| 1 | Fifth resolution, `message` | **Adopt** | A distinct user action, and `minimum: 'any'` counts it toward the Jar. Enum add on both sides |
+| 2 | Per-person entries | **Adopt** | `contacts` is already multi-row; needs `ledger_entries.contact_id`. Note the sample set includes a *group* ("Our little tribe"), so contacts need a `kind` of person vs group |
+| 3 | `dispatch` source; prototype has no `session_end` | **Adopt `dispatch`, keep `session_end`** | Settings already exposes `sessionMinutes` and calls it "saved for future native support". Keeping it costs nothing; removing it means a migration to add it back in v0.2 |
+| 4 | Cues tracked separately from moments | **Adopt** | New `cues` table, `ledger_entries.cue_id`. The cap counts cues, and a cue that produced no moment is exactly the silent-dismissal signal the study wants |
+| 5 | `cuesEnabled`, default off, behind a privacy dialog | **Adopt** | This answers the handoff's open "degraded mode" question, and a real global opt-out is a guardrail in its own right |
+| 6 | `minimum: any \| call \| null` | **Adopt** | Needed for the Jar |
+| 7 | Global 3-option `sound` vs per-contact `cueSoundRef` | **Open** | The two disagree. See below |
+| 8 | `sharing`, `momConsent`, schedules | **Blocked** | Depends on the parent-surface question above |
+| 9 | `reminderDone` | **Adopt** | Current code infers "pending" from `proposedTime > now`, which is a proxy that breaks when the user acts early or late. Store the fact instead of guessing it |
+| 10 | "Already connected today" counts `called`, `reacted`, `message` | **Adopt** | A real product judgement — it treats sending a heart as connecting. That matches the no-pressure design and the copy ("You already connected today. Enjoy the quiet.") |
+
+### 7, in more detail
+
+The handoff lists a per-person cue sound as an MVP screen: "the parent's
+ringtone or a chosen song". That personalisation is arguably the point of the
+cue — a sound that means *this person*, not a generic notification.
+
+The prototype instead has one global choice of chime / soft / silent, which
+reads like a v0 simplification rather than a design decision.
+
+Recommendation: keep both. A global default in settings, an optional
+per-contact override. It is a superset, so neither design is foreclosed.
+
+## Schema consequences
+
+Once the above lands, `user_thresholds` holds `cuesEnabled`, `minimum`,
+`sound` and `reducedMotion` alongside the four numbers. Rename it
+`user_settings`; the name is already wrong.
 
 ## Repo hygiene in harvest-pulse
 
 Two files are committed that should not be: `harvest-pulse-updated.zip` and
-`harbor-quick-share-beacon-game.patch`. Worth removing and gitignoring
-whichever way the repo question lands.
+`harbor-quick-share-beacon-game.patch`. Worth removing and gitignoring.
