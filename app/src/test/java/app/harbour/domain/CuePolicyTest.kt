@@ -47,7 +47,8 @@ class CuePolicyTest {
         signal: Signal = walkSignal(),
         thresholds: UserThresholds = this.thresholds,
         today: List<LedgerEntry> = emptyList(),
-    ) = CuePolicy.decide(signal, thresholds, today, now)
+        lastCueAt: Instant? = today.maxOfOrNull { it.occurredAt },
+    ) = CuePolicy.decide(signal, thresholds, today, lastCueAt, now)
 
     // --- the happy path ---------------------------------------------------
 
@@ -124,6 +125,22 @@ class CuePolicyTest {
     fun `fires once the cooldown has cleared`() {
         val cleared = now.minus(Duration.ofMinutes(thresholds.cooldownMinutes + 1L))
         assertEquals(Decision.Fire, decide(today = listOf(entry(occurredAt = cleared))))
+    }
+
+    @Test
+    fun `cooldown survives midnight, when today is empty but a cue just fired`() {
+        // The 23:55 / 00:05 case. Before lastCueAt was passed separately this
+        // fired, because the cooldown was derived from today's entries and
+        // today had just rolled over.
+        assertEquals(
+            Decision.Hold(Reason.IN_COOLDOWN),
+            decide(today = emptyList(), lastCueAt = now.minus(Duration.ofMinutes(10))),
+        )
+    }
+
+    @Test
+    fun `no previous cue anywhere means no cooldown`() {
+        assertEquals(Decision.Fire, decide(today = emptyList(), lastCueAt = null))
     }
 
     @Test

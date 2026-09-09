@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -89,6 +90,9 @@ class HarbourStore(context: Context) : HarbourRepository {
 
     override suspend fun entriesOn(date: LocalDate): List<LedgerEntry> =
         withContext(Dispatchers.IO) { readLedger().filter { it.entryDate == date } }
+
+    override suspend fun lastCueAt(): Instant? =
+        withContext(Dispatchers.IO) { readLedger().maxOfOrNull { it.occurredAt } }
 
     override suspend fun append(entry: LedgerEntry) {
         withContext(Dispatchers.IO) {

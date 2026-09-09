@@ -4,6 +4,7 @@ import app.harbour.domain.Contact
 import app.harbour.domain.LedgerEntry
 import app.harbour.domain.UserThresholds
 import kotlinx.coroutines.flow.StateFlow
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -37,6 +38,15 @@ interface HarbourRepository {
      * to decide whether to suppress.
      */
     suspend fun entriesOn(date: LocalDate): List<LedgerEntry>
+
+    /**
+     * When the last cue fired, on any day, or null if none ever has.
+     *
+     * Separate from [entriesOn] because the cooldown has to survive midnight:
+     * a cue at 23:55 must still suppress one at 00:05, by which point "today"
+     * holds nothing.
+     */
+    suspend fun lastCueAt(): Instant?
 
     /** Stage 9. */
     suspend fun append(entry: LedgerEntry)

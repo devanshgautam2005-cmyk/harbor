@@ -74,12 +74,16 @@ object CuePolicy {
      * @param thresholds the user's current calibration.
      * @param today every ledger entry already written for the current local
      *   day, in any order.
+     * @param lastCueAt when the last cue fired, on any day. Separate from
+     *   [today] because the cooldown has to survive midnight: a cue at 23:55
+     *   must still suppress one at 00:05, and "today" is empty by then.
      * @param now the current instant, passed in so tests can control it.
      */
     fun decide(
         signal: Signal,
         thresholds: UserThresholds,
         today: List<LedgerEntry>,
+        lastCueAt: Instant?,
         now: Instant,
     ): Decision {
         // --- stage 2: threshold ------------------------------------------
@@ -111,9 +115,8 @@ object CuePolicy {
             if (pendingReminder) {
                 return Decision.Hold(Reason.REMINDER_PENDING)
             }
-            val lastCue = today.maxOfOrNull { it.occurredAt }
-            if (lastCue != null) {
-                val elapsed = Duration.between(lastCue, now)
+            if (lastCueAt != null) {
+                val elapsed = Duration.between(lastCueAt, now)
                 if (elapsed < Duration.ofMinutes(thresholds.cooldownMinutes.toLong())) {
                     return Decision.Hold(Reason.IN_COOLDOWN)
                 }
