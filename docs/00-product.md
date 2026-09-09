@@ -36,11 +36,13 @@ Stages 1–4 are on-device and must work offline (ADR-003).
 The study needs the shortest path to a cue that fires and a resolution that
 logs. Everything else waits.
 
-1. **Package rename** `com.example.harbour` → `app.harbour` (ADR-006). Do this
-   first, in Studio, before anyone branches off.
-2. **Local storage + data model.** Room or DataStore behind a repository
-   interface. `UserThresholds` and `LedgerEntry` as in
-   `backend/supabase/migrations/0001_init.sql`. Nothing syncs yet.
+1. ~~**Package rename** `com.example.harbour` → `app.harbour`~~ — done. Was ADR-006.
+
+2. ~~**Local storage + data model.**~~ — done. `domain/Model.kt` mirrors the
+   Postgres schema; `data/HarbourStore` is SharedPreferences + `org.json`
+   behind `HarbourRepository`. Stages 2-4 are implemented as the pure
+   `domain/CuePolicy`, with unit tests. Nothing syncs yet, and nothing calls
+   `CuePolicy` yet — sensing is what wires it up.
 3. **Sensing + threshold + suppression + kairos.** Activity Recognition
    Transition API, foreground service, walking→still only. This is the risky
    part; get it firing reliably before any screen is pretty.

@@ -42,6 +42,28 @@ daemon forks a process and connects over loopback, which the sandbox blocks
 (`Unable to establish loopback connection`). Builds happen in Android Studio.
 Do not try to work around this — just ask the human to build.
 
+**You can still compile-check and run unit tests without Gradle.** Android
+Studio ships a standalone Kotlin compiler, and the Gradle cache already holds
+JUnit and coroutines. This catches real errors in the domain and data layers
+in seconds instead of waiting for a human to open Studio:
+
+```bash
+export MSYS_NO_PATHCONV=1
+KLIB="C:/Program Files/Android/Android Studio/plugins/Kotlin/kotlinc/lib"
+AJAR="$LOCALAPPDATA/Android/Sdk/platforms/android-37.0/android.jar"
+
+# compile (add -cp entries for any library the file imports)
+java -cp "$KLIB/kotlin-compiler.jar" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler   -d /tmp/out -cp "$AJAR" -jvm-target 11 app/src/main/java/app/harbour/domain/*.kt
+
+# run pure JUnit tests
+java -cp "/tmp/out;$JUNIT_JAR;$HAMCREST_JAR;$KLIB/kotlin-stdlib.jar"   org.junit.runner.JUnitCore app.harbour.domain.CuePolicyTest
+```
+
+This is a check, not a build — it proves the code compiles and the pure logic
+is correct. It says nothing about resource linking, manifest merging, or
+anything that needs the real toolchain. A green run here still needs a Studio
+build before it means the app works.
+
 `adb` does work. It lives at `$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe`.
 Export `MSYS_NO_PATHCONV=1` first or Git Bash mangles `/data/...` paths. Do not
 leave the emulator screen off after a test — launching an activity with the
@@ -72,10 +94,18 @@ the part most likely to be eroded by accident.
 
 ## Current state
 
-The Android app is untouched Studio wizard output — `MainActivity` still says
-"Hello Android". Nothing from the pipeline is implemented yet. The schema and
-docs are ahead of the code on purpose. `docs/00-product.md` has the build
-order.
+Build-order items 1 and 2 are done (see `docs/00-product.md`):
 
-Package is still `com.example.harbour` and must be renamed before anything
-ships (ADR-006).
+- Package renamed to `app.harbour`.
+- `domain/Model.kt` — the model, mirroring the Postgres schema by name.
+- `domain/CuePolicy.kt` — pipeline stages 2-4 as one pure function. No IO, no
+  Android, no clock of its own. 16 unit tests, all passing.
+- `data/` — `HarbourRepository` interface with a SharedPreferences + `org.json`
+  implementation. Deliberately not kotlinx-serialization: that needs a
+  compiler plugin version-locked to Kotlin, which has bitten this team before.
+
+Not built yet: sensing (stage 1), every screen, the call itself, and Supabase
+sync. `MainActivity` is still the wizard's "Hello Android".
+
+Nothing in the app calls `CuePolicy` yet — it is tested but not wired up. The
+sensing layer is what connects it.

@@ -1,4 +1,4 @@
-package com.example.harbour.ui.theme
+package app.harbour.ui.theme
 
 import android.app.Activity
 import android.os.Build

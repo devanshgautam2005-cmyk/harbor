@@ -115,9 +115,8 @@ platform-harder half and the study does not need it to answer its questions.
 
 ## ADR-006 — Package name
 
-**Status:** open — needs doing before anything ships
+**Status:** done (2026-09-10)
 
-The Studio wizard generated `com.example.harbour`. `com.example.*` cannot be
-published to Play and should not go out even to study participants. Rename to
-`app.harbour` via Studio's refactor (not by hand) before the first build we
-hand to anyone.
+The Studio wizard generated `com.example.harbour`, which cannot be published
+to Play and should not go out even to study participants. Renamed to
+`app.harbour` across sources, tests and the Gradle namespace/applicationId.
