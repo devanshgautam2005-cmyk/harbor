@@ -1,4 +1,4 @@
-package app.harbour
+package app.harbor
 
 import org.junit.Test
 

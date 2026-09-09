@@ -25,7 +25,7 @@ week-one study cohort is an Android cohort. iOS is v0.3.
 
 **Status:** accepted
 
-The original concept floated integrating with Signal so Harbour could be the
+The original concept floated integrating with Signal so Harbor could be the
 user's default caller. Three things kill that, in descending order of how
 fatal they are:
 
@@ -37,12 +37,12 @@ fatal they are:
    Signal has refused to let forks talk to their servers since the LibreSignal
    decision. A fork would be a client with no network to connect to.
 3. **Licensing.** Signal's Android client is GPLv3. Linphone and Jami are
-   GPLv3 too. Forking any of them makes Harbour GPLv3 and open-source. That
+   GPLv3 too. Forking any of them makes Harbor GPLv3 and open-source. That
    may be fine — but it should be a deliberate choice, not a side effect of
    picking a calling library.
 
 Separately: "default caller" was never a Signal capability. It is an Android
-telecom role (`ROLE_DIALER`), which Harbour can request directly.
+telecom role (`ROLE_DIALER`), which Harbor can request directly.
 
 ### What we build instead
 
@@ -56,9 +56,9 @@ No dialer role, no in-call UI to own, no fork.
 | Project | Licence | Why not for v0.1 |
 | --- | --- | --- |
 | [Signal Android](https://github.com/signalapp/Signal-Android) | GPLv3 | Servers closed to forks; parent must install it |
-| [Linphone](https://gitlab.linphone.org/BC/public/linphone-android) | GPLv3 (commercial licence available) | SIP VoIP — needs a SIP account and an app on both ends. Real option *if* Harbour ever needs in-app voice; the commercial licence exists if GPL is a problem |
+| [Linphone](https://gitlab.linphone.org/BC/public/linphone-android) | GPLv3 (commercial licence available) | SIP VoIP — needs a SIP account and an app on both ends. Real option *if* Harbor ever needs in-app voice; the commercial licence exists if GPL is a problem |
 | [Jami](https://f-droid.org/en/packages/cx.ring/) | GPLv3 | Peer-to-peer, no server to run — genuinely nice, but still needs Jami on the parent's phone |
-| [Fossify Phone](https://f-droid.org/en/packages/org.fossify.phone/) | GPLv3 | A real open-source *dialer* (Kotlin, actively maintained, Simple-Mobile-Tools successor). This is the one to fork **if** we later decide Harbour should own the in-call screen. Not needed to merely place a call |
+| [Fossify Phone](https://f-droid.org/en/packages/org.fossify.phone/) | GPLv3 | A real open-source *dialer* (Kotlin, actively maintained, Simple-Mobile-Tools successor). This is the one to fork **if** we later decide Harbor should own the in-call screen. Not needed to merely place a call |
 
 **Revisit this ADR if** the product ever needs to own the in-call experience
 (a during-call UI, a call recording, a custom ringback). Then Fossify Phone is
@@ -117,6 +117,6 @@ platform-harder half and the study does not need it to answer its questions.
 
 **Status:** done (2026-09-10)
 
-The Studio wizard generated `com.example.harbour`, which cannot be published
+The Studio wizard generated `com.example.harbor`, which cannot be published
 to Play and should not go out even to study participants. Renamed to
-`app.harbour` across sources, tests and the Gradle namespace/applicationId.
+`app.harbor` across sources, tests and the Gradle namespace/applicationId.

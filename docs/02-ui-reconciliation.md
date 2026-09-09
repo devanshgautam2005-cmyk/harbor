@@ -74,7 +74,7 @@ ends up allowing, it must not contradict those sentences.
 2. **One repo or two.** `harvest-pulse` is v0-linked and auto-deploys on merge
    to `main`, which does not mix well with branch protection or with Android
    code living alongside it.
-3. **Spelling.** The prototype says `harbor`, this repo says `harbour`, the
+3. **Spelling.** The prototype says `harbor`, this repo says `harbor`, the
    GitHub repo says `harvest-pulse`. Pick one for the package, the schema and
    the product name before more of each accumulates.
 4. **Is the prototype the spec?** If yes, `lib/harbor/model.ts` wins every

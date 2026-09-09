@@ -1,4 +1,4 @@
-# Harbour
+# Harbor
 
 An Android app that catches the still moment after you stop walking and makes
 it easy to call a parent. Built by a small team at BITSoM; the near-term goal
@@ -53,10 +53,10 @@ KLIB="C:/Program Files/Android/Android Studio/plugins/Kotlin/kotlinc/lib"
 AJAR="$LOCALAPPDATA/Android/Sdk/platforms/android-37.0/android.jar"
 
 # compile (add -cp entries for any library the file imports)
-java -cp "$KLIB/kotlin-compiler.jar" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler   -d /tmp/out -cp "$AJAR" -jvm-target 11 app/src/main/java/app/harbour/domain/*.kt
+java -cp "$KLIB/kotlin-compiler.jar" org.jetbrains.kotlin.cli.jvm.K2JVMCompiler   -d /tmp/out -cp "$AJAR" -jvm-target 11 app/src/main/java/app/harbor/domain/*.kt
 
 # run pure JUnit tests
-java -cp "/tmp/out;$JUNIT_JAR;$HAMCREST_JAR;$KLIB/kotlin-stdlib.jar"   org.junit.runner.JUnitCore app.harbour.domain.CuePolicyTest
+java -cp "/tmp/out;$JUNIT_JAR;$HAMCREST_JAR;$KLIB/kotlin-stdlib.jar"   org.junit.runner.JUnitCore app.harbor.domain.CuePolicyTest
 ```
 
 This is a check, not a build — it proves the code compiles and the pure logic
@@ -96,11 +96,11 @@ the part most likely to be eroded by accident.
 
 Build-order items 1 and 2 are done (see `docs/00-product.md`):
 
-- Package renamed to `app.harbour`.
+- Package renamed to `app.harbor`.
 - `domain/Model.kt` — the model, mirroring the Postgres schema by name.
 - `domain/CuePolicy.kt` — pipeline stages 2-4 as one pure function. No IO, no
   Android, no clock of its own. 16 unit tests, all passing.
-- `data/` — `HarbourRepository` interface with a SharedPreferences + `org.json`
+- `data/` — `HarborRepository` interface with a SharedPreferences + `org.json`
   implementation. Deliberately not kotlinx-serialization: that needs a
   compiler plugin version-locked to Kotlin, which has bitten this team before.
 

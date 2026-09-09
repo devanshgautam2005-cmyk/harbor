@@ -1,4 +1,4 @@
-package app.harbour.ui.theme
+package app.harbor.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "app.harbour"
+    namespace = "app.harbor"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "app.harbour"
+        applicationId = "app.harbor"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

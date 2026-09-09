@@ -1,18 +1,18 @@
-package app.harbour.data
+package app.harbor.data
 
-import app.harbour.domain.Contact
-import app.harbour.domain.LedgerEntry
-import app.harbour.domain.UserThresholds
+import app.harbor.domain.Contact
+import app.harbor.domain.LedgerEntry
+import app.harbor.domain.UserThresholds
 import kotlinx.coroutines.flow.StateFlow
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
 /**
- * Everything Harbour persists, behind one interface.
+ * Everything Harbor persists, behind one interface.
  *
  * The interface exists so the storage engine can be swapped without the
- * pipeline noticing. [HarbourStore] is a SharedPreferences + JSON
+ * pipeline noticing. [HarborStore] is a SharedPreferences + JSON
  * implementation, which is more than enough for the volumes here (a couple of
  * ledger entries a day). Room is the obvious upgrade if querying ever gets
  * interesting; write it against this interface when that day comes.
@@ -21,7 +21,7 @@ import java.util.UUID
  * outward — never the reverse, and never on the path to showing a cue.
  * See ADR-003.
  */
-interface HarbourRepository {
+interface HarborRepository {
 
     /** The user's current calibration. Never null — falls back to SUGGESTED. */
     val thresholds: StateFlow<UserThresholds>

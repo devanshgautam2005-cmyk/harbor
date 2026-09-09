@@ -1,8 +1,8 @@
-package app.harbour.domain
+package app.harbor.domain
 
-import app.harbour.domain.CuePolicy.Decision
-import app.harbour.domain.CuePolicy.Reason
-import app.harbour.domain.CuePolicy.Signal
+import app.harbor.domain.CuePolicy.Decision
+import app.harbor.domain.CuePolicy.Reason
+import app.harbor.domain.CuePolicy.Signal
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Duration

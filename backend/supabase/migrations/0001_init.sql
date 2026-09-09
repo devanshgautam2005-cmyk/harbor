@@ -1,4 +1,4 @@
--- Harbour v0.1 — initial schema
+-- Harbor v0.1 — initial schema
 --
 -- Design notes (read before changing anything here):
 --

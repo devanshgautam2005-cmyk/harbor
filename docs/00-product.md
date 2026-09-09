@@ -1,16 +1,16 @@
-# Harbour — what it is, and the build order
+# Harbor — what it is, and the build order
 
 ## The product in one paragraph
 
 Students at college mean to call their parents and don't. Not because they
-don't want to — because the moment never quite arrives. Harbour watches for a
+don't want to — because the moment never quite arrives. Harbor watches for a
 "slack tide": the still moment right after you stop walking. When it finds
 one, it surfaces a low-friction prompt with three equal options — call now,
 send a reaction, propose a later time — and logs whatever you chose. It is a
 trigger, not a nag: every cue is dismissible at no cost, you set your own
 sensitivity, and there is a hard cap on how often it can fire.
 
-The parent installs nothing and sees nothing. Harbour is entirely on the
+The parent installs nothing and sees nothing. Harbor is entirely on the
 student's side of the relationship.
 
 ## The pipeline
@@ -36,11 +36,11 @@ Stages 1–4 are on-device and must work offline (ADR-003).
 The study needs the shortest path to a cue that fires and a resolution that
 logs. Everything else waits.
 
-1. ~~**Package rename** `com.example.harbour` → `app.harbour`~~ — done. Was ADR-006.
+1. ~~**Package rename** `com.example.harbor` → `app.harbor`~~ — done. Was ADR-006.
 
 2. ~~**Local storage + data model.**~~ — done. `domain/Model.kt` mirrors the
-   Postgres schema; `data/HarbourStore` is SharedPreferences + `org.json`
-   behind `HarbourRepository`. Stages 2-4 are implemented as the pure
+   Postgres schema; `data/HarborStore` is SharedPreferences + `org.json`
+   behind `HarborRepository`. Stages 2-4 are implemented as the pure
    `domain/CuePolicy`, with unit tests. Nothing syncs yet, and nothing calls
    `CuePolicy` yet — sensing is what wires it up.
 3. **Sensing + threshold + suppression + kairos.** Activity Recognition
@@ -69,5 +69,5 @@ variants beyond the plain readout.
   Indian college cohort actually carries. Test on a real MIUI device early,
   not on the emulator.
 - **Degraded mode is undecided.** If activity permission is denied or revoked,
-  does Harbour fall back to a manual prompt or switch off? Needs a decision
+  does Harbor fall back to a manual prompt or switch off? Needs a decision
   before the study, not a default arrived at by omission.

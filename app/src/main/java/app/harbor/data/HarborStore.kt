@@ -1,10 +1,10 @@
-package app.harbour.data
+package app.harbor.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import app.harbour.domain.Contact
-import app.harbour.domain.LedgerEntry
-import app.harbour.domain.UserThresholds
+import app.harbor.domain.Contact
+import app.harbor.domain.LedgerEntry
+import app.harbor.domain.UserThresholds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +19,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 /**
- * SharedPreferences-backed [HarbourRepository].
+ * SharedPreferences-backed [HarborRepository].
  *
  * Volumes here are tiny — a couple of ledger entries a day, capped — so the
  * whole ledger is held as one JSON array and rewritten on append. If that ever
@@ -30,7 +30,7 @@ import java.util.UUID
  * the UI can both reach this, and read-modify-write on a JSON blob is exactly
  * the shape that loses data under concurrency.
  */
-class HarbourStore(context: Context) : HarbourRepository {
+class HarborStore(context: Context) : HarborRepository {
 
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -135,7 +135,7 @@ class HarbourStore(context: Context) : HarbourRepository {
     }
 
     private companion object {
-        const val PREFS = "harbour"
+        const val PREFS = "harbor"
         const val KEY_THRESHOLDS = "thresholds"
         const val KEY_CONTACT = "contact"
         const val KEY_LEDGER = "ledger"

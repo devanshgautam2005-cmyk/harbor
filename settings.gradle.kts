@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "harbour"
+rootProject.name = "harbor"
 include(":app")
  

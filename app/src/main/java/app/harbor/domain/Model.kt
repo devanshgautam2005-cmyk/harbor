@@ -1,4 +1,4 @@
-package app.harbour.domain
+package app.harbor.domain
 
 import java.time.Instant
 import java.time.LocalDate
@@ -24,7 +24,7 @@ enum class TriggerSource {
     /** A watched app session ended. v0.2 — see ADR-005. */
     SESSION_END,
 
-    /** The user opened Harbour and asked for a prompt themselves. */
+    /** The user opened Harbor and asked for a prompt themselves. */
     MANUAL,
 }
 

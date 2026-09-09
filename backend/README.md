@@ -1,4 +1,4 @@
-# Harbour backend
+# Harbor backend
 
 Supabase (Postgres + auth + RLS). There is no application server: the Android
 app talks to Supabase directly with the anon key, and row-level security does

@@ -1,4 +1,4 @@
-# Harbour
+# Harbor
 
 An Android app that catches the still moment after you stop walking, and makes
 it easy to call a parent.

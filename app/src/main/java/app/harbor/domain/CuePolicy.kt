@@ -1,4 +1,4 @@
-package app.harbour.domain
+package app.harbor.domain
 
 import java.time.Duration
 import java.time.Instant
@@ -11,7 +11,7 @@ import java.time.Instant
  * This is a pure function over its inputs. It does no IO, reads no clock of
  * its own, and knows nothing about Android — so it can be exercised properly
  * in unit tests, which matters more here than anywhere else in the app: a
- * cue that fires at the wrong moment is the single worst thing Harbour can
+ * cue that fires at the wrong moment is the single worst thing Harbor can
  * do to a user's trust.
  *
  * It also never blocks on the network. That is ADR-003, and it is why the
