@@ -22,7 +22,9 @@ docs/                 product, decisions, study protocol, original handoff.
 - **Raw activity data never leaves the device.** Only ledger entries sync.
   (ADR-004.) This is the promise the permission screen makes.
 - **No parent-side read path.** No table, role, or RLS policy that lets one
-  user see another's data. (ADR-004.)
+  user see another's data. (ADR-004.) The parent gets no app, no web surface,
+  and no account — Conversation is one-sided and Harvest is self-entered.
+  (ADR-007.)
 - **The cue must fire offline.** Nothing in stages 1–4 may block on network.
   (ADR-003.)
 - **Every cue is dismissible in one gesture, at no cost.** No streaks, no
@@ -94,18 +96,32 @@ the part most likely to be eroded by accident.
 
 ## Current state
 
-Build-order items 1 and 2 are done (see `docs/00-product.md`):
+v0.1 targets the **whole prototype** (harvest-pulse), not Slack Tide alone.
+The prototype is the reference for product behaviour; `docs/02-ui-reconciliation.md`
+records how each disagreement with the handoff was settled.
 
-- Package renamed to `app.harbor`.
+Done:
+
+- Package `app.harbor`, spelling settled as **Harbor**.
 - `domain/Model.kt` — the model, mirroring the Postgres schema by name.
 - `domain/CuePolicy.kt` — pipeline stages 2-4 as one pure function. No IO, no
-  Android, no clock of its own. 16 unit tests, all passing.
-- `data/` — `HarborRepository` interface with a SharedPreferences + `org.json`
+  Android, no clock of its own. 24 unit tests, all passing.
+- `data/` — `HarborRepository` with a SharedPreferences + `org.json`
   implementation. Deliberately not kotlinx-serialization: that needs a
   compiler plugin version-locked to Kotlin, which has bitten this team before.
+- `backend/` — migrations 0001-0004, aligned with the prototype's model.
 
 Not built yet: sensing (stage 1), every screen, the call itself, and Supabase
 sync. `MainActivity` is still the wizard's "Hello Android".
 
 Nothing in the app calls `CuePolicy` yet — it is tested but not wired up. The
 sensing layer is what connects it.
+
+Two things to know before touching the pipeline:
+
+- The daily cap counts **cues**, not ledger entries. A cue the user swiped
+  away still spent one. That is why `cues` is its own table and its own
+  `recordCue` call.
+- Cues are **off by default** and stay off until the user turns them on behind
+  a privacy explainer. Any code path that could flip that on without an
+  explicit user action is a bug.

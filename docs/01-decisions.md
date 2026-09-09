@@ -98,6 +98,18 @@ already the biggest install-funnel risk in the product.
 There is deliberately no parent-facing table, role, or RLS policy in the
 schema. A parent-side feature gets its own reviewed migration.
 
+**Scope of this ADR, tightened 2026-09-10.** As originally written this read
+as "no data about the user may ever reach anyone else", which would forbid
+things the product is supposed to do. The guardrail is specifically about
+**activity data** — walking, app usage, and anything derived from sensing.
+Those never leave the device.
+
+It is not a general ban on the user sharing something deliberately. If a
+future feature lets someone share a moment, a note, or their own availability,
+that is a product question decided on its own merits, not a violation of this
+ADR. What it may never become is a channel through which a parent learns
+something about the user's movements or phone habits.
+
 ---
 
 ## ADR-005 — Walking-stop trigger only in v0.1. Not Google Fit.
@@ -120,3 +132,62 @@ platform-harder half and the study does not need it to answer its questions.
 The Studio wizard generated `com.example.harbor`, which cannot be published
 to Play and should not go out even to study participants. Renamed to
 `app.harbor` across sources, tests and the Gradle namespace/applicationId.
+
+---
+
+## ADR-007 — The parent gets no software. Two prototype screens change shape.
+
+**Status:** accepted (2026-09-10)
+
+v0.1 targets the whole prototype (docs/02-ui-reconciliation.md), and two of its
+screens quietly assume a second participant:
+
+- **Conversation** is two-way chat. `ChatMessage.mine: boolean` means someone
+  on the other end is sending.
+- **Harvest** stores `schedules[day] = { you, mom }` and computes overlapping
+  free windows. The mother's intervals have to come from somewhere.
+
+In the prototype both are local fakes — a seeded sample family in
+`localStorage`. That is fine for a demo and impossible for a week-long study
+with real people, who will notice within a day that nobody is on the other
+end.
+
+### Decision
+
+The parent installs nothing, and gets no web surface either. ADR-002 stands
+unchanged, and the two screens are reshaped rather than the constraint being
+relaxed:
+
+- **Conversation becomes one-sided.** Notes the user writes, kept for
+  themselves or handed off to the phone's own SMS or WhatsApp to actually
+  send. Harbor is not a messenger and should stop implying it is.
+- **Harvest becomes self-entered.** The user records when they think their
+  person is usually free. It is their own guess, labelled as such, and there
+  is no consent flow because there is no second party. `sharing` and
+  `momConsent` disappear from the model; so does the schedules table.
+
+### Why
+
+The reciprocity in the prototype's copy is genuinely nicer. But building it
+means a parent client, an identity for that parent, an invitation flow, and a
+second consent surface — and every one of those is a place where activity data
+could leak toward a parent, which is the one thing ADR-004 exists to prevent.
+That is a large amount of new risk in exchange for a feature the study is not
+even trying to measure.
+
+The study's three questions are all about the trigger. None of them needs the
+mother to be online.
+
+### Cost, stated plainly
+
+The Harvest screen gets weaker: a guess at someone's routine is worth less
+than their actual availability. If the study says people want real
+reciprocity, that is the moment to revisit this — with the parent surface
+designed deliberately rather than arrived at by a prototype's convenience.
+
+### Consequence for the copy
+
+Any UI text promising mutual sharing has to change before the study. Copy that
+says Mom consented to something, when there is no Mom-side anything, is not a
+small inaccuracy — it is the exact kind of claim that costs trust when a
+participant works out it is not true.

@@ -71,7 +71,18 @@ Note also: `cueEligibility` and the Slack Tide screen both state the privacy
 boundary in user-facing copy. That copy is a commitment. Whatever the schema
 ends up allowing, it must not contradict those sentences.
 
-## The blocker: does the parent get software?
+## Resolved: the parent gets no software
+
+**Decided 2026-09-10 — see ADR-007.** Conversation becomes one-sided (notes
+the user writes, handed off to SMS or WhatsApp to actually send) and Harvest
+becomes self-entered (the user's own guess at when their person is free).
+`sharing`, `momConsent` and the schedules table are dropped. The UI copy
+promising mutual consent has to change before the study.
+
+The reasoning, kept because it is the argument to re-open if the study pushes
+back:
+
+### Why it was a blocker
 
 ADR-002 says the parent installs nothing, and that is load-bearing — it is the
 argument that killed the whole VoIP-fork category.
@@ -88,13 +99,14 @@ In the prototype both are local fakes — a seeded sample family in
 with real people. Either the parent gets a surface, or these two screens mean
 something different in v0.1 than they appear to.
 
-This is unresolved and it gates the schema: chat and shared schedules are
-roughly half the tables in a whole-prototype build.
+This gated roughly half the tables in a whole-prototype build, which is why it
+was settled before migration 0003 was written.
 
 ## Divergence walkthrough
 
-Status as of 2026-09-10. "Adopt" means the prototype's behaviour is the
-target and the schema follows it.
+All ten resolved 2026-09-10 and implemented in migrations 0003 and 0004.
+"Adopt" means the prototype's behaviour is the target and the schema follows
+it.
 
 | # | Divergence | Decision | Notes |
 | --- | --- | --- | --- |
@@ -105,7 +117,7 @@ target and the schema follows it.
 | 5 | `cuesEnabled`, default off, behind a privacy dialog | **Adopt** | This answers the handoff's open "degraded mode" question, and a real global opt-out is a guardrail in its own right |
 | 6 | `minimum: any \| call \| null` | **Adopt** | Needed for the Jar |
 | 7 | Global 3-option `sound` vs per-contact `cueSoundRef` | **Open** | The two disagree. See below |
-| 8 | `sharing`, `momConsent`, schedules | **Blocked** | Depends on the parent-surface question above |
+| 8 | `sharing`, `momConsent`, schedules | **Dropped** | No second party to share with. ADR-007 |
 | 9 | `reminderDone` | **Adopt** | Current code infers "pending" from `proposedTime > now`, which is a proxy that breaks when the user acts early or late. Store the fact instead of guessing it |
 | 10 | "Already connected today" counts `called`, `reacted`, `message` | **Adopt** | A real product judgement — it treats sending a heart as connecting. That matches the no-pressure design and the copy ("You already connected today. Enjoy the quiet.") |
 

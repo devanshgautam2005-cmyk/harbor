@@ -3,8 +3,11 @@ package app.harbor.data
 import android.content.Context
 import android.content.SharedPreferences
 import app.harbor.domain.Contact
+import app.harbor.domain.Cue
+import app.harbor.domain.CuePolicy
 import app.harbor.domain.LedgerEntry
-import app.harbor.domain.UserThresholds
+import app.harbor.domain.Resolution
+import app.harbor.domain.UserSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,17 +17,16 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
 /**
  * SharedPreferences-backed [HarborRepository].
  *
- * Volumes here are tiny — a couple of ledger entries a day, capped — so the
- * whole ledger is held as one JSON array and rewritten on append. If that ever
- * stops being true, the fix is Room behind the same interface, not a cleverer
- * version of this.
+ * Volumes here are tiny — a couple of cues a day, capped — so each collection
+ * is held as one JSON array and rewritten on change. If that ever stops being
+ * true, the fix is Room behind the same interface, not a cleverer version of
+ * this.
  *
  * Writes are serialised through [writeLock] because the sensing service and
  * the UI can both reach this, and read-modify-write on a JSON blob is exactly
@@ -37,115 +39,179 @@ class HarborStore(context: Context) : HarborRepository {
 
     private val writeLock = Mutex()
 
-    private val _thresholds = MutableStateFlow(readThresholds())
-    override val thresholds: StateFlow<UserThresholds> = _thresholds.asStateFlow()
+    private val _settings = MutableStateFlow(readSettings())
+    override val settings: StateFlow<UserSettings> = _settings.asStateFlow()
 
-    private val _contact = MutableStateFlow(readContact())
-    override val contact: StateFlow<Contact?> = _contact.asStateFlow()
+    private val _contacts = MutableStateFlow(readContacts())
+    override val contacts: StateFlow<List<Contact>> = _contacts.asStateFlow()
 
     // --- settings ---------------------------------------------------------
 
-    private fun readThresholds(): UserThresholds {
-        val raw = prefs.getString(KEY_THRESHOLDS, null) ?: return UserThresholds.SUGGESTED
-        return runCatching { LedgerJson.thresholds(JSONObject(raw)) }
-            // Corrupt or from an older shape. The suggestion is a safe landing
-            // spot; losing a calibration is bad but crashing on boot is worse.
-            .getOrDefault(UserThresholds.SUGGESTED)
+    private fun readSettings(): UserSettings {
+        val raw = prefs.getString(KEY_SETTINGS, null) ?: return UserSettings()
+        // Corrupt, or written by an older shape. Defaults are a safe landing
+        // spot: losing a calibration is bad, but crashing on boot is worse.
+        // Note the default has cues OFF, so a failure here can never
+        // over-notify someone.
+        return runCatching { LedgerJson.settings(JSONObject(raw)) }
+            .getOrDefault(UserSettings())
     }
 
-    private fun readContact(): Contact? {
-        val raw = prefs.getString(KEY_CONTACT, null) ?: return null
-        return runCatching { LedgerJson.contact(JSONObject(raw)) }.getOrNull()
+    override suspend fun setSettings(settings: UserSettings) {
+        write { putString(KEY_SETTINGS, LedgerJson.settings(settings).toString()) }
+        _settings.value = settings
     }
 
-    override suspend fun setThresholds(thresholds: UserThresholds) {
-        withContext(Dispatchers.IO) {
-            writeLock.withLock {
-                prefs.edit()
-                    .putString(KEY_THRESHOLDS, LedgerJson.thresholds(thresholds).toString())
-                    .commit()
-            }
-        }
-        _thresholds.value = thresholds
+    // --- contacts ---------------------------------------------------------
+
+    private fun readContacts(): List<Contact> {
+        val raw = prefs.getString(KEY_CONTACTS, null) ?: return emptyList()
+        return runCatching { LedgerJson.contacts(JSONArray(raw)) }.getOrDefault(emptyList())
     }
 
-    override suspend fun setContact(contact: Contact?) {
-        withContext(Dispatchers.IO) {
-            writeLock.withLock {
-                prefs.edit().apply {
-                    if (contact == null) remove(KEY_CONTACT)
-                    else putString(KEY_CONTACT, LedgerJson.contact(contact).toString())
-                }.commit()
-            }
-        }
-        _contact.value = contact
+    override suspend fun upsertContact(contact: Contact) {
+        val updated = (readContacts().filterNot { it.id == contact.id } + contact)
+            .sortedBy { it.label }
+        write { putString(KEY_CONTACTS, LedgerJson.contacts(updated).toString()) }
+        _contacts.value = updated
     }
 
-    // --- ledger -----------------------------------------------------------
+    override suspend fun deleteContact(id: UUID) {
+        val updated = readContacts().filterNot { it.id == id }
+        write { putString(KEY_CONTACTS, LedgerJson.contacts(updated).toString()) }
+        _contacts.value = updated
+    }
+
+    // --- reads ------------------------------------------------------------
 
     private fun readLedger(): List<LedgerEntry> {
         val raw = prefs.getString(KEY_LEDGER, null) ?: return emptyList()
         return runCatching { LedgerJson.entries(JSONArray(raw)) }.getOrDefault(emptyList())
     }
 
-    override suspend fun entriesOn(date: LocalDate): List<LedgerEntry> =
-        withContext(Dispatchers.IO) { readLedger().filter { it.entryDate == date } }
+    private fun readCues(): List<Cue> {
+        val raw = prefs.getString(KEY_CUES, null) ?: return emptyList()
+        return runCatching { LedgerJson.cues(JSONArray(raw)) }.getOrDefault(emptyList())
+    }
 
-    override suspend fun lastCueAt(): Instant? =
-        withContext(Dispatchers.IO) { readLedger().maxOfOrNull { it.occurredAt } }
-
-    override suspend fun append(entry: LedgerEntry) {
+    override suspend fun dayState(date: LocalDate): CuePolicy.DayState =
         withContext(Dispatchers.IO) {
-            writeLock.withLock {
-                val kept = (readLedger() + entry)
-                    // Idempotent: re-appending the same cue replaces it rather
-                    // than duplicating, matching the server's upsert key.
-                    .associateBy { it.clientId }
-                    .values
-                    .sortedBy { it.occurredAt }
-                    .takeLast(RETAINED_ENTRIES)
+            val ledger = readLedger()
+            val cues = readCues()
+            CuePolicy.DayState(
+                entriesToday = ledger.filter { it.entryDate == date },
+                cuesToday = cues.count { it.firedDate == date },
+                // Across every day, not just today: the cooldown has to
+                // survive midnight.
+                lastCueAt = cues.maxOfOrNull { it.firedAt },
+                // Also across every day: a plan made on Tuesday for Friday is
+                // still a plan.
+                hasPendingReminder = ledger.any {
+                    it.resolution == Resolution.PROPOSED_LATER && !it.reminderDone
+                },
+            )
+        }
 
-                prefs.edit()
-                    .putString(KEY_LEDGER, LedgerJson.entries(kept).toString())
-                    .commit()
-            }
+    // --- writes -----------------------------------------------------------
+
+    override suspend fun recordCue(cue: Cue) {
+        writeList(KEY_CUES) {
+            (readCues() + cue)
+                .associateBy { it.clientId }
+                .values
+                .sortedBy { it.firedAt }
+                .takeLast(RETAINED)
+                .let(LedgerJson::cues)
         }
     }
 
-    override suspend fun unsynced(): List<LedgerEntry> = withContext(Dispatchers.IO) {
-        val synced = prefs.getStringSet(KEY_SYNCED, emptySet()).orEmpty()
-        readLedger()
-            .filter { it.clientId.toString() !in synced }
-            .sortedBy { it.occurredAt }
+    override suspend fun append(entry: LedgerEntry) {
+        writeList(KEY_LEDGER) {
+            // Idempotent: re-appending the same moment replaces it rather than
+            // duplicating, matching the server's upsert key.
+            (readLedger() + entry)
+                .associateBy { it.clientId }
+                .values
+                .sortedBy { it.occurredAt }
+                .takeLast(RETAINED)
+                .let(LedgerJson::entries)
+        }
     }
 
-    override suspend fun markSynced(clientIds: List<UUID>) {
-        if (clientIds.isEmpty()) return
-        withContext(Dispatchers.IO) {
-            writeLock.withLock {
-                val existing = prefs.getStringSet(KEY_SYNCED, emptySet()).orEmpty()
-                val retained = readLedger().mapTo(mutableSetOf()) { it.clientId.toString() }
-                // Only track ids we still hold, so this set cannot grow forever
-                // as old entries age out of the ledger.
-                val updated = (existing + clientIds.map(UUID::toString)) intersect retained
+    override suspend fun markReminderDone(clientId: UUID) {
+        writeList(KEY_LEDGER) {
+            readLedger()
+                .map { if (it.clientId == clientId) it.copy(reminderDone = true) else it }
+                .let(LedgerJson::entries)
+        }
+        // The entry changed, so it has to go up to the server again.
+        write {
+            val synced = prefs.getStringSet(KEY_SYNCED_ENTRIES, emptySet()).orEmpty()
+            putStringSet(KEY_SYNCED_ENTRIES, synced - clientId.toString())
+        }
+    }
 
-                prefs.edit().putStringSet(KEY_SYNCED, updated).commit()
-            }
+    // --- sync bookkeeping -------------------------------------------------
+
+    override suspend fun unsyncedCues(): List<Cue> = withContext(Dispatchers.IO) {
+        val synced = prefs.getStringSet(KEY_SYNCED_CUES, emptySet()).orEmpty()
+        readCues().filter { it.clientId.toString() !in synced }.sortedBy { it.firedAt }
+    }
+
+    override suspend fun unsyncedEntries(): List<LedgerEntry> = withContext(Dispatchers.IO) {
+        val synced = prefs.getStringSet(KEY_SYNCED_ENTRIES, emptySet()).orEmpty()
+        readLedger().filter { it.clientId.toString() !in synced }.sortedBy { it.occurredAt }
+    }
+
+    override suspend fun markSynced(cueIds: List<UUID>, entryIds: List<UUID>) {
+        if (cueIds.isEmpty() && entryIds.isEmpty()) return
+        write {
+            // Only track ids we still hold, so these sets cannot grow forever
+            // as old rows age out of the retained window.
+            val heldCues = readCues().mapTo(mutableSetOf()) { it.clientId.toString() }
+            val heldEntries = readLedger().mapTo(mutableSetOf()) { it.clientId.toString() }
+            val cues = prefs.getStringSet(KEY_SYNCED_CUES, emptySet()).orEmpty()
+            val entries = prefs.getStringSet(KEY_SYNCED_ENTRIES, emptySet()).orEmpty()
+
+            putStringSet(
+                KEY_SYNCED_CUES,
+                (cues + cueIds.map(UUID::toString)) intersect heldCues,
+            )
+            putStringSet(
+                KEY_SYNCED_ENTRIES,
+                (entries + entryIds.map(UUID::toString)) intersect heldEntries,
+            )
+        }
+    }
+
+    // --- plumbing ---------------------------------------------------------
+
+    private suspend fun write(block: SharedPreferences.Editor.() -> Unit) {
+        withContext(Dispatchers.IO) {
+            writeLock.withLock { prefs.edit().apply(block).commit() }
+        }
+    }
+
+    private suspend fun writeList(key: String, build: () -> JSONArray) {
+        withContext(Dispatchers.IO) {
+            writeLock.withLock { prefs.edit().putString(key, build().toString()).commit() }
         }
     }
 
     private companion object {
         const val PREFS = "harbor"
-        const val KEY_THRESHOLDS = "thresholds"
-        const val KEY_CONTACT = "contact"
+        const val KEY_SETTINGS = "settings"
+        const val KEY_CONTACTS = "contacts"
         const val KEY_LEDGER = "ledger"
-        const val KEY_SYNCED = "synced_client_ids"
+        const val KEY_CUES = "cues"
+        const val KEY_SYNCED_CUES = "synced_cue_ids"
+        const val KEY_SYNCED_ENTRIES = "synced_entry_ids"
 
         /**
          * Roughly a month at the daily cap. Enough for the week-one study and
-         * for any sync backlog worth retrying; old entries are the server's
+         * for any sync backlog worth retrying; older rows are the server's
          * problem, not the phone's.
          */
-        const val RETAINED_ENTRIES = 90
+        const val RETAINED = 90
     }
 }

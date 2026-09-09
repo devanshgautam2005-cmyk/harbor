@@ -1,5 +1,6 @@
 package app.harbor.domain
 
+import app.harbor.domain.CuePolicy.DayState
 import app.harbor.domain.CuePolicy.Decision
 import app.harbor.domain.CuePolicy.Reason
 import app.harbor.domain.CuePolicy.Signal
@@ -15,7 +16,10 @@ class CuePolicyTest {
 
     private val now: Instant = Instant.parse("2026-09-10T17:30:00Z")
     private val today: LocalDate = now.atZone(ZoneOffset.UTC).toLocalDate()
-    private val thresholds = UserThresholds.SUGGESTED
+
+    /** Cues on, suggested calibration. The state a consenting user is in. */
+    private val settings = UserSettings(cuesEnabled = true)
+    private val thresholds = settings.thresholds
 
     /** A walk that just ended, long enough and settled enough to fire. */
     private fun walkSignal(
@@ -31,13 +35,17 @@ class CuePolicyTest {
         resolution: Resolution = Resolution.DISMISSED,
         occurredAt: Instant = now.minus(Duration.ofHours(6)),
         proposedTime: Instant? = null,
+        reminderDone: Boolean = false,
     ) = LedgerEntry(
         clientId = UUID.randomUUID(),
         entryDate = today,
+        cueId = UUID.randomUUID(),
+        contactId = UUID.randomUUID(),
         triggerSource = TriggerSource.WALKING_STOP,
         thresholdSnapshot = thresholds,
         resolution = resolution,
         proposedTime = proposedTime,
+        reminderDone = reminderDone,
         feedbackPulse = null,
         rewardShown = RewardShown.READOUT,
         occurredAt = occurredAt,
@@ -45,22 +53,47 @@ class CuePolicyTest {
 
     private fun decide(
         signal: Signal = walkSignal(),
-        thresholds: UserThresholds = this.thresholds,
-        today: List<LedgerEntry> = emptyList(),
-        lastCueAt: Instant? = today.maxOfOrNull { it.occurredAt },
-    ) = CuePolicy.decide(signal, thresholds, today, lastCueAt, now)
+        settings: UserSettings = this.settings,
+        entriesToday: List<LedgerEntry> = emptyList(),
+        cuesToday: Int = entriesToday.size,
+        lastCueAt: Instant? = entriesToday.maxOfOrNull { it.occurredAt },
+        hasPendingReminder: Boolean = false,
+    ) = CuePolicy.decide(
+        signal,
+        settings,
+        DayState(entriesToday, cuesToday, lastCueAt, hasPendingReminder),
+        now,
+    )
 
     // --- the happy path ---------------------------------------------------
 
     @Test
-    fun `fires on a settled walk past the threshold with a clean day`() {
+    fun fires_on_a_settled_walk_past_the_threshold_with_a_clean_day() {
         assertEquals(Decision.Fire, decide())
+    }
+
+    // --- the opt-out ------------------------------------------------------
+
+    @Test
+    fun holds_everything_when_the_user_has_cues_switched_off() {
+        assertEquals(
+            Decision.Hold(Reason.CUES_DISABLED),
+            decide(settings = settings.copy(cuesEnabled = false)),
+        )
+    }
+
+    @Test
+    fun cues_are_off_by_default() {
+        assertEquals(
+            Decision.Hold(Reason.CUES_DISABLED),
+            decide(settings = UserSettings()),
+        )
     }
 
     // --- stage 2: threshold ----------------------------------------------
 
     @Test
-    fun `holds when the walk was shorter than the user's threshold`() {
+    fun holds_when_the_walk_was_shorter_than_the_users_threshold() {
         assertEquals(
             Decision.Hold(Reason.BELOW_THRESHOLD),
             decide(walkSignal(activeMinutes = thresholds.walkingMinutes - 1)),
@@ -68,7 +101,7 @@ class CuePolicyTest {
     }
 
     @Test
-    fun `fires when the walk exactly meets the threshold`() {
+    fun fires_when_the_walk_exactly_meets_the_threshold() {
         assertEquals(
             Decision.Fire,
             decide(walkSignal(activeMinutes = thresholds.walkingMinutes)),
@@ -76,7 +109,7 @@ class CuePolicyTest {
     }
 
     @Test
-    fun `a session signal is measured against the session threshold`() {
+    fun a_session_signal_is_measured_against_the_session_threshold() {
         val signal = Signal(
             source = TriggerSource.SESSION_END,
             // Past the walking threshold, short of the session one. If the
@@ -90,101 +123,116 @@ class CuePolicyTest {
     // --- stage 3: suppression --------------------------------------------
 
     @Test
-    fun `holds once the user has already called today`() {
+    fun a_call_today_suppresses() {
         assertEquals(
-            Decision.Hold(Reason.ALREADY_CALLED_TODAY),
-            decide(today = listOf(entry(resolution = Resolution.CALLED))),
+            Decision.Hold(Reason.ALREADY_CONNECTED_TODAY),
+            decide(entriesToday = listOf(entry(resolution = Resolution.CALLED))),
         )
     }
 
     @Test
-    fun `holds at the daily cap`() {
-        val old = now.minus(Duration.ofHours(9))
-        val entries = List(thresholds.dailyCap) { entry(occurredAt = old) }
-        assertEquals(Decision.Hold(Reason.DAILY_CAP_REACHED), decide(today = entries))
+    fun a_reaction_counts_as_connecting_and_suppresses() {
+        assertEquals(
+            Decision.Hold(Reason.ALREADY_CONNECTED_TODAY),
+            decide(entriesToday = listOf(entry(resolution = Resolution.REACTED))),
+        )
     }
 
     @Test
-    fun `a daily cap of zero suppresses everything`() {
+    fun a_note_counts_as_connecting_and_suppresses() {
+        assertEquals(
+            Decision.Hold(Reason.ALREADY_CONNECTED_TODAY),
+            decide(entriesToday = listOf(entry(resolution = Resolution.MESSAGE))),
+        )
+    }
+
+    @Test
+    fun a_dismissal_is_not_a_connection_and_does_not_suppress_on_its_own() {
+        assertEquals(
+            Decision.Fire,
+            decide(
+                entriesToday = listOf(entry(resolution = Resolution.DISMISSED)),
+                cuesToday = 1,
+                lastCueAt = now.minus(Duration.ofHours(6)),
+            ),
+        )
+    }
+
+    @Test
+    fun holds_at_the_daily_cap() {
         assertEquals(
             Decision.Hold(Reason.DAILY_CAP_REACHED),
-            decide(thresholds = thresholds.copy(dailyCap = 0)),
+            decide(cuesToday = thresholds.dailyCap, lastCueAt = null),
         )
     }
 
     @Test
-    fun `holds inside the cooldown window`() {
-        val recent = now.minus(Duration.ofMinutes(thresholds.cooldownMinutes - 1L))
+    fun the_cap_counts_cues_that_fired_not_entries_that_were_written() {
+        // Two cues fired, only one was answered. The unanswered one still
+        // spent part of the user's budget — this is the whole reason cues are
+        // tracked separately from moments.
+        assertEquals(
+            Decision.Hold(Reason.DAILY_CAP_REACHED),
+            decide(
+                entriesToday = listOf(entry()),
+                cuesToday = 2,
+                lastCueAt = now.minus(Duration.ofHours(9)),
+            ),
+        )
+    }
+
+    @Test
+    fun a_daily_cap_of_zero_suppresses_everything() {
+        assertEquals(
+            Decision.Hold(Reason.DAILY_CAP_REACHED),
+            decide(settings = settings.copy(thresholds = thresholds.copy(dailyCap = 0))),
+        )
+    }
+
+    @Test
+    fun holds_inside_the_cooldown_window() {
         assertEquals(
             Decision.Hold(Reason.IN_COOLDOWN),
-            decide(today = listOf(entry(occurredAt = recent))),
+            decide(lastCueAt = now.minus(Duration.ofMinutes(thresholds.cooldownMinutes - 1L))),
         )
     }
 
     @Test
-    fun `fires once the cooldown has cleared`() {
-        val cleared = now.minus(Duration.ofMinutes(thresholds.cooldownMinutes + 1L))
-        assertEquals(Decision.Fire, decide(today = listOf(entry(occurredAt = cleared))))
+    fun fires_once_the_cooldown_has_cleared() {
+        assertEquals(
+            Decision.Fire,
+            decide(lastCueAt = now.minus(Duration.ofMinutes(thresholds.cooldownMinutes + 1L))),
+        )
     }
 
     @Test
-    fun `cooldown survives midnight, when today is empty but a cue just fired`() {
-        // The 23:55 / 00:05 case. Before lastCueAt was passed separately this
+    fun cooldown_survives_midnight_when_today_is_empty_but_a_cue_just_fired() {
+        // The 23:55 / 00:05 case. Before lastCueAt was tracked separately this
         // fired, because the cooldown was derived from today's entries and
         // today had just rolled over.
         assertEquals(
             Decision.Hold(Reason.IN_COOLDOWN),
-            decide(today = emptyList(), lastCueAt = now.minus(Duration.ofMinutes(10))),
+            decide(entriesToday = emptyList(), lastCueAt = now.minus(Duration.ofMinutes(10))),
         )
     }
 
     @Test
-    fun `no previous cue anywhere means no cooldown`() {
-        assertEquals(Decision.Fire, decide(today = emptyList(), lastCueAt = null))
+    fun no_previous_cue_anywhere_means_no_cooldown() {
+        assertEquals(Decision.Fire, decide(lastCueAt = null))
     }
 
     @Test
-    fun `cooldown is measured from the most recent cue, not the first`() {
-        val entries = listOf(
-            entry(occurredAt = now.minus(Duration.ofHours(9))),
-            entry(occurredAt = now.minus(Duration.ofMinutes(5))),
-        )
-        assertEquals(
-            Decision.Hold(Reason.IN_COOLDOWN),
-            decide(thresholds = thresholds.copy(dailyCap = 5), today = entries),
-        )
-    }
-
-    @Test
-    fun `holds while a proposed time is still ahead of us`() {
-        val pending = entry(
-            resolution = Resolution.PROPOSED_LATER,
-            occurredAt = now.minus(Duration.ofHours(8)),
-            proposedTime = now.plus(Duration.ofHours(2)),
-        )
+    fun holds_while_a_plan_is_still_outstanding() {
         assertEquals(
             Decision.Hold(Reason.REMINDER_PENDING),
-            decide(thresholds = thresholds.copy(dailyCap = 5), today = listOf(pending)),
-        )
-    }
-
-    @Test
-    fun `a proposed time that has passed no longer suppresses`() {
-        val lapsed = entry(
-            resolution = Resolution.PROPOSED_LATER,
-            occurredAt = now.minus(Duration.ofHours(8)),
-            proposedTime = now.minus(Duration.ofHours(1)),
-        )
-        assertEquals(
-            Decision.Fire,
-            decide(thresholds = thresholds.copy(dailyCap = 5), today = listOf(lapsed)),
+            decide(hasPendingReminder = true),
         )
     }
 
     // --- stage 4: kairos --------------------------------------------------
 
     @Test
-    fun `holds while the user has only just stopped`() {
+    fun holds_while_the_user_has_only_just_stopped() {
         assertEquals(
             Decision.Hold(Reason.TRANSITION_UNSETTLED),
             decide(walkSignal(stillFor = CuePolicy.SETTLE.minusSeconds(1))),
@@ -192,36 +240,65 @@ class CuePolicyTest {
     }
 
     @Test
-    fun `fires the moment the settle window is met`() {
+    fun fires_the_moment_the_settle_window_is_met() {
         assertEquals(Decision.Fire, decide(walkSignal(stillFor = CuePolicy.SETTLE)))
+    }
+
+    @Test
+    fun a_dispatch_cue_has_no_transition_to_settle() {
+        val signal = Signal(
+            source = TriggerSource.DISPATCH,
+            activeMinutes = 0,
+            stillSince = now,
+        )
+        assertEquals(Decision.Fire, decide(signal))
     }
 
     // --- manual ------------------------------------------------------------
 
     @Test
-    fun `a manual request ignores threshold, suppression and settling`() {
-        val signal = Signal(
-            source = TriggerSource.MANUAL,
-            activeMinutes = 0,
-            stillSince = now,
+    fun a_manual_request_ignores_every_gate_including_the_off_switch() {
+        val signal = Signal(TriggerSource.MANUAL, activeMinutes = 0, stillSince = now)
+        assertEquals(
+            Decision.Fire,
+            decide(
+                signal,
+                settings = UserSettings(cuesEnabled = false),
+                entriesToday = listOf(
+                    entry(
+                        resolution = Resolution.CALLED,
+                        occurredAt = now.minus(Duration.ofMinutes(2)),
+                    ),
+                ),
+                cuesToday = 99,
+                hasPendingReminder = true,
+            ),
         )
-        val busyDay = listOf(
-            entry(resolution = Resolution.CALLED, occurredAt = now.minus(Duration.ofMinutes(2))),
-        )
-        assertEquals(Decision.Fire, decide(signal, today = busyDay))
     }
 
     // --- ordering ----------------------------------------------------------
 
     @Test
-    fun `threshold is reported before suppression when both would hold`() {
+    fun the_off_switch_is_reported_before_anything_else() {
+        assertEquals(
+            Decision.Hold(Reason.CUES_DISABLED),
+            decide(
+                walkSignal(activeMinutes = 1),
+                settings = settings.copy(cuesEnabled = false),
+                entriesToday = listOf(entry(resolution = Resolution.CALLED)),
+            ),
+        )
+    }
+
+    @Test
+    fun threshold_is_reported_before_suppression_when_both_would_hold() {
         // The handoff orders the stages 2 then 3, and the hold reason is the
         // main thing we will have to debug from, so the order is load-bearing.
         assertEquals(
             Decision.Hold(Reason.BELOW_THRESHOLD),
             decide(
                 walkSignal(activeMinutes = 1),
-                today = listOf(entry(resolution = Resolution.CALLED)),
+                entriesToday = listOf(entry(resolution = Resolution.CALLED)),
             ),
         )
     }
