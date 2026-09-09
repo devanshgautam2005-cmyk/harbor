@@ -1,0 +1,29 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# --- Harbour ---
+# Secrets. The service role key must never reach this repo.
+.env
+.env.local
+backend/.env
+
+# Supabase CLI local state
+backend/supabase/.branches
+backend/supabase/.temp
+
+# Build outputs
+*.apk
+*.aab

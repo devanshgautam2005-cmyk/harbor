@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Slack Tide — Product Handoff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #EEF1EA;
+    --paper-raised: #F7F9F4;
+    --ink: #1C2620;
+    --ink-soft: #4A564E;
+    --line: #C9D0C4;
+    --pass: #3E7D68;
+    --pass-bg: #DEEAE2;
+    --weak: #B2812B;
+    --weak-bg: #F1E5CA;
+    --fail: #AE4530;
+    --fail-bg: #F3DCD4;
+    --self: #3E6B8A;
+    --self-bg: #DCE6ED;
+    --neutral: #6B756C;
+    --neutral-bg: #E3E6DE;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  body { padding: 60px 24px 96px; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  .kicker { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); margin: 0 0 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .status {
+    font-family: var(--mono); font-size: 10.5px; color: var(--pass); background: var(--pass-bg);
+    padding: 3px 9px; border-radius: 20px;
+  }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 5vw, 45px); line-height: 1.08; margin: 0 0 16px; letter-spacing: -0.01em; }
+  .subhead { font-size: 17px; line-height: 1.55; color: var(--ink-soft); max-width: 66ch; margin: 0 0 40px; }
+
+  h2 { font-family: var(--serif); font-weight: 600; font-size: 24px; margin: 54px 0 6px; letter-spacing: -0.01em; }
+  h2 .num { color: var(--ink-soft); font-weight: 400; margin-right: 10px; }
+  h3 { font-family: var(--serif); font-weight: 600; font-size: 16.5px; margin: 0 0 6px; }
+  .section-intro { color: var(--ink-soft); font-size: 15px; line-height: 1.6; margin: 0 0 22px; max-width: 68ch; }
+
+  p.body-p { font-size: 15px; line-height: 1.7; max-width: 68ch; }
+
+  /* ---------- scope banner ---------- */
+  .scope { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .scope-col { background: var(--paper-raised); padding: 20px 22px; }
+  .scope-col h3 { font-size: 13px; font-family: var(--mono); font-weight: 500; text-transform: none; margin-bottom: 12px; }
+  .scope-col.in h3 { color: var(--pass); }
+  .scope-col.out h3 { color: var(--ink-soft); }
+  .scope-col ul { margin: 0; padding-left: 18px; }
+  .scope-col li { font-size: 14px; line-height: 1.6; margin-bottom: 6px; }
+  .scope-col.out li { color: var(--ink-soft); }
+
+  /* ---------- pipeline spec table ---------- */
+  table.spec { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
+  table.spec th {
+    font-family: var(--mono); font-weight: 500; font-size: 11px; color: var(--ink-soft);
+    text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--ink);
+  }
+  table.spec td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+  table.spec tr:last-child td { border-bottom: none; }
+  table.spec .stage-name { font-family: var(--serif); font-weight: 600; font-size: 14.5px; white-space: nowrap; }
+
+  /* ---------- feasibility table ---------- */
+  table.feas { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 10px; }
+  table.feas th {
+    font-family: var(--mono); font-weight: 500; font-size: 11px; color: var(--ink-soft);
+    text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--ink);
+  }
+  table.feas td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.55; }
+  table.feas tr:last-child td { border-bottom: none; }
+  table.feas .signal-name { font-weight: 600; font-size: 14px; }
+  .flag { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 20px; margin-bottom: 6px; }
+  .flag.ok { color: var(--pass); background: var(--pass-bg); }
+  .flag.caution { color: var(--weak); background: var(--weak-bg); }
+  .flag.blocked { color: var(--fail); background: var(--fail-bg); }
+
+  /* ---------- schema blocks ---------- */
+  .schema {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 18px 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    margin-bottom: 18px;
+  }
+  .schema .comment { color: var(--ink-soft); }
+  .schema-label { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); margin-bottom: 6px; }
+
+  /* ---------- checklist ---------- */
+  .checklist { list-style: none; margin: 0 0 8px; padding: 0; }
+  .checklist li {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; line-height: 1.5;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist .box {
+    width: 15px; height: 15px; border: 1.5px solid var(--ink-soft); border-radius: 3px; flex-shrink: 0; margin-top: 2px;
+  }
+
+  /* ---------- guardrails ---------- */
+  .guardrails { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .g-col { background: var(--paper-raised); padding: 18px 20px; }
+  .g-col h3 { font-family: var(--mono); font-size: 12px; font-weight: 500; margin-bottom: 10px; }
+  .g-col.do h3 { color: var(--pass); }
+  .g-col.dont h3 { color: var(--fail); }
+  .g-col ul { margin: 0; padding-left: 16px; }
+  .g-col li { font-size: 13.5px; line-height: 1.55; margin-bottom: 7px; }
+
+  /* ---------- open questions ---------- */
+  .q-row {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--weak);
+    background: var(--paper-raised);
+    border-radius: 2px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .q-row b { font-family: var(--serif); font-size: 15px; display: block; margin-bottom: 4px; }
+
+  /* ---------- phasing ---------- */
+  .phase-lane { display: flex; gap: 14px; margin-bottom: 10px; align-items: flex-start; }
+  .phase-tag {
+    font-family: var(--mono); font-size: 11.5px; color: var(--paper-raised);
+    background: var(--ink); padding: 4px 10px; border-radius: 3px; white-space: nowrap; flex-shrink: 0; margin-top: 2px;
+  }
+  .phase-lane.v02 .phase-tag { background: var(--self); }
+  .phase-lane.v03 .phase-tag { background: var(--neutral); }
+  .phase-desc { font-size: 14.5px; line-height: 1.6; }
+
+  /* ---------- deps ---------- */
+  .dep-row { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.55; }
+  .dep-row:last-child { border-bottom: none; }
+  .dep-name { font-family: var(--serif); font-weight: 600; width: 170px; flex-shrink: 0; }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    line-height: 1.8;
+  }
+
+  @media (max-width: 620px) {
+    .scope, .guardrails { grid-template-columns: 1fr; }
+    .dep-row { flex-direction: column; gap: 4px; }
+    .dep-name { width: auto; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <p class="kicker">harbor — calling parents from college <span class="status">ready to build · v0.1</span></p>
+    <h1>Slack Tide: product handoff</h1>
+    <p class="subhead">The activity-triggered cue, specced for engineering — pipeline, data requirements, screens, guardrails, and where the real platform risk sits. Written for whoever picks this up next, not just the design side.</p>
+
+    <h2><span class="num">1</span>Scope</h2>
+    <div class="scope">
+      <div class="scope-col in">
+        <h3>in scope for this handoff</h3>
+        <ul>
+          <li>The Slack Tide trigger pipeline (Sensing → Logged)</li>
+          <li>Walking-based trigger, Android-first</li>
+          <li>Three-way resolution screen</li>
+          <li>User-set threshold calibration</li>
+          <li>Reward readout + one-tap feedback pulse</li>
+          <li>Ledger write into existing Dispatch/Jar systems</li>
+        </ul>
+      </div>
+      <div class="scope-col out">
+        <h3>explicitly not in this handoff</h3>
+        <ul>
+          <li>The Dispatch content pipeline itself (Bottle/Headline/Tide Mail — already specced separately)</li>
+          <li>Parent-side screens</li>
+          <li>Harvest Visualiser, Beacon, Wrapped builds</li>
+          <li>The other three queued Signal-layer concepts</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2><span class="num">2</span>Context, briefly</h2>
+    <p class="body-p">Slack Tide is a trigger source, not a standalone feature. It watches for a personal "slack tide" — the still moment after walking stops or a scroll session ends — and uses it to surface a low-friction, three-way prompt to call a parent. It feeds the same Logged ledger the rest of Harbor's Dispatch pipeline already writes to. Full design rationale and gate analysis live in the two earlier documents (signal-check, slack-tide-pipeline); this doc is the buildable version of that thinking.</p>
+
+    <h2><span class="num">3</span>Pipeline spec</h2>
+    <p class="section-intro">Nine stages. Ability/Timing gates are already handled by design; this table exists to make each stage's input and output explicit for implementation.</p>
+    <table class="spec">
+      <tr><th>Stage</th><th>Trigger / input</th><th>What it does</th><th>Writes / outputs</th></tr>
+      <tr><td class="stage-name">1 · Sensing</td><td>OS activity signal</td><td>Passively listens for a walking→still transition or an app-session end. No UI.</td><td>Raw event, in-memory only</td></tr>
+      <tr><td class="stage-name">2 · Threshold check</td><td>Sensing event</td><td>Compares elapsed time against the user's own calibrated sensitivity, not a fixed default.</td><td>Pass/fail against UserThresholds</td></tr>
+      <tr><td class="stage-name">3 · Suppression check</td><td>Threshold pass</td><td>Reads today's ledger — skip if already contacted, a reminder is pending, or cooldown hasn't cleared.</td><td>Read from ledger</td></tr>
+      <tr><td class="stage-name">4 · Kairos refinement</td><td>Suppression pass</td><td>Confirms the transition is complete (fully stopped, session actually ended) before firing.</td><td>Fire/hold decision</td></tr>
+      <tr><td class="stage-name">5 · Cue surface</td><td>Kairos fire</td><td>Shows the personalized sound + screen. Always dismissible. States the privacy boundary on-screen.</td><td>UI shown</td></tr>
+      <tr><td class="stage-name">6 · Resolution</td><td>User response</td><td>Call now / react / propose later — equal visual weight, no default.</td><td>Resolution value</td></tr>
+      <tr><td class="stage-name">7 · Reward</td><td>Any resolution</td><td>Shows the "caught it" readout, rotates flavor (Jar fill / Wrapped clip / readout only).</td><td>UI shown</td></tr>
+      <tr><td class="stage-name">8 · Investment</td><td>After reward</td><td>One-tap good time / bad time pulse; captures a proposed-later time if given.</td><td>Feedback value</td></tr>
+      <tr><td class="stage-name">9 · Logged</td><td>Investment complete</td><td>Writes the full entry to the shared ledger. Retrains stage 4, seeds stage 3's next check.</td><td>LedgerEntry</td></tr>
+    </table>
+
+    <h2><span class="num">4</span>Platform &amp; data feasibility</h2>
+    <p class="section-intro">This is the part worth reading before estimating. Two things named in the original concept need a substitution or a spike before they're buildable as described.</p>
+
+    <table class="feas">
+      <tr><th>Signal</th><th>Android</th><th>iOS</th></tr>
+      <tr>
+        <td class="signal-name">Walking → still</td>
+        <td><span class="flag ok">buildable now</span><br>Activity Recognition Transition API (Google Play services location/activity APIs). This is a separate API from Google Fit — not affected by the Fit shutdown.</td>
+        <td><span class="flag ok">buildable now</span><br>Core Motion's activity manager gives the same walking/stationary detection natively, no third-party dependency.</td>
+      </tr>
+      <tr>
+        <td class="signal-name">"Google Fit" as named in the concept</td>
+        <td colspan="2"><span class="flag blocked">do not build against this</span><br>Google is retiring the Google Fit APIs (including the REST API) by end of 2026; new sign-ups have been closed since May 2024. The walking signal above doesn't actually need Fit at all — the Activity Recognition Transition API is independent of it. If step-history data is wanted elsewhere in Harbor later, that's Health Connect (Android 14+), a separate build.</td>
+      </tr>
+      <tr>
+        <td class="signal-name">App-session-length proxy (Instagram stand-in)</td>
+        <td><span class="flag ok">straightforward</span><br>UsageStatsManager reads per-app foreground time directly in-app.</td>
+        <td><span class="flag caution">needs a spike</span><br>DeviceActivity (FamilyControls extension) can fire a threshold callback ("Instagram used N minutes") without exposing raw usage to the main app — good enough for a trigger. But it requires the user to hand-pick the app via an opaque token, needs a separate extension target, and documented reports show monitoring schedules degrading past ~45 minutes and under thermal load. Needs its own fallback before it's reliable enough to ship.</td>
+      </tr>
+      <tr>
+        <td class="signal-name">Literal reel-watch count</td>
+        <td colspan="2"><span class="flag blocked">not exposed</span><br>Instagram/Meta has no public API surface for reel-consumption counts on either platform. Session duration is the real substitute, not a temporary one.</td>
+      </tr>
+    </table>
+
+    <h2><span class="num">5</span>Data model</h2>
+    <div class="schema-label">shared ledger entry — written at stage 9, read by stage 3 and by Jar/Wrapped</div>
+    <div class="schema">LedgerEntry {
+  user_id: string
+  date: "YYYY-MM-DD"
+  trigger_source: "walking_stop" | "session_end" | "manual"
+  threshold_snapshot: { walking_minutes: number, session_minutes: number }
+  resolution: "called" | "reacted" | "proposed_later" | "dismissed"
+  proposed_time: timestamp | null
+  feedback_pulse: "good_time" | "bad_time" | null
+  reward_shown: "readout" | "jar_fill" | "wrapped_clip" | null
+}</div>
+
+    <div class="schema-label">per-user settings — editable any time, not just at onboarding</div>
+    <div class="schema">UserThresholds {
+  walking_minutes: number    <span class="comment">// user-calibrated; ship a suggested default, never lock it</span>
+  session_minutes: number
+  daily_cap: number          <span class="comment">// guardrail — max cues per day</span>
+  cooldown_minutes: number   <span class="comment">// guardrail — min gap between cues</span>
+}</div>
+
+    <h2><span class="num">6</span>Screens needed for MVP</h2>
+    <ul class="checklist">
+      <li><span class="box"></span>Permission &amp; privacy explainer — shown before requesting activity/usage-access permission; states plainly that data stays on-device and is never shared with a parent</li>
+      <li><span class="box"></span>Threshold calibration — first-run default, editable later from settings</li>
+      <li><span class="box"></span>Cue sound picker — parent's ringtone or a chosen song</li>
+      <li><span class="box"></span>Cue surface — full-screen, always dismissible in one gesture</li>
+      <li><span class="box"></span>Resolution screen — call now / react / propose later, equal weight</li>
+      <li><span class="box"></span>Reward moment — inline, not a separate screen; three visual variants (readout / Jar fill / Wrapped clip)</li>
+      <li><span class="box"></span>Feedback pulse — one tap, shown once per resolution</li>
+      <li><span class="box"></span>Settings — edit thresholds, sound, view current cap/cooldown</li>
+    </ul>
+
+    <h2><span class="num">7</span>Guardrails</h2>
+    <p class="section-intro">Non-negotiables carried over from the design rationale — these aren't style preferences, each one maps to a specific gate risk from the earlier audit.</p>
+    <div class="guardrails">
+      <div class="g-col do">
+        <h3>do</h3>
+        <ul>
+          <li>Keep a real, no-cost dismiss on every cue surface</li>
+          <li>Let the user set their own threshold</li>
+          <li>Cap daily frequency and suppress once logged</li>
+          <li>Fire only on the stop transition, never mid-activity</li>
+          <li>State the privacy boundary on the cue screen itself</li>
+        </ul>
+      </div>
+      <div class="g-col dont">
+        <h3>don't</h3>
+        <ul>
+          <li>Force a binary choice (no true opt-out)</li>
+          <li>Hardcode a threshold as a product default</li>
+          <li>Share activity data with a parent, ever</li>
+          <li>Use streak mechanics or a breakable chain</li>
+          <li>Make the reward random rather than varying-but-guaranteed</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2><span class="num">8</span>Open questions for engineering</h2>
+
+    <div class="q-row">
+      <b>iOS session-trigger reliability</b>
+      Run a feasibility spike on DeviceActivity threshold callbacks specifically past the ~45-minute mark and under thermal throttling before committing the session-based trigger to any release.
+    </div>
+    <div class="q-row">
+      <b>Android walking-data architecture</b>
+      Decide whether Health Connect is needed at all for Slack Tide, or whether the Activity Recognition Transition API alone is sufficient — Health Connect only matters if step history is wanted elsewhere in Harbor.
+    </div>
+    <div class="q-row">
+      <b>Permission consent copy</b>
+      Activity and usage-access permissions read as sensitive to most people; the explainer screen's copy needs a privacy pass before this ships, not after.
+    </div>
+    <div class="q-row">
+      <b>Degraded mode</b>
+      If activity/usage permission is denied or revoked, does Slack Tide fall back to a manual context-prompt version, or switch off entirely? Needs a decision, not a default arrived at by omission.
+    </div>
+
+    <h2><span class="num">9</span>Phasing</h2>
+
+    <div class="phase-lane v01">
+      <div class="phase-tag">v0.1 — mvp</div>
+      <div class="phase-desc">Android only. Walking-stop trigger only — skip the session-based trigger entirely for this release, since it's the platform-harder half. Full three-way resolution, user-set threshold, frequency cap, feedback pulse, reward readout. Logged into existing Dispatch/Jar.</div>
+    </div>
+    <div class="phase-lane v02">
+      <div class="phase-tag">v0.2</div>
+      <div class="phase-desc">Add the app-session trigger — Android via UsageStatsManager first (straightforward), iOS gated behind the DeviceActivity spike above.</div>
+    </div>
+    <div class="phase-lane v03">
+      <div class="phase-tag">v0.3</div>
+      <div class="phase-desc">iOS walking trigger via Core Motion. Opt-in Tribe reward layer. Wrapped-clip reward variant.</div>
+    </div>
+
+    <h2><span class="num">10</span>Dependencies on existing Harbor systems</h2>
+    <div class="dep-row"><div class="dep-name">Dispatch ledger</div><div>Slack Tide writes to the same Logged store Dispatch already uses — no new ledger to stand up.</div></div>
+    <div class="dep-row"><div class="dep-name">Jar of Happiness</div><div>Reads reward_shown events to fill; needs to accept a new event source.</div></div>
+    <div class="dep-row"><div class="dep-name">Wrapped</div><div>Reads the same ledger for its periodic highlight reel; no changes needed on its side.</div></div>
+    <div class="dep-row"><div class="dep-name">One-tap feedback pulse UI</div><div>Reused component from elsewhere in Harbor — should not be rebuilt for this.</div></div>
+
+    <footer>
+      source: signal-check.html · slack-tide-pipeline.html · harbor-information-architecture · harbor-design-rationale · unmet-need-diagnosis-survey-validated<br>
+      platform research: developer.android.com (Activity Recognition Transition API, Health Connect / Google Fit migration guide) · developers.google.com/fit (deprecation notice) · Apple DeviceActivity developer reports, 2026
+    </footer>
+
+  </div>
+</body>
+</html>

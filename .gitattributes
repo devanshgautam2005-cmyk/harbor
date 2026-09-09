@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Must stay LF or the Linux CI runner cannot execute it.
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+*.png  binary
+*.webp binary
+*.jar  binary
+*.apk  binary
