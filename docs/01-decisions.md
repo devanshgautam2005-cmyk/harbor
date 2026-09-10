@@ -46,10 +46,26 @@ telecom role (`ROLE_DIALER`), which Harbor can request directly.
 
 ### What we build instead
 
-`Intent(Intent.ACTION_CALL)` with the contact's number, plus a
-`TelephonyCallback` on call state to detect when the call ends so stage 7
-(the reward readout) can fire. `CALL_PHONE` + `READ_PHONE_STATE` permissions.
-No dialer role, no in-call UI to own, no fork.
+**Amended 2026-09-10.** Harbor hands off to the phone's own dialer and asks
+the user how it went. `Intent(Intent.ACTION_DIAL)` with the contact's number
+opens the dialer with it filled in; the user presses the call button
+themselves.
+
+This needs **no permissions at all**, and that is the point of the amendment.
+The earlier version of this ADR specified `ACTION_CALL` plus a
+`TelephonyCallback` to detect call-end, which would have cost two dangerous
+permissions — `CALL_PHONE` and `READ_PHONE_STATE`. Activity recognition is
+already the biggest install-funnel risk in the product; putting a
+phone-and-call-log prompt beside it is the worst possible place to spend more
+of the user's trust.
+
+Stage 7 fires on the user's own answer instead of on a detected call end. The
+prototype already works this way: choosing "Call now" leads to a **"Mark call
+completed"** button rather than anything automatic. So this costs no design
+change either — it is the prototype's behaviour, and the earlier plan was the
+divergence.
+
+No dialer role, no in-call UI to own, no fork, no `ROLE_DIALER`.
 
 ### Open-source call apps evaluated
 
@@ -60,9 +76,19 @@ No dialer role, no in-call UI to own, no fork.
 | [Jami](https://f-droid.org/en/packages/cx.ring/) | GPLv3 | Peer-to-peer, no server to run — genuinely nice, but still needs Jami on the parent's phone |
 | [Fossify Phone](https://f-droid.org/en/packages/org.fossify.phone/) | GPLv3 | A real open-source *dialer* (Kotlin, actively maintained, Simple-Mobile-Tools successor). This is the one to fork **if** we later decide Harbor should own the in-call screen. Not needed to merely place a call |
 
+### What it costs
+
+A call is **self-reported**, not verified. Someone can tap "Call now", never
+press dial, and still mark it completed. For the week-one study that is
+acceptable — the resolution the user chose is itself the interesting signal,
+and the feedback pulse was always self-reported — but it means `called` counts
+should be described as "reported a call", not "made a call". Noted in
+docs/03-week-one-study.md.
+
 **Revisit this ADR if** the product ever needs to own the in-call experience
-(a during-call UI, a call recording, a custom ringback). Then Fossify Phone is
-the starting point and GPLv3 becomes the licence conversation.
+(a during-call UI, a call recording, a custom ringback), or if verified call
+completion becomes worth two permissions. Then Fossify Phone is the starting
+point and GPLv3 becomes the licence conversation.
 
 ---
 

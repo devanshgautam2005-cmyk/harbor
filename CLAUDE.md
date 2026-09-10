@@ -40,8 +40,14 @@ docs/                 product, decisions, study protocol, original handoff.
 - **Do not build against Google Fit.** It is being retired. The walking signal
   is the Activity Recognition Transition API, which is a different API.
   (ADR-005.)
-- **Do not fork Signal / Linphone / Jami to place the call.** The parent
-  installs nothing; the call is a plain cellular call. (ADR-002.)
+- **Do not fork Signal / Linphone / Jami to place the call.** Harbor is
+  standalone. The parent installs nothing, and the call is a plain cellular
+  one placed by the phone's own dialer. (ADR-002.)
+- **Do not add `CALL_PHONE` or `READ_PHONE_STATE`.** Harbor hands off with
+  `ACTION_DIAL` and asks the user whether the call happened, which needs no
+  permission. Activity recognition is already the biggest funnel risk; a
+  phone-and-call-log prompt beside it is the worst place to spend more trust.
+  (ADR-002, amended.)
 
 ## Working here
 

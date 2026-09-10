@@ -59,8 +59,10 @@ measures, and every other screen can be demoed by hand if the week runs short.
    the single biggest install-funnel risk, and I wrote it, not a designer.
 5. **Cue surface + resolution + reward readout + feedback pulse.** The first
    end-to-end path: a cue fires, the user answers, a row is written.
-6. **The call itself.** `ACTION_CALL` plus a `TelephonyCallback` to detect
-   call end so the reward can fire (ADR-002).
+6. **The call itself.** `ACTION_DIAL` hands off to the phone's dialer with the
+   number filled in; the user presses call. Completion is self-reported via a
+   "Mark call completed" button, exactly as the prototype does it. No
+   permissions (ADR-002).
 7. **Settings + calibration + contacts + cue sounds.** Everything the user is
    supposed to be able to change about the above.
 8. **Home / Inbox, Garden and the Jar.** Where a logged moment goes to live.
