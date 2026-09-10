@@ -67,8 +67,10 @@ measures, and every other screen can be demoed by hand if the week runs short.
    number filled in; the user presses call. Completion is self-reported via a
    "Mark call completed" button, exactly as the prototype does it. No
    permissions (ADR-002).
-7. **Settings + calibration + contacts + cue sounds.** Everything the user is
-   supposed to be able to change about the above.
+7. **Settings + calibration + contacts + cue sounds.** Partly done:
+   `ui/ContactScreen` covers the person, their number, their ringtone and
+   their photo — the parts the cue depends on. Threshold calibration, the
+   global sound and "what counts as enough" are still missing.
 8. **Home / Inbox, Garden and the Jar.** Where a logged moment goes to live.
    Without this the reward stage is a dead end.
 9. **Conversation and Harvest, reshaped.** One-sided notes, self-entered

@@ -49,10 +49,15 @@ import kotlinx.coroutines.launch
  * true, this copy is the first thing that has to change — see ADR-004.
  */
 @Composable
-fun CuesSetupScreen(store: HarborRepository, modifier: Modifier = Modifier) {
+fun CuesSetupScreen(
+    store: HarborRepository,
+    onEditContact: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val settings by store.settings.collectAsState()
+    val contact by store.contacts.collectAsState()
 
     var hasPermission by remember { mutableStateOf(ActivityTransitions.hasPermission(context)) }
     var refused by remember { mutableStateOf(false) }
@@ -139,6 +144,26 @@ fun CuesSetupScreen(store: HarborRepository, modifier: Modifier = Modifier) {
                         "off whenever you like.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+            }
+        }
+
+        // Without someone to call, a cue can only say "someone at home" and
+        // cannot dial. Worth surfacing before the switch, not after.
+        val who = contact.firstOrNull()
+        Card(Modifier.fillMaxWidth()) {
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Who you would call", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    who?.let { "${it.label} — ${it.phoneE164}" }
+                        ?: "Nobody yet. A cue needs someone to be about.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedButton(onClick = onEditContact) {
+                    Text(if (who == null) "Choose someone" else "Change")
+                }
             }
         }
 

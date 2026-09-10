@@ -161,9 +161,13 @@ Done:
   posts it with a full-screen intent and degrades gracefully; `Ringer` loops
   the contact's sound. See ADR-009.
 
-Not built yet: the other screens, contact and sound pickers, and Supabase
-sync. There is no way to *add* a contact yet, so a cue currently says
-"someone at home" and cannot dial.
+- `ui/ContactScreen` — who the cue is about: name, number, ringtone, photo.
+  No permissions: the system ringtone picker, `ACTION_GET_CONTENT` for the
+  image, and a copy into app storage. Do not "improve" this with
+  `READ_CONTACTS`.
+
+Not built yet: threshold calibration, the Garden/Jar, the other prototype
+screens, and Supabase sync.
 
 **The explainer's copy is a promise the code has to keep.** Every claim on
 that screen — movement never leaves the phone, nothing shared with family,
