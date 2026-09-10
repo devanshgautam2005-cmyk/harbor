@@ -14,6 +14,7 @@ import app.harbor.domain.Thresholds
 import app.harbor.domain.Tone
 import app.harbor.domain.TriggerSource
 import app.harbor.domain.UserSettings
+import app.harbor.domain.Weather
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.DayOfWeek
@@ -54,6 +55,7 @@ internal object LedgerJson {
     fun settings(s: UserSettings): JSONObject = thresholds(s.thresholds)
         .put("cues_enabled", s.cuesEnabled)
         .put("sound", s.sound.wire)
+        .put("weather", s.weather.wire)
         .put("reduced_motion", s.reducedMotion)
 
     fun settings(o: JSONObject): UserSettings = UserSettings(
@@ -61,6 +63,8 @@ internal object LedgerJson {
         cuesEnabled = o.optBoolean("cues_enabled", false),
         sound = o.optStringOrNull("sound")
             ?.let { CueSound.entries.fromWire(it) } ?: CueSound.CHIME,
+        weather = o.optStringOrNull("weather")
+            ?.let { Weather.entries.fromWire(it) } ?: Weather.CLEAR,
         reducedMotion = o.optBoolean("reduced_motion", false),
     )
 

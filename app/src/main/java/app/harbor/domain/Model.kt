@@ -169,6 +169,14 @@ data class UserSettings(
 
     val sound: CueSound = CueSound.CHIME,
 
+    /**
+     * How life feels at the moment. The user sets it; nothing infers it.
+     *
+     * Weather rather than a rating, because weather happens to you and
+     * passes — a kinder frame for a hard week than a number would be.
+     */
+    val weather: Weather = Weather.CLEAR,
+
     val reducedMotion: Boolean = false,
 )
 
