@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -383,7 +382,6 @@ private fun Resolved(
         Text("Thank you — that helps.", style = MaterialTheme.typography.bodyMedium)
     }
 
-    Spacer(Modifier.weight(1f, fill = false))
     Spacer(Modifier.size(24.dp))
     TextButton(onClick = onDone) { Text("Back to my day") }
 }
