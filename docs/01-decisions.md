@@ -266,3 +266,75 @@ either — those OEMs kill those too. This remains the single largest threat to
 the week-one study, and it fails *silently*: the data just looks like a user
 who never walked. Test on a real MIUI device before recruiting, not on the
 emulator.
+
+---
+
+## ADR-009 — The cue is call-shaped: full screen, her ringtone, her photo
+
+**Status:** accepted (2026-09-10)
+
+### Decision
+
+The cue surface is a full-screen activity with the contact's photo, their
+name, and the sound the user chose for them — their actual ringtone, or a song
+that reminds the user of them. It has the weight and presence of an incoming
+call.
+
+### Why, and why it is not decoration
+
+The sound is the mechanism, not the styling. A generic notification chime
+carries no association with anyone; a mother's ringtone carries years of it.
+The cue is trying to borrow a conditioned response that already exists, so
+that the prompt lands as *her* rather than as the app. That is the whole
+argument for a call-shaped surface, and it is why a quiet heads-up
+notification is not an equivalent implementation of the same idea.
+
+This is also what the original handoff specified — "Cue surface — full-screen,
+always dismissible" and "Cue sound picker — parent's ringtone or a chosen
+song".
+
+### It evokes a call. It never claims to be one.
+
+The surface must never present as an incoming call from the contact. No
+"Mom is calling", no green-and-red answer/decline pair, no mimicry of the
+system call UI.
+
+A student a long way from home who believes their mother is unexpectedly
+calling will assume an emergency. One such scare and that participant's
+week-one data describes their alarm rather than our trigger — and the product
+has spent trust it cannot earn back. The conditioned response works from the
+sound, the photo and the presence; none of it requires the lie.
+
+So: her ringtone, her face, full-screen weight, and Harbor's own voice asking
+whether now is a good moment.
+
+### Platform reality
+
+`USE_FULL_SCREEN_INTENT` is restricted from Android 14 to apps whose core
+function is calling or alarms. Harbor hands off to the dialer rather than
+placing calls (ADR-002), so that classification is genuinely arguable rather
+than obvious, and Play review may disagree.
+
+The failure mode is graceful: an ungranted full-screen intent **degrades to a
+heads-up notification** rather than failing. So we request it, and treat the
+heads-up notification as the designed fallback rather than an error path. The
+cue still rings, still shows the photo in the notification, and still opens
+the full surface when tapped.
+
+Never treat a missing full-screen permission as a reason to suppress the cue.
+
+### Permission cost, kept deliberately small
+
+- `POST_NOTIFICATIONS` — one runtime prompt, API 33+. Unavoidable.
+- `USE_FULL_SCREEN_INTENT` — requested through a settings screen, degrades if
+  refused.
+- Photo: the system photo picker, which needs **no** permission. Do not read
+  the contact's photo via `READ_CONTACTS` — a contacts permission next to the
+  activity one would cost far more trust than a picked photo is worth.
+- Sound: `RingtoneManager`'s picker, which needs **no** permission.
+
+### Dismissal
+
+One gesture, no cost, no penalty, exactly as before. Back dismisses. The
+ringtone stops the moment the surface is dismissed by any route. A dismissed
+cue writes a `dismissed` ledger entry and nothing else happens.

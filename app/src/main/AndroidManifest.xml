@@ -17,6 +17,19 @@
     <!-- Re-register transition updates after a reboot; they do not survive it. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- The cue itself. POST_NOTIFICATIONS is a runtime prompt on API 33+. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      Android 14 restricts this to calling and alarm apps, and Harbor hands off
+      to the dialer rather than placing calls, so it may not be granted. That
+      is survivable: the system degrades a full-screen intent to a heads-up
+      notification, which still rings with the contact's sound and still opens
+      the surface when tapped. Never treat a refusal as a reason to suppress
+      the cue. See ADR-009.
+    -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -38,6 +51,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          The cue surface. Its own task and excluded from recents: it is a
+          moment, not a place you navigate back to. Showing over the lock
+          screen is set in code, so it can be version-guarded.
+        -->
+        <activity
+            android:name=".cue.CueActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:taskAffinity=".cue"
+            android:theme="@style/Theme.Harbor" />
 
         <!--
           Google Play services delivers activity transitions here via a

@@ -162,6 +162,15 @@ data class Contact(
     val kind: ContactKind = ContactKind.PERSON,
     /** Overrides [UserSettings.sound] for this person. Null = use the default. */
     val cueSoundRef: String? = null,
+
+    /**
+     * A picked photo shown on the cue surface, as a device-local URI.
+     *
+     * Their face is half of what makes the cue land as *them* rather than as
+     * an app (ADR-009). Picked with the system photo picker rather than read
+     * from their contact entry, so it costs no permission.
+     */
+    val photoRef: String? = null,
 ) {
     init {
         require(kind == ContactKind.GROUP || phoneE164 != null) {

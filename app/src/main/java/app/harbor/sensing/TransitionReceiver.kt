@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import app.harbor.cue.CueNotifier
 import app.harbor.data.HarborStore
 import app.harbor.domain.Cue
 import app.harbor.domain.CuePolicy
@@ -75,11 +76,15 @@ class TransitionReceiver : BroadcastReceiver() {
             sensing.state = step.state
 
             val signal = step.signal ?: continue
-            considerCue(store, signal)
+            considerCue(context, store, signal)
         }
     }
 
-    private suspend fun considerCue(store: HarborStore, signal: CuePolicy.Signal) {
+    private suspend fun considerCue(
+        context: Context,
+        store: HarborStore,
+        signal: CuePolicy.Signal,
+    ) {
         val now = Instant.now()
         val today = now.atZone(ZoneId.systemDefault()).toLocalDate()
 
@@ -104,11 +109,12 @@ class TransitionReceiver : BroadcastReceiver() {
             triggerSource = signal.source,
             firedAt = now,
         )
+        // Recorded before it is shown, so the daily cap counts it even if the
+        // process dies between here and the surface appearing. The surface
+        // records only the resolution, never a second cue.
         store.recordCue(cue)
 
-        // TODO(build-order item 5): surface the cue. Recording it here already
-        //  spends one of the user's daily allowance, so the surface must not
-        //  record a second one when it lands.
+        CueNotifier.post(context, cue, store.contacts.value.firstOrNull())
         Log.i(TAG, "cue fired: ${cue.id} after ${signal.activeMinutes} min")
     }
 

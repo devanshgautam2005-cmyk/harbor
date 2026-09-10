@@ -2,6 +2,7 @@ package app.harbor.ui
 
 import android.Manifest
 import android.content.Context
+import android.os.Build
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -58,8 +59,12 @@ fun CuesSetupScreen(store: HarborRepository, modifier: Modifier = Modifier) {
     var failed by remember { mutableStateOf(false) }
 
     val request = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        // Activity recognition is the one that decides whether sensing can run
+        // at all. Notifications are asked for in the same breath because a cue
+        // nobody can see is not a cue, but refusing them does not stop sensing.
+        val granted = results[Manifest.permission.ACTIVITY_RECOGNITION] ?: hasPermission
         hasPermission = granted
         refused = !granted
         if (granted) {
@@ -70,12 +75,20 @@ fun CuesSetupScreen(store: HarborRepository, modifier: Modifier = Modifier) {
     fun turnOn() {
         failed = false
         refused = false
-        if (hasPermission) {
+
+        val wanted = buildList {
+            if (!hasPermission) add(Manifest.permission.ACTIVITY_RECOGNITION)
+            // API 33+ only. Without it the cue is posted and silently dropped,
+            // which looks exactly like a trigger that never fired.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        if (wanted.isEmpty()) {
             scope.launch { failed = !Sensing.enable(context, store) }
         } else {
-            // Below API 29 there is no runtime permission to ask for, so this
-            // branch is unreachable there — hasPermission is already true.
-            request.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+            request.launch(wanted.toTypedArray())
         }
     }
 

@@ -70,6 +70,7 @@ internal object LedgerJson {
         .put("phone_e164", c.phoneE164)
         .put("kind", c.kind.wire)
         .put("cue_sound_ref", c.cueSoundRef)
+        .put("photo_ref", c.photoRef)
 
     fun contact(o: JSONObject): Contact = Contact(
         id = UUID.fromString(o.getString("id")),
@@ -78,6 +79,7 @@ internal object LedgerJson {
         kind = o.optStringOrNull("kind")
             ?.let { ContactKind.entries.fromWire(it) } ?: ContactKind.PERSON,
         cueSoundRef = o.optStringOrNull("cue_sound_ref"),
+        photoRef = o.optStringOrNull("photo_ref"),
     )
 
     fun contacts(array: JSONArray): List<Contact> =

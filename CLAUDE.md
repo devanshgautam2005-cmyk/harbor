@@ -157,8 +157,13 @@ Done:
   `cues_enabled: true` — which is only written when Play services actually
   accepts the transition registration, so that path is proven too.
 
-Not built yet: the cue surface, the other screens, the call itself, and
-Supabase sync.
+- `cue/` — stages 5-9. `CueActivity` is the call-shaped surface; `CueNotifier`
+  posts it with a full-screen intent and degrades gracefully; `Ringer` loops
+  the contact's sound. See ADR-009.
+
+Not built yet: the other screens, contact and sound pickers, and Supabase
+sync. There is no way to *add* a contact yet, so a cue currently says
+"someone at home" and cannot dial.
 
 **The explainer's copy is a promise the code has to keep.** Every claim on
 that screen — movement never leaves the phone, nothing shared with family,
@@ -181,6 +186,13 @@ Two things to know before touching the pipeline:
 - The prototype is pinned at a commit, not tracked live. See
   `docs/02-ui-reconciliation.md` before assuming its current `main` is the
   spec.
+- **The cue evokes a call; it must never claim to be one.** No "Mom is
+  calling", no answer/decline pair, no mimicry of the system call UI. A
+  student who thinks their mother is unexpectedly ringing assumes an
+  emergency. (ADR-009.)
+- The feedback pulse **amends** the cue's ledger entry rather than writing a
+  second one — the entry id is generated once and reused, which makes `append`
+  an idempotent replace.
 - Cues are **off by default** and stay off until the user turns them on behind
   a privacy explainer. Any code path that could flip that on without an
   explicit user action is a bug.

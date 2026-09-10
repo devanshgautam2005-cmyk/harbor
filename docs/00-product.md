@@ -57,8 +57,12 @@ measures, and every other screen can be demoed by hand if the week runs short.
    cues on. It reports paused rather than on when the permission has been
    revoked behind the app's back. The copy still wants a human pass — it is
    the single biggest install-funnel risk, and I wrote it, not a designer.
-5. **Cue surface + resolution + reward readout + feedback pulse.** The first
-   end-to-end path: a cue fires, the user answers, a row is written.
+5. ~~**Cue surface + resolution + reward readout + feedback pulse.**~~ —
+   written, not yet seen fire. `cue/CueActivity` is full-screen, over the lock
+   screen, with the contact's photo and their ringtone (ADR-009).
+   `cue/CueNotifier` posts it and degrades to a heads-up notification where
+   the full-screen permission is refused. Stages 5-9 complete: a cue fires,
+   the user answers, a row is written.
 6. **The call itself.** `ACTION_DIAL` hands off to the phone's dialer with the
    number filled in; the user presses call. Completion is self-reported via a
    "Mark call completed" button, exactly as the prototype does it. No
