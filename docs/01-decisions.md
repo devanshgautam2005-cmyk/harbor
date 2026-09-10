@@ -187,7 +187,18 @@ designed deliberately rather than arrived at by a prototype's convenience.
 
 ### Consequence for the copy
 
-Any UI text promising mutual sharing has to change before the study. Copy that
-says Mom consented to something, when there is no Mom-side anything, is not a
-small inaccuracy — it is the exact kind of claim that costs trust when a
-participant works out it is not true.
+**Not a problem in the web prototype.** Checked 2026-09-10: it already labels
+every simulated element as one — "Simulated consent · demo only", "You are
+editing sample data, not a real parent's calendar", "This demo does not send
+data to Mom", and an aria-label of "Simulate Mom consent". Nothing there
+claims a consent that does not exist. Do not "fix" it.
+
+**It becomes a problem the moment these screens are rebuilt natively.** A
+study build has no demo framing to hang that honesty on. A "Mom's permission"
+toggle in a real app, with no Mom behind it, stops being a labelled simulation
+and becomes a false claim — the exact kind that costs trust when a participant
+works out it is not true.
+
+The rule for the native build, then: no consent switch, no "waiting for Mom",
+no mutual-window language. Availability is the user's own note about someone
+else's routine, and should read like one.
