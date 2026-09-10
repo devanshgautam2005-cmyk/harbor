@@ -25,10 +25,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.drawText
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.Contact
@@ -70,6 +74,8 @@ fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
 
     var camera by remember { mutableStateOf(Garden.Camera(0.0, 0.0, 1.0)) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
+    val measurer = rememberTextMeasurer()
+    val nameStyle = MaterialTheme.typography.labelMedium.copy(color = Color(0xFF4A5347))
 
     // Fit once the Canvas has a size, and again if the garden grows. Done in
     // a side effect rather than during the draw phase: assigning state while
@@ -133,6 +139,8 @@ fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
                             contact = contact,
                             flowers = flowersByContact[contact.id].orEmpty().mapNotNull { it.flower },
                             detailed = camera.k >= Garden.DETAIL_ZOOM,
+                            measurer = measurer,
+                            nameStyle = nameStyle,
                         )
                     }
                 }
@@ -146,6 +154,8 @@ private fun DrawScope.drawPlot(
     contact: Contact,
     flowers: List<FlowerKind>,
     detailed: Boolean,
+    measurer: TextMeasurer,
+    nameStyle: TextStyle,
 ) {
     translate(plot.x.toFloat(), plot.y.toFloat()) {
         // The ground: a closed Catmull-Rom loop around a noisy radius, so a
@@ -155,6 +165,18 @@ private fun DrawScope.drawPlot(
         scale(1f, Garden.GROUND_SQUASH.toFloat(), pivot = Offset.Zero) {
             drawPath(ground, color = toneOf(contact))
         }
+
+        // Whose patch this is. sceneBounds already reserves room below each
+        // plot for exactly this — without it the garden is a set of anonymous
+        // blobs, which is a much colder thing to be shown.
+        val label = measurer.measure(contact.label, nameStyle)
+        drawText(
+            textLayoutResult = label,
+            topLeft = Offset(
+                -label.size.width / 2f,
+                (plot.radius * Garden.GROUND_SQUASH).toFloat() + 10f,
+            ),
+        )
 
         if (flowers.isEmpty()) return@translate
 
