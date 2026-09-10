@@ -47,6 +47,14 @@ interface HarborRepository {
      */
     suspend fun dayState(date: LocalDate): CuePolicy.DayState
 
+    /**
+     * Every entry still held, newest last.
+     *
+     * Used for the "calls with her usually run ~12 min" line, and later by the
+     * garden. Bounded by the store's retention, so this stays a small read.
+     */
+    suspend fun recentEntries(): List<LedgerEntry>
+
     /** Records that a cue fired, before the user has answered it. */
     suspend fun recordCue(cue: Cue)
 

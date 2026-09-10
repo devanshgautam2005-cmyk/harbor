@@ -119,6 +119,9 @@ class HarborStore(context: Context) : HarborRepository {
             )
         }
 
+    override suspend fun recentEntries(): List<LedgerEntry> =
+        withContext(Dispatchers.IO) { readLedger().sortedBy { it.occurredAt } }
+
     // --- writes -----------------------------------------------------------
 
     override suspend fun recordCue(cue: Cue) {

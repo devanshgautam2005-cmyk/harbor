@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
@@ -72,6 +74,9 @@ class CueActivity : ComponentActivity() {
     private val ringer by lazy { Ringer(this) }
     private lateinit var store: HarborRepository
 
+    private var usualMinutes by mutableStateOf<Int?>(null)
+    private var chosenTopic: String? = null
+
     private var cueId: UUID? = null
     private var contactId: UUID? = null
 
@@ -85,6 +90,34 @@ class CueActivity : ComponentActivity() {
     private var entryId: UUID? = null
     private var resolution: Resolution? = null
     private var proposedTime: Instant? = null
+
+    /** Cue, or the reflection that follows a call. */
+    private var phase by mutableStateOf(Phase.CUE)
+
+    /** When we handed off to the dialer, so the call can be timed. */
+    private var dialedAt: Instant? = null
+    private var measuredMinutes = 1
+
+    private enum class Phase { CUE, CALL }
+
+    /**
+     * The dialer is a different app, so the only way back here is the user
+     * returning. That return is the end of the call, near enough — and it is
+     * the only measurement available without reading the call log, which would
+     * cost a permission this app is not willing to spend (ADR-002).
+     *
+     * The stepper on the reflection screen lets them correct it, which the
+     * prototype has anyway.
+     */
+    override fun onResume() {
+        super.onResume()
+        val dialed = dialedAt ?: return
+        if (phase != Phase.CUE) return
+
+        measuredMinutes = Duration.between(dialed, Instant.now())
+            .toMinutes().toInt().coerceIn(1, 180)
+        phase = Phase.CALL
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,14 +139,43 @@ class CueActivity : ComponentActivity() {
         CueNotifier.cancel(this)
         ringer.start(contact?.cueSoundRef)
 
+        // "Calls with her usually run ~12 min", so the ask has a known size
+        // before anyone agrees to it.
+        lifecycleScope.launch {
+            val today = Instant.now().atZone(ZoneId.systemDefault()).toLocalDate()
+            usualMinutes = withContext(Dispatchers.IO) {
+                CallStats.usualMinutes(store.recentEntries(), contact?.id)
+            }
+        }
+
         setContent {
             HarborTheme {
                 Surface(Modifier.fillMaxSize()) {
-                    CueSurface(
-                        contact = contact,
-                        onRecord = ::record,
-                        onDismiss = ::dismissAndFinish,
-                    )
+                    when (phase) {
+                        Phase.CUE -> CueSurface(
+                            contact = contact,
+                            usualMinutes = usualMinutes,
+                            onRecord = ::record,
+                            onCall = ::placeCall,
+                            onDismiss = ::dismissAndFinish,
+                        )
+
+                        Phase.CALL -> CallFlow(
+                            who = contact?.label ?: "them",
+                            measuredMinutes = measuredMinutes,
+                            initialTopic = chosenTopic,
+                            onPlant = { minutes, feeling, flower, topic ->
+                                record(
+                                    resolution = Resolution.CALLED,
+                                    callMinutes = minutes,
+                                    feeling = feeling,
+                                    flower = flower,
+                                    topic = topic,
+                                )
+                            },
+                            onDone = { finish() },
+                        )
+                    }
                 }
             }
         }
@@ -137,6 +199,10 @@ class CueActivity : ComponentActivity() {
         resolution: Resolution,
         proposedTime: Instant? = null,
         pulse: FeedbackPulse? = null,
+        callMinutes: Int? = null,
+        feeling: Feeling? = null,
+        flower: FlowerKind? = null,
+        topic: String? = null,
     ) {
         // A real answer is never overwritten by a later dismissal — closing
         // the screen after choosing is not undoing the choice.
@@ -159,17 +225,37 @@ class CueActivity : ComponentActivity() {
             resolution = resolution,
             proposedTime = this.proposedTime.takeIf { resolution == Resolution.PROPOSED_LATER },
             feedbackPulse = pulse,
-            // The call flow that captures these is the next thing to port —
-            // the prototype asks how the call felt and grows a flower from it.
-            callMinutes = null,
-            feeling = null,
-            flower = null,
-            topic = null,
+            callMinutes = callMinutes,
+            feeling = feeling,
+            flower = flower,
+            topic = topic,
             occurredAt = now,
         )
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { store.append(entry) }
+        }
+    }
+
+    /**
+     * Hand off to the phone's own dialer and start the clock.
+     *
+     * The entry is written now rather than after the reflection, so a call
+     * that happened is recorded even if the user never comes back to say how
+     * it went. The reflection amends that same row.
+     */
+    private fun placeCall(topic: String?, number: String?) {
+        chosenTopic = topic
+        record(Resolution.CALLED, topic = topic)
+        dialedAt = Instant.now()
+        ringer.stop()
+
+        if (number != null) {
+            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
+        } else {
+            // No number to dial, so there is nothing to time. Go straight to
+            // the reflection rather than stranding them on the cue.
+            phase = Phase.CALL
         }
     }
 
@@ -189,13 +275,16 @@ class CueActivity : ComponentActivity() {
 @Composable
 private fun CueSurface(
     contact: Contact?,
+    usualMinutes: Int?,
     onRecord: (Resolution, Instant?, FeedbackPulse?) -> Unit,
+    onCall: (topic: String?, number: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     var chosen by remember { mutableStateOf<Resolution?>(null) }
     var planning by remember { mutableStateOf(false) }
     var pulsed by remember { mutableStateOf(false) }
+    var topic by remember { mutableStateOf<String?>(null) }
 
     // Back is a dismissal, in one gesture, with no cost. Handoff, section 7.
     BackHandler(enabled = chosen == null) { onDismiss() }
@@ -253,19 +342,14 @@ private fun CueSurface(
 
             else -> Choices(
                 who = who,
+                usualMinutes = usualMinutes,
+                topic = topic,
+                onTopic = { picked -> topic = if (topic == picked) null else picked },
                 canCall = contact?.phoneE164 != null,
-                onCall = {
-                    contact?.phoneE164?.let { number ->
-                        // ACTION_DIAL, not ACTION_CALL: the dialer opens with
-                        // the number filled in and the user presses call
-                        // themselves. Costs no permission. ADR-002.
-                        context.startActivity(
-                            Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")),
-                        )
-                    }
-                    chosen = Resolution.CALLED
-                    onRecord(Resolution.CALLED, null, null)
-                },
+                // ACTION_DIAL, not ACTION_CALL: the dialer opens with the
+                // number filled in and the user presses call themselves.
+                // Costs no permission. ADR-002.
+                onCall = { onCall(topic, contact?.phoneE164) },
                 onReact = {
                     chosen = Resolution.REACTED
                     onRecord(Resolution.REACTED, null, null)
@@ -280,6 +364,9 @@ private fun CueSurface(
 @Composable
 private fun Choices(
     who: String,
+    usualMinutes: Int?,
+    topic: String?,
+    onTopic: (String) -> Unit,
     canCall: Boolean,
     onCall: () -> Unit,
     onReact: () -> Unit,
@@ -294,15 +381,49 @@ private fun Choices(
     )
     Spacer(Modifier.size(8.dp))
     Text(
-        "Would now be a good time to call $who?",
+        "You just stopped walking — a good moment, if you want it.",
         style = MaterialTheme.typography.bodyLarge,
         textAlign = TextAlign.Center,
     )
-    Spacer(Modifier.size(32.dp))
+    Spacer(Modifier.size(12.dp))
+
+    // The most common reason not to call is not knowing what you are agreeing
+    // to. An ask with a stated size is a much smaller ask.
+    Text(
+        "calls with $who usually run ~${usualMinutes ?: 12} min",
+        style = MaterialTheme.typography.bodySmall,
+        textAlign = TextAlign.Center,
+    )
+
+    Spacer(Modifier.size(20.dp))
+    Text(
+        "Give it a shape, if you like",
+        style = MaterialTheme.typography.labelMedium,
+    )
+    Spacer(Modifier.size(8.dp))
+    TOPICS.chunked(2).forEach { row ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            row.forEach { option ->
+                val selected = option == topic
+                OutlinedButton(
+                    onClick = { onTopic(option) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        if (selected) "· $option" else option,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.size(8.dp))
+    }
+
+    Spacer(Modifier.size(20.dp))
 
     // Three options, equal weight, no default. Handoff, stage 6.
     Button(onClick = onCall, enabled = canCall, modifier = Modifier.fillMaxWidth()) {
-        Text("Call now")
+        Text("Call now · ~${usualMinutes ?: 12} min, usually")
     }
     Spacer(Modifier.size(12.dp))
     OutlinedButton(onClick = onReact, modifier = Modifier.fillMaxWidth()) {
@@ -315,7 +436,15 @@ private fun Choices(
 
     Spacer(Modifier.size(24.dp))
     TextButton(onClick = onDismiss) { Text("Not now, and that's okay") }
+    Text(
+        "Your walking stays on this phone. $who never sees it.",
+        style = MaterialTheme.typography.bodySmall,
+        textAlign = TextAlign.Center,
+    )
 }
+
+/** The shapes a call can be given beforehand. Ported from the prototype. */
+private val TOPICS = listOf("Catch up", "Ask for help", "Share news", "Just because")
 
 @Composable
 private fun PlanLater(onPick: (Instant) -> Unit, onBack: () -> Unit) {
