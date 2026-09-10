@@ -27,13 +27,10 @@ enum class TriggerSource {
     /** A watched app session ended. Not sensed yet — see ADR-005. */
     SESSION_END,
 
-    /** Raised by the Dispatch content pipeline rather than by sensing. */
-    DISPATCH,
+    /** Left from a note or snapshot the user sent. */
+    NOTE,
 
-    /** Raised by a Quick Share signal. Feature not built yet. */
-    SIGNAL,
-
-    /** Raised by the daily family game. Feature not built yet. */
+    /** Left from the daily question. */
     GAME,
 
     /** The user opened Harbor and asked for a prompt themselves. */
@@ -76,23 +73,48 @@ enum class Resolution {
 /** The one-tap pulse at stage 8. Null when the user skipped it. */
 enum class FeedbackPulse { GOOD_TIME, BAD_TIME }
 
-/** Which flavour of reward stage 7 showed. Varying, but always guaranteed. */
-enum class RewardShown { READOUT, JAR_FILL, WRAPPED_CLIP }
+/**
+ * How a call left the user feeling, asked once afterwards.
+ *
+ * This is the reward, and it is also the input to it: each feeling grows a
+ * particular flower in the garden, so answering honestly is what makes the
+ * garden a record of the calls rather than a scoreboard of them.
+ */
+enum class Feeling(val flower: FlowerKind) {
+    LIGHT(FlowerKind.COSMOS),
+    WARM(FlowerKind.MARIGOLD),
+    STEADY(FlowerKind.DAISY),
+    TENDER(FlowerKind.POPPY),
+}
+
+/**
+ * What a call becomes.
+ *
+ * Eight kinds, chosen by [Feeling] and by how long the call ran. The garden is
+ * the reward surface — there is no score, no streak, and nothing that can be
+ * lost; a flower that grew stays grown.
+ */
+enum class FlowerKind {
+    DAISY, MARIGOLD, COSMOS, POPPY, TULIP, BLUEBELL, ASTER, SUNFLOWER,
+}
+
+/**
+ * How life feels at the moment, on a scale the user sets themselves.
+ *
+ * Replaces the earlier "season". Deliberately weather rather than a rating:
+ * weather is something that happens to you and passes, which is a kinder
+ * frame for a hard week than a number would be.
+ */
+enum class Weather { CLEAR, BRIGHT, CLOUDY, RAIN, STORM }
 
 /** A contact that cannot be dialled reads differently in the UI. */
 enum class ContactKind { PERSON, GROUP }
 
+/** The colour a person is drawn in, across the garden and their avatar. */
+enum class Tone { GREEN, GOLD, ORANGE, SKY }
+
 /** The global default cue sound. A contact may override it. */
 enum class CueSound { CHIME, SOFT, SILENT }
-
-/** What the user counts as a connected day, for the Jar. */
-enum class Minimum {
-    /** A call, a note, a reaction or a plan all count. */
-    ANY,
-
-    /** Only a completed call counts, however short. */
-    CALL,
-}
 
 /**
  * The four numbers that decide whether a cue fires. Snapshotted onto every
@@ -145,9 +167,6 @@ data class UserSettings(
      */
     val cuesEnabled: Boolean = false,
 
-    /** Null is a real state: the user has not decided yet, and the UI says so. */
-    val minimum: Minimum? = null,
-
     val sound: CueSound = CueSound.CHIME,
 
     val reducedMotion: Boolean = false,
@@ -191,6 +210,8 @@ data class Contact(
     /** E.164, e.g. +919876543210. Null for a group, which cannot be dialled. */
     val phoneE164: String?,
     val kind: ContactKind = ContactKind.PERSON,
+    val tone: Tone = Tone.GREEN,
+
     /** Overrides [UserSettings.sound] for this person. Null = use the default. */
     val cueSoundRef: String? = null,
 
@@ -249,7 +270,26 @@ data class LedgerEntry(
      */
     val reminderDone: Boolean = false,
     val feedbackPulse: FeedbackPulse?,
-    val rewardShown: RewardShown?,
+
+    /**
+     * How long the call ran, in minutes. Null for anything that was not a
+     * call. Feeds the "calls with her usually run ~12 min" line on the cue,
+     * which is there so the ask has a known size before anyone commits to it.
+     */
+    val callMinutes: Int?,
+
+    /** How it left them, asked once afterwards. Null if they skipped it. */
+    val feeling: Feeling?,
+
+    /**
+     * The flower this call grew. Derived from [feeling] at the time and kept,
+     * rather than recomputed — the garden should not rearrange itself because
+     * the mapping changed in a later release.
+     */
+    val flower: FlowerKind?,
+
+    /** The shape the user gave the call before it started. */
+    val topic: String?,
     /** When the moment happened on the device — not when it synced. */
     val occurredAt: Instant,
 ) {

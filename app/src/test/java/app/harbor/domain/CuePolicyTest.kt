@@ -47,7 +47,10 @@ class CuePolicyTest {
         proposedTime = proposedTime,
         reminderDone = reminderDone,
         feedbackPulse = null,
-        rewardShown = RewardShown.READOUT,
+        callMinutes = null,
+        feeling = null,
+        flower = null,
+        topic = null,
         occurredAt = occurredAt,
     )
 
@@ -308,9 +311,9 @@ class CuePolicyTest {
     }
 
     @Test
-    fun a_dispatch_cue_has_no_transition_to_settle() {
+    fun a_note_cue_has_no_transition_to_settle() {
         val signal = Signal(
-            source = TriggerSource.DISPATCH,
+            source = TriggerSource.NOTE,
             activeMinutes = 0,
             stillSince = now,
         )

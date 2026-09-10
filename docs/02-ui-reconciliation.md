@@ -4,7 +4,10 @@
 Next.js prototype. The product logic lives in `lib/harbor/model.ts`; the
 screens are `components/harbor/*.tsx`.
 
-**Pinned at `e60eef7` (2026-09-10).** The prototype is a live target — it
+**Pinned at `433c1d3` (2026-09-11).** Previously `e60eef7`; see "The v2
+rebuild" below for what changed and why the bump was worth taking.
+
+**Previously pinned at `e60eef7` (2026-09-10).** The prototype is a live target — it
 gained three features while this document was being written — so the schema
 tracks a named commit rather than whatever `main` happens to be. Bump the pin
 deliberately, in a PR that also updates the table below. Do not chase it
@@ -181,3 +184,72 @@ cannot silently desynchronise the analysis.
 
 Two files are committed that should not be: `harvest-pulse-updated.zip` and
 `harbor-quick-share-beacon-game.patch`. Worth removing and gitignoring.
+
+
+---
+
+# The v2 rebuild
+
+The prototype was rebuilt between `e60eef7` and `433c1d3` — commit
+"Rebuild Harbor around the garden, the cue and the flower a call leaves". Its
+state is now explicitly `version: 2`. This is the pin the native app tracks as
+of 2026-09-11.
+
+This was not a tweak. `lib/harbor/model.ts` changed by 282 lines, several
+components were deleted, and the reward mechanic was replaced outright.
+
+## What changed
+
+| v1 | v2 | Consequence here |
+| --- | --- | --- |
+| `season: Quiet \| Steady \| Full` | `weather: clear \| bright \| cloudy \| rain \| storm` | New enum; `user_settings.weather` |
+| Jar of Happiness, `jarDays`, `settings.minimum` | **Gone.** Replaced by the garden | `minimum` dropped from settings |
+| `dispatches` and the Dispatch pipeline | **Gone entirely** | `dispatch` source now vestigial |
+| `signals` (Quick Share) | → `notes` (`note \| snapshot`) | `signal` source → `note` |
+| `people` as a hardcoded constant | `people: Person[]` in state, with `tone` and `photoId` | `contacts.tone` |
+| `RewardShown` (readout / jar fill / wrapped clip) | **Gone.** A call grows a flower | Column left vestigial |
+| — | `Feeling` (light / warm / steady / tender) | New enum, asked after a call |
+| — | `FlowerKind` — a library of eight | New enum, derived from feeling and kept |
+| — | `Moment` gains `minutes`, `feeling`, `flower`, `topic` | Four new columns |
+
+## The garden is the reward now
+
+The Jar counted days that met a threshold the user set. The garden does not
+count anything: a call grows a flower, the flower depends on how the call felt
+and how long it ran, and it stays. There is no score, no streak, and nothing
+that can be lost.
+
+That is a better fit for the guardrails than the Jar ever was — "no streak
+mechanics, no breakable chain" was already a non-negotiable from the design
+audit, and the Jar's "what counts as enough" setting was in tension with it.
+
+`lib/harbor/garden.ts` derives plot shapes and flower positions from a hash of
+the person's id: a plot keeps its outline and a flower keeps its spot for as
+long as it exists. Porting that to Compose is arithmetic, not guesswork — the
+functions are pure and the constants are all in that file.
+
+## The cue design, and ADR-009
+
+The v2 cue (`components/harbor/cue.tsx`) independently arrived at what
+ADR-009 argued for: it carries a "harbor" mark, opens with "Looks like you're
+free", and states the privacy boundary on screen. It evokes a call without
+pretending to be one.
+
+It also adds three things the native cue does not have yet:
+
+- **The expected length** — "calls with her usually run ~12 min", from
+  `usualCallMinutes`. The ask has a known size before anyone commits to it.
+- **Topic chips** before the call — "Catch up", "Ask for help", "Share news",
+  "Just because". The user gives the call a shape first.
+- **A written line** for the reaction path, rather than a bare heart.
+
+## What is ported and what is not, at this pin
+
+| Prototype | Native |
+| --- | --- |
+| Cue (`cue.tsx`) | Built, but to the **v1** design. Needs the length line, topics, and the written reaction |
+| Post-call (`call.tsx`) | **Not built.** This is where feeling and duration are captured, and therefore where flowers come from |
+| Garden (`garden-view.tsx`, `flowers.tsx`, `garden.ts`) | **Not built.** The largest remaining piece |
+| Home | **Not built** |
+| Notes, Schedule, Settings, Daily question | **Not built** |
+| Conversation | Reshape, do not port — ADR-007 |

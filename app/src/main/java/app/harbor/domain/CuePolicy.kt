@@ -131,8 +131,7 @@ object CuePolicy {
         val required = when (signal.source) {
             TriggerSource.WALKING_STOP -> thresholds.walkingMinutes
             TriggerSource.SESSION_END -> thresholds.sessionMinutes
-            TriggerSource.DISPATCH,
-            TriggerSource.SIGNAL,
+            TriggerSource.NOTE,
             TriggerSource.GAME,
             TriggerSource.MANUAL,
             -> 0
@@ -167,8 +166,8 @@ object CuePolicy {
 
         // --- stage 4: kairos ---------------------------------------------
         // Fire on the completed stop, never mid-activity. Handoff, section 7.
-        // Only meaningful for a sensed transition: a dispatch, a signal or the
-        // daily game has no stop to wait out.
+        // Only meaningful for a sensed transition: a note or the daily
+        // question has no stop to wait out.
         if (signal.source.isSensedTransition) {
             if (Duration.between(signal.stillSince, now) < SETTLE) {
                 return Decision.Hold(Reason.TRANSITION_UNSETTLED)
@@ -189,8 +188,7 @@ object CuePolicy {
     private val TriggerSource.isSensedTransition: Boolean
         get() = when (this) {
             TriggerSource.WALKING_STOP, TriggerSource.SESSION_END -> true
-            TriggerSource.DISPATCH,
-            TriggerSource.SIGNAL,
+            TriggerSource.NOTE,
             TriggerSource.GAME,
             TriggerSource.MANUAL,
             -> false

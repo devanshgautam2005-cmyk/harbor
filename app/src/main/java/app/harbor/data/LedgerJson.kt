@@ -5,11 +5,12 @@ import app.harbor.domain.ContactKind
 import app.harbor.domain.Cue
 import app.harbor.domain.CueSound
 import app.harbor.domain.FeedbackPulse
+import app.harbor.domain.Feeling
+import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
-import app.harbor.domain.Minimum
 import app.harbor.domain.Resolution
-import app.harbor.domain.RewardShown
 import app.harbor.domain.Thresholds
+import app.harbor.domain.Tone
 import app.harbor.domain.TriggerSource
 import app.harbor.domain.UserSettings
 import org.json.JSONArray
@@ -49,14 +50,12 @@ internal object LedgerJson {
 
     fun settings(s: UserSettings): JSONObject = thresholds(s.thresholds)
         .put("cues_enabled", s.cuesEnabled)
-        .put("minimum", s.minimum?.wire)
         .put("sound", s.sound.wire)
         .put("reduced_motion", s.reducedMotion)
 
     fun settings(o: JSONObject): UserSettings = UserSettings(
         thresholds = thresholds(o),
         cuesEnabled = o.optBoolean("cues_enabled", false),
-        minimum = o.optStringOrNull("minimum")?.let { Minimum.entries.fromWire(it) },
         sound = o.optStringOrNull("sound")
             ?.let { CueSound.entries.fromWire(it) } ?: CueSound.CHIME,
         reducedMotion = o.optBoolean("reduced_motion", false),
@@ -69,6 +68,7 @@ internal object LedgerJson {
         .put("label", c.label)
         .put("phone_e164", c.phoneE164)
         .put("kind", c.kind.wire)
+        .put("tone", c.tone.wire)
         .put("cue_sound_ref", c.cueSoundRef)
         .put("photo_ref", c.photoRef)
 
@@ -78,6 +78,7 @@ internal object LedgerJson {
         phoneE164 = o.optStringOrNull("phone_e164"),
         kind = o.optStringOrNull("kind")
             ?.let { ContactKind.entries.fromWire(it) } ?: ContactKind.PERSON,
+        tone = o.optStringOrNull("tone")?.let { Tone.entries.fromWire(it) } ?: Tone.GREEN,
         cueSoundRef = o.optStringOrNull("cue_sound_ref"),
         photoRef = o.optStringOrNull("photo_ref"),
     )
@@ -122,7 +123,10 @@ internal object LedgerJson {
         .put("proposed_time", e.proposedTime?.toString())
         .put("reminder_done", e.reminderDone)
         .put("feedback_pulse", e.feedbackPulse?.wire)
-        .put("reward_shown", e.rewardShown?.wire)
+        .put("call_minutes", e.callMinutes)
+        .put("feeling", e.feeling?.wire)
+        .put("flower", e.flower?.wire)
+        .put("topic", e.topic)
         .put("occurred_at", e.occurredAt.toString())
 
     fun entry(o: JSONObject): LedgerEntry = LedgerEntry(
@@ -137,8 +141,10 @@ internal object LedgerJson {
         reminderDone = o.optBoolean("reminder_done", false),
         feedbackPulse = o.optStringOrNull("feedback_pulse")
             ?.let { FeedbackPulse.entries.fromWire(it) },
-        rewardShown = o.optStringOrNull("reward_shown")
-            ?.let { RewardShown.entries.fromWire(it) },
+        callMinutes = if (o.isNull("call_minutes")) null else o.optInt("call_minutes"),
+        feeling = o.optStringOrNull("feeling")?.let { Feeling.entries.fromWire(it) },
+        flower = o.optStringOrNull("flower")?.let { FlowerKind.entries.fromWire(it) },
+        topic = o.optStringOrNull("topic"),
         occurredAt = Instant.parse(o.getString("occurred_at")),
     )
 

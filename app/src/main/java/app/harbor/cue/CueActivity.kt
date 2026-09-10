@@ -44,7 +44,6 @@ import app.harbor.domain.Contact
 import app.harbor.domain.FeedbackPulse
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
-import app.harbor.domain.RewardShown
 import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.HarborTheme
 import kotlinx.coroutines.Dispatchers
@@ -160,7 +159,12 @@ class CueActivity : ComponentActivity() {
             resolution = resolution,
             proposedTime = this.proposedTime.takeIf { resolution == Resolution.PROPOSED_LATER },
             feedbackPulse = pulse,
-            rewardShown = RewardShown.READOUT,
+            // The call flow that captures these is the next thing to port —
+            // the prototype asks how the call felt and grows a flower from it.
+            callMinutes = null,
+            feeling = null,
+            flower = null,
+            topic = null,
             occurredAt = now,
         )
 
