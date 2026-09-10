@@ -37,6 +37,9 @@ See [`backend/README.md`](backend/README.md). You need the Supabase CLI and a
   architecture
 - [`docs/03-week-one-study.md`](docs/03-week-one-study.md) — what the study
   has to answer
+- [`docs/04-how-the-repos-fit.md`](docs/04-how-the-repos-fit.md) — why there
+  are two repositories and how work moves between them. Read this first if
+  you are joining
 - [`docs/slack-tide-handoff.html`](docs/slack-tide-handoff.html) — the original
   pipeline spec. Open it in a browser.
 

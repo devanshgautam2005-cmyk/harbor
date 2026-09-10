@@ -8,6 +8,12 @@ Read `docs/00-product.md` for what it is, `docs/01-decisions.md` before
 changing architecture, and `docs/slack-tide-handoff.html` for the original
 pipeline spec.
 
+There is a second repository — the v0-built web prototype at
+`Bored-Kxiden/harvest-pulse` — which is the **authority on product
+behaviour**. It does not merge with this one; it is ported from, against a
+pinned commit. `docs/04-how-the-repos-fit.md` explains the arrangement, and
+you should read it before porting a screen or touching the model.
+
 ## Repo layout
 
 ```
