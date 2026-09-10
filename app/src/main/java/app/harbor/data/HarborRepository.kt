@@ -1,5 +1,6 @@
 package app.harbor.data
 
+import app.harbor.domain.BusyWindow
 import app.harbor.domain.Contact
 import app.harbor.domain.Cue
 import app.harbor.domain.CuePolicy
@@ -30,7 +31,18 @@ interface HarborRepository {
     /** Everyone the user has added. Empty until onboarding picks someone. */
     val contacts: StateFlow<List<Contact>>
 
+    /**
+     * The user's own weekly commitments — classes, labs, shifts.
+     *
+     * Self-entered. There is no campus integration and no calendar read
+     * behind this (ADR-011): the source stays the user, which costs no
+     * permission and no credentials.
+     */
+    val busyWindows: StateFlow<List<BusyWindow>>
+
     suspend fun setSettings(settings: UserSettings)
+
+    suspend fun setBusyWindows(windows: List<BusyWindow>)
 
     suspend fun upsertContact(contact: Contact)
 

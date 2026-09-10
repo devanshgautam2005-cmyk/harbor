@@ -2,6 +2,7 @@ package app.harbor.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.harbor.domain.BusyWindow
 import app.harbor.domain.Contact
 import app.harbor.domain.Cue
 import app.harbor.domain.CuePolicy
@@ -19,6 +20,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.ZonedDateTime
 import java.util.UUID
 
 /**
@@ -45,6 +47,9 @@ class HarborStore(context: Context) : HarborRepository {
 
     private val _contacts = MutableStateFlow(readContacts())
     override val contacts: StateFlow<List<Contact>> = _contacts.asStateFlow()
+
+    private val _busyWindows = MutableStateFlow(readBusyWindows())
+    override val busyWindows: StateFlow<List<BusyWindow>> = _busyWindows.asStateFlow()
 
     // --- settings ---------------------------------------------------------
 
@@ -83,6 +88,19 @@ class HarborStore(context: Context) : HarborRepository {
         _contacts.value = updated
     }
 
+    // --- busy windows -----------------------------------------------------
+
+    private fun readBusyWindows(): List<BusyWindow> {
+        val raw = prefs.getString(KEY_BUSY, null) ?: return emptyList()
+        return runCatching { LedgerJson.busyWindows(JSONArray(raw)) }.getOrDefault(emptyList())
+    }
+
+    override suspend fun setBusyWindows(windows: List<BusyWindow>) {
+        val sorted = windows.sortedWith(compareBy({ it.day }, { it.start }))
+        write { putString(KEY_BUSY, LedgerJson.busyWindows(sorted).toString()) }
+        _busyWindows.value = sorted
+    }
+
     // --- reads ------------------------------------------------------------
 
     private fun readLedger(): List<LedgerEntry> {
@@ -116,6 +134,7 @@ class HarborStore(context: Context) : HarborRepository {
                 hasPendingReminder = ledger.any {
                     it.resolution == Resolution.PROPOSED_LATER && !it.reminderDone
                 },
+                busyNow = _busyWindows.value.any { it.covers(ZonedDateTime.now()) },
             )
         }
 
@@ -212,6 +231,7 @@ class HarborStore(context: Context) : HarborRepository {
         const val PREFS = "harbor"
         const val KEY_SETTINGS = "settings"
         const val KEY_CONTACTS = "contacts"
+        const val KEY_BUSY = "busy_windows"
         const val KEY_LEDGER = "ledger"
         const val KEY_CUES = "cues"
         const val KEY_SYNCED_CUES = "synced_cue_ids"

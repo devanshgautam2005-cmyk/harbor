@@ -1,5 +1,6 @@
 package app.harbor.data
 
+import app.harbor.domain.BusyWindow
 import app.harbor.domain.Contact
 import app.harbor.domain.ContactKind
 import app.harbor.domain.Cue
@@ -15,8 +16,10 @@ import app.harbor.domain.TriggerSource
 import app.harbor.domain.UserSettings
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 
 /**
@@ -88,6 +91,27 @@ internal object LedgerJson {
 
     fun contacts(list: List<Contact>): JSONArray =
         JSONArray().apply { list.forEach { put(contact(it)) } }
+
+    // --- busy windows -----------------------------------------------------
+
+    fun busy(w: BusyWindow): JSONObject = JSONObject()
+        .put("day", w.day.name)
+        .put("start", w.start.toString())
+        .put("end", w.end.toString())
+        .put("label", w.label)
+
+    fun busy(o: JSONObject): BusyWindow = BusyWindow(
+        day = DayOfWeek.valueOf(o.getString("day")),
+        start = LocalTime.parse(o.getString("start")),
+        end = LocalTime.parse(o.getString("end")),
+        label = o.optStringOrNull("label"),
+    )
+
+    fun busyWindows(array: JSONArray): List<BusyWindow> =
+        (0 until array.length()).map { busy(array.getJSONObject(it)) }
+
+    fun busyWindows(list: List<BusyWindow>): JSONArray =
+        JSONArray().apply { list.forEach { put(busy(it)) } }
 
     // --- cue --------------------------------------------------------------
 
