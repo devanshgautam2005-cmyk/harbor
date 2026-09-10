@@ -15,19 +15,20 @@ import androidx.compose.ui.Modifier
 import app.harbor.data.HarborStore
 import app.harbor.ui.ContactScreen
 import app.harbor.ui.CuesSetupScreen
+import app.harbor.ui.GardenScreen
 import app.harbor.ui.theme.HarborTheme
 
 /**
- * Two screens: the permission explainer with the cue switch, and the contact
- * the cue is about.
+ * Three screens: the permission explainer with the cue switch, the contact the
+ * cue is about, and the garden the calls grow in.
  *
- * A plain state flag rather than a navigation library. Two destinations do not
- * justify a dependency, and the screens the prototype has beyond these are not
- * built yet — when they are, this is the moment to reach for real navigation.
+ * Still a plain state flag rather than a navigation library. Once Home, Notes
+ * and Schedule arrive this stops being reasonable — that is the moment to
+ * reach for real navigation, not before.
  */
 class MainActivity : ComponentActivity() {
 
-    private enum class Screen { Setup, Contact }
+    private enum class Screen { Setup, Contact, Garden }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,12 +45,18 @@ class MainActivity : ComponentActivity() {
                         Screen.Setup -> CuesSetupScreen(
                             store = store,
                             onEditContact = { screen = Screen.Contact },
+                            onOpenGarden = { screen = Screen.Garden },
                             modifier = Modifier.padding(padding),
                         )
 
                         Screen.Contact -> ContactScreen(
                             store = store,
                             onDone = { screen = Screen.Setup },
+                            modifier = Modifier.padding(padding),
+                        )
+
+                        Screen.Garden -> GardenScreen(
+                            store = store,
                             modifier = Modifier.padding(padding),
                         )
                     }

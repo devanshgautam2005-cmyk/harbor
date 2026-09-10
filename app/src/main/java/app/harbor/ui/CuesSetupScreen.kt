@@ -59,6 +59,7 @@ import kotlinx.coroutines.launch
 fun CuesSetupScreen(
     store: HarborRepository,
     onEditContact: () -> Unit,
+    onOpenGarden: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -112,6 +113,8 @@ fun CuesSetupScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("A cue, never a demand.", style = MaterialTheme.typography.headlineMedium)
+
+        OutlinedButton(onClick = onOpenGarden) { Text("See your garden") }
 
         Text(
             "Harbor can notice the quiet moment just after a walk ends, and " +
