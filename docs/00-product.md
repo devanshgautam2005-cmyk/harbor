@@ -43,15 +43,16 @@ measures, and every other screen can be demoed by hand if the week runs short.
    behind `HarborRepository`. Stages 2-4 are the pure `domain/CuePolicy`, with
    unit tests. Nothing syncs yet, and nothing calls `CuePolicy` yet — sensing
    is what wires it up.
-3. ~~**Sensing.**~~ — written, not yet verified on a device. Activity
+3. ~~**Sensing.**~~ — written and unit-tested; **never yet run against a real
+   transition.** Activity
    Recognition Transition API via a broadcast receiver; no foreground service
    (ADR-008). `sensing/BoutTracker` turns the transition stream into
    walk-ended-in-stillness bouts as a pure state machine, with 12 tests
    covering the messy cases — dropped events, duplicates, a walk that becomes
    a commute, a backwards clock. `TransitionReceiver` runs it and hands the
    result to `CuePolicy`. A fired cue is recorded; surfacing it is item 5.
-4. ~~**Permission + privacy explainer.**~~ — written, needs a privacy read
-   before the study. `ui/CuesSetupScreen` explains what is read and where it
+4. ~~**Permission + privacy explainer.**~~ — done and verified on an emulator
+   2026-09-10; still needs a privacy read before the study. `ui/CuesSetupScreen` explains what is read and where it
    stays *before* the system dialog appears, and is also the switch that turns
    cues on. It reports paused rather than on when the permission has been
    revoked behind the app's back. The copy still wants a human pass — it is

@@ -71,6 +71,26 @@ Export `MSYS_NO_PATHCONV=1` first or Git Bash mangles `/data/...` paths. Do not
 leave the emulator screen off after a test — launching an activity with the
 screen off ANRs and looks exactly like a black-screen bug.
 
+**Installing the CI artifact over a Studio build fails**, and the error is
+worth recognising because the symptom looks like a broken app:
+
+```
+INSTALL_FAILED_UPDATE_INCOMPATIBLE: ... signatures do not match
+```
+
+Studio signs with your local debug keystore, CI with the runner's. Uninstall
+first, then install — `adb install -r` will not do it.
+
+A Studio deploy that dies midway leaves the package installed and marked
+`TEST_ONLY` with `notLaunched=true`. In that state `am start` returns
+`result code=0` and **no process ever spawns**, with nothing in the crash
+buffer. It looks exactly like an app that crashes on launch. Check
+`dumpsys package app.harbor | grep flags=` before believing it is your code.
+
+**Give Harbor its own AVD.** Sharing one with the sibling Glow project ran it
+out of memory — the low-memory killer started killing system apps, the
+emulator went `offline` mid-install, and every adb command hung.
+
 **This repo must stay outside OneDrive.** Gradle's file churn plus OneDrive
 sync produces file-lock build failures. That is why it lives in
 `AndroidStudioProjects/` and not in `Documents/`.
@@ -114,9 +134,16 @@ Done:
 - `sensing/` — stage 1. `BoutTracker` is a pure state machine over the
   transition stream (12 tests); `TransitionReceiver` runs it and calls
   `CuePolicy`. No foreground service — see ADR-008.
+  **Not yet proven on a device.** No real transition has ever reached it —
+  `harbor_sensing.xml` does not exist on any phone yet. An emulator will not
+  produce walking transitions, so this needs someone to install the app and
+  go for an actual walk.
 
 - `ui/CuesSetupScreen` — the permission and privacy explainer, and the switch
-  that enables cues. Currently the whole of `MainActivity`.
+  that enables cues. Currently the whole of `MainActivity`. **Verified on an
+  emulator 2026-09-10**: renders, requests the permission, and persists
+  `cues_enabled: true` — which is only written when Play services actually
+  accepts the transition registration, so that path is proven too.
 
 Not built yet: the cue surface, the other screens, the call itself, and
 Supabase sync.

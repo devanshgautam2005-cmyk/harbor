@@ -27,3 +27,9 @@ backend/supabase/.temp
 # Build outputs
 *.apk
 *.aab
+
+# Per-machine IDE state Studio regenerates. Committing it means one person's
+# emulator list and window layout landing in everyone else's diff.
+/.idea/deviceManager.xml
+/.idea/markdown.xml
+/.idea/appInsightsSettings.xml
