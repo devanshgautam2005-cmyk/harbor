@@ -43,8 +43,13 @@ measures, and every other screen can be demoed by hand if the week runs short.
    behind `HarborRepository`. Stages 2-4 are the pure `domain/CuePolicy`, with
    unit tests. Nothing syncs yet, and nothing calls `CuePolicy` yet — sensing
    is what wires it up.
-3. **Sensing.** Activity Recognition Transition API, foreground service,
-   walking→still only. Get it firing reliably before any screen is pretty.
+3. ~~**Sensing.**~~ — written, not yet verified on a device. Activity
+   Recognition Transition API via a broadcast receiver; no foreground service
+   (ADR-008). `sensing/BoutTracker` turns the transition stream into
+   walk-ended-in-stillness bouts as a pure state machine, with 12 tests
+   covering the messy cases — dropped events, duplicates, a walk that becomes
+   a commute, a backwards clock. `TransitionReceiver` runs it and hands the
+   result to `CuePolicy`. A fired cue is recorded; surfacing it is item 5.
 4. **Permission + privacy explainer.** The single biggest install-funnel risk.
    Copy needs a privacy pass before it ships, not after.
 5. **Cue surface + resolution + reward readout + feedback pulse.** The first

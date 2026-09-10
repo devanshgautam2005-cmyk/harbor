@@ -111,11 +111,16 @@ Done:
   compiler plugin version-locked to Kotlin, which has bitten this team before.
 - `backend/` — migrations 0001-0002, aligned with the prototype at `e60eef7`.
 
-Not built yet: sensing (stage 1), every screen, the call itself, and Supabase
-sync. `MainActivity` is still the wizard's "Hello Android".
+- `sensing/` — stage 1. `BoutTracker` is a pure state machine over the
+  transition stream (12 tests); `TransitionReceiver` runs it and calls
+  `CuePolicy`. No foreground service — see ADR-008.
 
-Nothing in the app calls `CuePolicy` yet — it is tested but not wired up. The
-sensing layer is what connects it.
+Not built yet: every screen, the call itself, and Supabase sync.
+`MainActivity` is still the wizard's "Hello Android".
+
+A fired cue is recorded but **nothing shows it to the user yet** — that is
+build-order item 5. The cue is already counted against the daily cap when it
+is recorded, so whatever surfaces it must not record a second one.
 
 Two things to know before touching the pipeline:
 

@@ -2,6 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      Activity recognition. The runtime permission below is API 29+; on 26-28
+      the Play services permission is the one that applies, and is granted at
+      install. Both are declared so the app behaves the same across minSdk 26.
+
+      This is the single most sensitive thing Harbor asks for, and the
+      permission explainer screen has to earn it before the system dialog
+      appears. See docs/00-product.md, "Known risks".
+    -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
+
+    <!-- Re-register transition updates after a reboot; they do not survive it. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -23,6 +38,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Google Play services delivers activity transitions here via a
+          PendingIntent, with no service of ours running. exported="false":
+          nothing outside the app may send us a fabricated transition.
+        -->
+        <receiver
+            android:name=".sensing.TransitionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".sensing.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -202,3 +202,41 @@ works out it is not true.
 The rule for the native build, then: no consent switch, no "waiting for Mom",
 no mutual-window language. Availability is the user's own note about someone
 else's routine, and should read like one.
+
+---
+
+## ADR-008 — No foreground service for sensing
+
+**Status:** accepted (2026-09-10)
+
+The build order and the handoff both assumed a foreground service owning the
+sensing loop, carried over from the sibling project where the shield genuinely
+needed one.
+
+Harbor does not. The Activity Recognition Transition API delivers to a
+`PendingIntent` whether or not the app is running — that is the whole point of
+it, and it is why it exists separately from the sampling API. A service of our
+own would add a permanent notification, a battery footprint, a
+`FOREGROUND_SERVICE` permission and, on API 34+, a foreground service *type*
+that Harbor would struggle to justify, all in exchange for nothing the
+platform is not already doing.
+
+So: `TransitionReceiver` is a plain broadcast receiver, woken by Play
+services, using `goAsync()` for the few milliseconds it takes to read the
+ledger and write a cue.
+
+### What this costs
+
+A permanent notification is also a *disclosure* — the user can see sensing is
+running. Without one, the only surface saying so is the settings screen. Given
+`cues_enabled` defaults off and is gated behind a privacy explainer, that is a
+defensible trade, but it puts more weight on that explainer being honest.
+
+### What it does not fix
+
+Aggressive OEM battery management. MIUI, ColorOS and OnePlus builds suspend
+background delivery, and a foreground service would not reliably survive them
+either — those OEMs kill those too. This remains the single largest threat to
+the week-one study, and it fails *silently*: the data just looks like a user
+who never walked. Test on a real MIUI device before recruiting, not on the
+emulator.
