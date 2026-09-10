@@ -7,6 +7,7 @@ import app.harbor.domain.Cue
 import app.harbor.domain.CuePolicy
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
+import app.harbor.domain.TriggerSource
 import app.harbor.domain.UserSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,7 +101,13 @@ class HarborStore(context: Context) : HarborRepository {
             val cues = readCues()
             CuePolicy.DayState(
                 entriesToday = ledger.filter { it.entryDate == date },
-                cuesToday = cues.count { it.firedDate == date },
+                // Manual cues are excluded on purpose. The daily cap limits
+                // how often Harbor interrupts someone, and a cue they asked
+                // for is not an interruption — it would be perverse for
+                // trying the feature to use up the day's allowance.
+                cuesToday = cues.count {
+                    it.firedDate == date && it.triggerSource != TriggerSource.MANUAL
+                },
                 // Across every day, not just today: the cooldown has to
                 // survive midnight.
                 lastCueAt = cues.maxOfOrNull { it.firedAt },

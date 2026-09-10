@@ -31,7 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.harbor.cue.CueActivity
+import app.harbor.cue.CueNotifier
 import app.harbor.data.HarborRepository
+import app.harbor.domain.Cue
+import app.harbor.domain.TriggerSource
+import java.time.Instant
+import java.time.ZoneId
+import java.util.UUID
 import app.harbor.sensing.ActivityTransitions
 import app.harbor.sensing.Sensing
 import kotlinx.coroutines.launch
@@ -163,6 +170,42 @@ fun CuesSetupScreen(
                 )
                 OutlinedButton(onClick = onEditContact) {
                     Text(if (who == null) "Choose someone" else "Change")
+                }
+
+                if (who != null) {
+                    // The prototype's Slack Tide screen has the same thing: a
+                    // way to see a cue without waiting for a walk. It is not
+                    // debug scaffolding — TriggerSource.MANUAL is in the model
+                    // and CuePolicy already lets a manual request past every
+                    // gate, on the grounds that someone standing there asking
+                    // for the prompt should get it.
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                val now = Instant.now()
+                                val cue = Cue(
+                                    id = UUID.randomUUID(),
+                                    firedDate = now.atZone(ZoneId.systemDefault()).toLocalDate(),
+                                    triggerSource = TriggerSource.MANUAL,
+                                    firedAt = now,
+                                )
+                                store.recordCue(cue)
+                                context.startActivity(
+                                    Intent(context, CueActivity::class.java).apply {
+                                        putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
+                                        putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
+                                    },
+                                )
+                            }
+                        },
+                    ) {
+                        Text("Show me a cue now")
+                    }
+                    Text(
+                        "Hear their sound and see the moment, without waiting " +
+                            "for a walk. This does not use up today's allowance.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
         }
