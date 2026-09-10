@@ -57,6 +57,14 @@ object CuePolicy {
         val cuesToday: Int,
         val lastCueAt: Instant?,
         val hasPendingReminder: Boolean,
+        /**
+         * Whether the user is inside a [BusyWindow] right now.
+         *
+         * A boolean rather than the windows themselves, so the policy stays
+         * indifferent to where a timetable came from — typed in, read from the
+         * device calendar, or pulled from a campus system.
+         */
+        val busyNow: Boolean = false,
     )
 
     /** What the pipeline decided, and why. The why is worth keeping. */
@@ -77,6 +85,9 @@ object CuePolicy {
 
         /** They already reached their person today. Nothing left to prompt. */
         ALREADY_CONNECTED_TODAY,
+
+        /** They are in a class, a lab, or whatever else they marked busy. */
+        IN_CLASS,
 
         /** The user's own daily ceiling. */
         DAILY_CAP_REACHED,
@@ -131,6 +142,13 @@ object CuePolicy {
         }
 
         // --- stage 3: suppression ----------------------------------------
+        // Checked first among the suppressions, because it is the most
+        // concrete "not now" of them all. Walking between buildings and
+        // stopping outside a lecture hall is exactly the shape of transition
+        // this pipeline detects, and exactly the wrong moment to act on it.
+        if (day.busyNow) {
+            return Decision.Hold(Reason.IN_CLASS)
+        }
         if (day.entriesToday.any { it.resolution.isConnection }) {
             return Decision.Hold(Reason.ALREADY_CONNECTED_TODAY)
         }

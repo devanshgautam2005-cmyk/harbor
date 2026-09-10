@@ -37,6 +37,9 @@ docs/                 product, decisions, study protocol, original handoff.
   breakable chains, no forced binary choice. These are gate-risk mitigations
   from the design audit, not style preferences. (Handoff, section 7.)
 - **Thresholds are user-set.** Ship a suggested default; never lock it.
+- **No location, ever.** No route tracking, no `ACCESS_FINE_LOCATION`, no
+  fitness integration. The explainer screen promises "not where you are", and
+  that promise is why people grant the activity permission. (ADR-010.)
 - **Do not build against Google Fit.** It is being retired. The walking signal
   is the Activity Recognition Transition API, which is a different API.
   (ADR-005.)

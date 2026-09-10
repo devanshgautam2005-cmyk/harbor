@@ -58,10 +58,11 @@ class CuePolicyTest {
         cuesToday: Int = entriesToday.size,
         lastCueAt: Instant? = entriesToday.maxOfOrNull { it.occurredAt },
         hasPendingReminder: Boolean = false,
+        busyNow: Boolean = false,
     ) = CuePolicy.decide(
         signal,
         settings,
-        DayState(entriesToday, cuesToday, lastCueAt, hasPendingReminder),
+        DayState(entriesToday, cuesToday, lastCueAt, hasPendingReminder, busyNow),
         now,
     )
 
@@ -243,6 +244,44 @@ class CuePolicyTest {
     @Test
     fun no_previous_cue_anywhere_means_no_cooldown() {
         assertEquals(Decision.Fire, decide(lastCueAt = null))
+    }
+
+    // --- busy windows ------------------------------------------------------
+
+    @Test
+    fun holds_while_the_user_is_in_class() {
+        assertEquals(Decision.Hold(Reason.IN_CLASS), decide(busyNow = true))
+    }
+
+    @Test
+    fun being_in_class_is_reported_ahead_of_the_other_suppressions() {
+        // Walking between buildings and stopping outside a lecture hall is
+        // exactly the shape this pipeline detects, so this is the reason worth
+        // seeing in a log when a cue is held.
+        assertEquals(
+            Decision.Hold(Reason.IN_CLASS),
+            decide(
+                entriesToday = listOf(entry(resolution = Resolution.CALLED)),
+                busyNow = true,
+            ),
+        )
+    }
+
+    @Test
+    fun the_threshold_still_comes_before_being_in_class() {
+        // Stage 2 before stage 3, as the handoff orders them.
+        assertEquals(
+            Decision.Hold(Reason.BELOW_THRESHOLD),
+            decide(walkSignal(activeMinutes = 1), busyNow = true),
+        )
+    }
+
+    @Test
+    fun a_manual_request_during_class_still_fires() {
+        // They are sitting in a lecture asking for the prompt. That is their
+        // business, not ours.
+        val signal = Signal(TriggerSource.MANUAL, activeMinutes = 0, stillSince = now)
+        assertEquals(Decision.Fire, decide(signal, busyNow = true))
     }
 
     @Test

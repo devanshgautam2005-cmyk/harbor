@@ -1,7 +1,10 @@
 package app.harbor.domain
 
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZonedDateTime
 import java.util.UUID
 
 /**
@@ -149,6 +152,34 @@ data class UserSettings(
 
     val reducedMotion: Boolean = false,
 )
+
+/**
+ * A recurring block when the user is not reachable — a class, a lab, a shift.
+ *
+ * Weekly rather than dated, because that is the shape a timetable actually
+ * has. A one-off engagement is not worth modelling: the cue is capped and
+ * dismissible, and being asked once during an unusual afternoon costs almost
+ * nothing.
+ *
+ * Deliberately independent of where the times came from. They might be typed
+ * in, read from the device calendar, or one day pulled from a campus system —
+ * the policy does not care, and keeping it that way is what stops a data
+ * source from becoming an architectural commitment.
+ */
+data class BusyWindow(
+    val day: DayOfWeek,
+    val start: LocalTime,
+    val end: LocalTime,
+    /** "Marketing 101", or null. Never leaves the device. */
+    val label: String? = null,
+) {
+    init {
+        require(start < end) { "a busy window must end after it starts" }
+    }
+
+    fun covers(at: ZonedDateTime): Boolean =
+        at.dayOfWeek == day && at.toLocalTime() >= start && at.toLocalTime() < end
+}
 
 /**
  * Someone worth calling. v0.1 assumes an ordinary cellular number: the parent

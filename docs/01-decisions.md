@@ -338,3 +338,81 @@ Never treat a missing full-screen permission as a reason to suppress the cue.
 One gesture, no cost, no penalty, exactly as before. Back dismisses. The
 ringtone stops the moment the surface is dismissed by any route. A dismissed
 cue writes a `dismissed` ledger entry and nothing else happens.
+
+---
+
+## ADR-010 — No location, no route tracking
+
+**Status:** accepted (2026-09-10)
+
+Considered: reading the user's route, via location or a fitness integration,
+to time the cue more precisely.
+
+**Rejected.** Three reasons, in order of weight.
+
+1. **The app currently promises the opposite.** The explainer screen says, in
+   these words: "Whether your phone thinks you are walking or still. *Not
+   where you are*, not what you are doing, not which apps you use." Route
+   tracking makes that false. The promise could be changed — but it would have
+   to change on screen, in ADR-004, and in the study's consent language, all
+   at once, and the trust it buys is the reason anyone grants the activity
+   permission at all.
+2. **It buys little.** The cue is designed to fire on the *completed stop*,
+   and `BoutTracker` detects that directly. A route would let us anticipate a
+   walk ending, which the design deliberately does not want.
+3. **It is the most-refused permission on Android**, and it would sit beside
+   activity recognition, which is already the biggest install-funnel risk in
+   the product.
+
+Also worth recording: **Google Fit is not an option regardless** — it is being
+retired (ADR-005). The successor is Health Connect, and Maps has no route API
+for this at all; it would be `FusedLocationProvider` and `ACCESS_FINE_LOCATION`.
+
+**Revisit if** the week-one study shows the *timing* of cues is what people
+dislike, rather than their frequency or existence. Until there is evidence of
+that, this buys risk and spends trust for a refinement nobody has asked for.
+
+---
+
+## ADR-011 — Suppress cues during class, without committing to a data source
+
+**Status:** accepted (2026-09-10)
+
+Cues should not fire during a class. Walking between buildings and stopping
+outside a lecture hall is exactly the transition this pipeline detects, and
+exactly the wrong moment to act on it.
+
+### The rule is source-agnostic on purpose
+
+`CuePolicy.DayState` carries a single `busyNow: Boolean`, and `BusyWindow` is
+a plain weekly time range. The policy has no idea where those times came from.
+
+That is deliberate. The obvious integration — DigiCampus, the campus system in
+use here — publishes no API that could be found, and several unrelated
+products share the name. Building the suppression rule around a specific
+source would have made the source an architectural commitment before anyone
+established it was even possible.
+
+### Candidate sources, in the order I would try them
+
+1. **Self-entered timetable.** No permission, no credentials, no integration
+   to maintain, and a student types their week once. The prototype's Harvest
+   screen is already this shape of data (ADR-007).
+2. **`READ_CALENDAR`**, if timetables already live in Google Calendar. One
+   permission, no credentials.
+3. **A campus API**, if BITSoM IT will grant access.
+
+**Not acceptable:** scraping the portal with participants' login credentials.
+Asking a study participant to hand a student app their college password is a
+security problem we would be creating for them, and no timetable is worth it.
+
+### Windows are weekly, not dated
+
+A timetable's real shape. A one-off engagement is not worth modelling — the
+cue is capped and dismissible, so being asked once during an unusual afternoon
+costs almost nothing.
+
+### A manual request still fires during class
+
+Someone sitting in a lecture who asks for the prompt is making their own
+decision. Consistent with every other gate `MANUAL` bypasses.
