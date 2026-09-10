@@ -50,8 +50,12 @@ measures, and every other screen can be demoed by hand if the week runs short.
    covering the messy cases — dropped events, duplicates, a walk that becomes
    a commute, a backwards clock. `TransitionReceiver` runs it and hands the
    result to `CuePolicy`. A fired cue is recorded; surfacing it is item 5.
-4. **Permission + privacy explainer.** The single biggest install-funnel risk.
-   Copy needs a privacy pass before it ships, not after.
+4. ~~**Permission + privacy explainer.**~~ — written, needs a privacy read
+   before the study. `ui/CuesSetupScreen` explains what is read and where it
+   stays *before* the system dialog appears, and is also the switch that turns
+   cues on. It reports paused rather than on when the permission has been
+   revoked behind the app's back. The copy still wants a human pass — it is
+   the single biggest install-funnel risk, and I wrote it, not a designer.
 5. **Cue surface + resolution + reward readout + feedback pulse.** The first
    end-to-end path: a cue fires, the user answers, a row is written.
 6. **The call itself.** `ACTION_CALL` plus a `TelephonyCallback` to detect

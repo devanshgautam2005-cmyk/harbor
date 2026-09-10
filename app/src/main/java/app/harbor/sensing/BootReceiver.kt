@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import app.harbor.data.HarborStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Re-registers transition updates after a reboot.
@@ -16,6 +20,10 @@ import app.harbor.data.HarborStore
  */
 class BootReceiver : BroadcastReceiver() {
 
+    private companion object {
+        const val TAG = "HarborSensing"
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
@@ -26,7 +34,17 @@ class BootReceiver : BroadcastReceiver() {
         // which is the one thing this app must never do.
         if (!HarborStore(app).settings.value.cuesEnabled) return
 
-        val registered = ActivityTransitions.register(app)
-        Log.i("HarborSensing", "boot re-register: $registered")
+        val pending = goAsync()
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            try {
+                Log.i(TAG, "boot re-register: ${ActivityTransitions.register(app)}")
+            } catch (e: Throwable) {
+                // Sensing stays down until the app is next opened. Bad, but a
+                // crash in a boot receiver is worse.
+                Log.e(TAG, "boot re-register failed", e)
+            } finally {
+                pending.finish()
+            }
+        }
     }
 }

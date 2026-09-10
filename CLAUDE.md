@@ -115,8 +115,16 @@ Done:
   transition stream (12 tests); `TransitionReceiver` runs it and calls
   `CuePolicy`. No foreground service — see ADR-008.
 
-Not built yet: every screen, the call itself, and Supabase sync.
-`MainActivity` is still the wizard's "Hello Android".
+- `ui/CuesSetupScreen` — the permission and privacy explainer, and the switch
+  that enables cues. Currently the whole of `MainActivity`.
+
+Not built yet: the cue surface, the other screens, the call itself, and
+Supabase sync.
+
+**The explainer's copy is a promise the code has to keep.** Every claim on
+that screen — movement never leaves the phone, nothing shared with family,
+dismissing costs nothing — maps to something enforced elsewhere. If you change
+what syncs, that screen changes in the same PR.
 
 A fired cue is recorded but **nothing shows it to the user yet** — that is
 build-order item 5. The cue is already counted against the daily cap when it

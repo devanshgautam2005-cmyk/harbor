@@ -7,12 +7,16 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.DetectedActivity
+import com.google.android.gms.tasks.Task
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.time.Instant
+import kotlin.coroutines.resume
 
 /**
  * Registration for Google Play services' Activity Recognition Transition API.
@@ -70,26 +74,46 @@ object ActivityTransitions {
      * Start listening. Safe to call repeatedly — Play services replaces the
      * existing registration rather than stacking another.
      *
-     * @return false if the permission is not granted, in which case nothing
-     *   was registered and the caller should not pretend sensing is running.
+     * Suspends until Play services has actually accepted the request, rather
+     * than firing a Task and hoping. The caller flips the user's
+     * `cues_enabled` setting on the strength of this answer, and a settings
+     * screen that says cues are on while nothing is listening is a worse bug
+     * than a failure the user can see.
+     *
+     * @return false if the permission is missing or Play services refused.
      */
-    fun register(context: Context): Boolean {
+    suspend fun register(context: Context): Boolean {
         if (!hasPermission(context)) return false
 
-        ActivityRecognition.getClient(context)
-            .requestActivityTransitionUpdates(
+        return awaitTask(
+            ActivityRecognition.getClient(context).requestActivityTransitionUpdates(
                 ActivityTransitionRequest(TRANSITIONS),
                 pendingIntent(context),
-            )
-        return true
+            ),
+        )
     }
 
     /** Stop listening. Called when the user turns cues off. */
-    fun unregister(context: Context) {
-        if (!hasPermission(context)) return
-        ActivityRecognition.getClient(context)
-            .removeActivityTransitionUpdates(pendingIntent(context))
+    suspend fun unregister(context: Context): Boolean {
+        if (!hasPermission(context)) return false
+        return awaitTask(
+            ActivityRecognition.getClient(context)
+                .removeActivityTransitionUpdates(pendingIntent(context)),
+        )
     }
+
+    /**
+     * Await a Play services [Task] without pulling in
+     * kotlinx-coroutines-play-services for one call site.
+     */
+    private suspend fun awaitTask(task: Task<Void>): Boolean =
+        suspendCancellableCoroutine { continuation ->
+            task.addOnSuccessListener { continuation.resume(true) }
+                .addOnFailureListener { error ->
+                    Log.w(TAG, "activity transition request refused", error)
+                    continuation.resume(false)
+                }
+        }
 
     private fun pendingIntent(context: Context): PendingIntent {
         val intent = Intent(context.applicationContext, TransitionReceiver::class.java)
@@ -119,4 +143,5 @@ object ActivityTransitions {
     }
 
     private const val REQUEST_CODE = 1
+    private const val TAG = "HarborSensing"
 }
