@@ -109,7 +109,7 @@ Done:
 - `data/` — `HarborRepository` with a SharedPreferences + `org.json`
   implementation. Deliberately not kotlinx-serialization: that needs a
   compiler plugin version-locked to Kotlin, which has bitten this team before.
-- `backend/` — migrations 0001-0004, aligned with the prototype's model.
+- `backend/` — migrations 0001-0002, aligned with the prototype at `e60eef7`.
 
 Not built yet: sensing (stage 1), every screen, the call itself, and Supabase
 sync. `MainActivity` is still the wizard's "Hello Android".
@@ -122,6 +122,13 @@ Two things to know before touching the pipeline:
 - The daily cap counts **cues**, not ledger entries. A cue the user swiped
   away still spent one. That is why `cues` is its own table and its own
   `recordCue` call.
+- **The device owns identity.** Rows the app creates carry a UUID the phone
+  generated, used directly as the primary key. Never add a server-generated
+  id: it makes foreign keys between synced rows unfillable, because the device
+  cannot reference an id it has never read back.
+- The prototype is pinned at a commit, not tracked live. See
+  `docs/02-ui-reconciliation.md` before assuming its current `main` is the
+  spec.
 - Cues are **off by default** and stay off until the user turns them on behind
   a privacy explainer. Any code path that could flip that on without an
   explicit user action is a bug.

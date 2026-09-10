@@ -33,32 +33,43 @@ Stages 1–4 are on-device and must work offline (ADR-003).
 
 ## Build order
 
-The study needs the shortest path to a cue that fires and a resolution that
-logs. Everything else waits.
+v0.1 is the **whole prototype**, not Slack Tide alone. But the order still
+puts the trigger first: it is the risky part, it is what the study actually
+measures, and every other screen can be demoed by hand if the week runs short.
 
-1. ~~**Package rename** `com.example.harbor` → `app.harbor`~~ — done. Was ADR-006.
-
+1. ~~**Package rename** `com.example.harbor` → `app.harbor`~~ — done.
 2. ~~**Local storage + data model.**~~ — done. `domain/Model.kt` mirrors the
    Postgres schema; `data/HarborStore` is SharedPreferences + `org.json`
-   behind `HarborRepository`. Stages 2-4 are implemented as the pure
-   `domain/CuePolicy`, with unit tests. Nothing syncs yet, and nothing calls
-   `CuePolicy` yet — sensing is what wires it up.
-3. **Sensing + threshold + suppression + kairos.** Activity Recognition
-   Transition API, foreground service, walking→still only. This is the risky
-   part; get it firing reliably before any screen is pretty.
+   behind `HarborRepository`. Stages 2-4 are the pure `domain/CuePolicy`, with
+   unit tests. Nothing syncs yet, and nothing calls `CuePolicy` yet — sensing
+   is what wires it up.
+3. **Sensing.** Activity Recognition Transition API, foreground service,
+   walking→still only. Get it firing reliably before any screen is pretty.
 4. **Permission + privacy explainer.** The single biggest install-funnel risk.
    Copy needs a privacy pass before it ships, not after.
-5. **Cue surface + three-way resolution + reward readout + feedback pulse.**
-6. **Threshold calibration + settings + contact and cue-sound picker.**
-7. **The call itself.** `ACTION_CALL` plus a `TelephonyCallback` to detect
+5. **Cue surface + resolution + reward readout + feedback pulse.** The first
+   end-to-end path: a cue fires, the user answers, a row is written.
+6. **The call itself.** `ACTION_CALL` plus a `TelephonyCallback` to detect
    call end so the reward can fire (ADR-002).
-8. **Supabase sync.** Upsert on `(user_id, client_id)`. Last, because the
-   study can run without it if it slips — a local export would do.
+7. **Settings + calibration + contacts + cue sounds.** Everything the user is
+   supposed to be able to change about the above.
+8. **Home / Inbox, Garden and the Jar.** Where a logged moment goes to live.
+   Without this the reward stage is a dead end.
+9. **Conversation and Harvest, reshaped.** One-sided notes, self-entered
+   availability. See ADR-007 — and change the copy that currently promises
+   mutual consent before anyone sees it.
+10. **Dispatch, Beacon, Quick Share, the daily game.** The prototype's later
+    additions. Beacon is nearly free — it derives from moments already
+    stored. Quick Share needs a table and media storage; the game needs a
+    small day-keyed one. Neither is built.
+11. **Supabase sync.** Upsert on the row's own id, which the device generated.
+    Last, because the study can run without it if it slips — a local export
+    would do.
 
 ## Explicitly not in v0.1
 
-App-session trigger (v0.2), iOS (v0.3), parent-side anything, and the reward
-variants beyond the plain readout.
+App-session trigger (v0.2), iOS (v0.3), and any parent-facing surface at all
+(ADR-007). The Wrapped-clip reward variant.
 
 ## Known risks
 

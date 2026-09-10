@@ -114,13 +114,17 @@ object CuePolicy {
 
         // --- stage 2: threshold ------------------------------------------
         val thresholds = settings.thresholds
+        // Only the sensed sources have a bout to measure. Everything else
+        // decides its own timing upstream, so there is nothing to compare a
+        // threshold against.
         val required = when (signal.source) {
             TriggerSource.WALKING_STOP -> thresholds.walkingMinutes
             TriggerSource.SESSION_END -> thresholds.sessionMinutes
-            // Dispatch decides its own timing upstream; there is no bout to
-            // measure, so there is nothing to compare a threshold against.
-            TriggerSource.DISPATCH -> 0
-            TriggerSource.MANUAL -> 0
+            TriggerSource.DISPATCH,
+            TriggerSource.SIGNAL,
+            TriggerSource.GAME,
+            TriggerSource.MANUAL,
+            -> 0
         }
         if (signal.activeMinutes < required) {
             return Decision.Hold(Reason.BELOW_THRESHOLD)
@@ -145,8 +149,9 @@ object CuePolicy {
 
         // --- stage 4: kairos ---------------------------------------------
         // Fire on the completed stop, never mid-activity. Handoff, section 7.
-        // Dispatch has no transition to settle.
-        if (signal.source != TriggerSource.DISPATCH) {
+        // Only meaningful for a sensed transition: a dispatch, a signal or the
+        // daily game has no stop to wait out.
+        if (signal.source.isSensedTransition) {
             if (Duration.between(signal.stillSince, now) < SETTLE) {
                 return Decision.Hold(Reason.TRANSITION_UNSETTLED)
             }
@@ -154,4 +159,22 @@ object CuePolicy {
 
         return Decision.Fire
     }
+
+    /**
+     * Whether this source came from watching the user's activity, as opposed
+     * to something the app or the user initiated.
+     *
+     * Only these two carry a bout to measure and a transition to settle. When
+     * a new source is added, the compiler will not force you to think about
+     * this one — so think about it here.
+     */
+    private val TriggerSource.isSensedTransition: Boolean
+        get() = when (this) {
+            TriggerSource.WALKING_STOP, TriggerSource.SESSION_END -> true
+            TriggerSource.DISPATCH,
+            TriggerSource.SIGNAL,
+            TriggerSource.GAME,
+            TriggerSource.MANUAL,
+            -> false
+        }
 }

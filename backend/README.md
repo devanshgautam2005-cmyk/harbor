@@ -16,8 +16,12 @@ design error, not a missing feature. See `docs/01-decisions.md`, ADR-003.
 ```
 supabase/migrations/
   0001_init.sql           tables, enums, RLS, new-user trigger
-  0002_study_export.sql   the three views the study actually needs
+  0002_study_export.sql   the two views the study actually needs
 ```
+
+Both are still a first draft: nothing has been applied to any database yet, so
+they were consolidated rather than patched. Once you have run them against a
+real project, that stops being true — from then on, add a new numbered file.
 
 ## Running it
 

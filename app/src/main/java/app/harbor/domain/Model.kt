@@ -27,6 +27,12 @@ enum class TriggerSource {
     /** Raised by the Dispatch content pipeline rather than by sensing. */
     DISPATCH,
 
+    /** Raised by a Quick Share signal. Feature not built yet. */
+    SIGNAL,
+
+    /** Raised by the daily family game. Feature not built yet. */
+    GAME,
+
     /** The user opened Harbor and asked for a prompt themselves. */
     MANUAL,
 }
@@ -42,6 +48,9 @@ enum class Resolution {
     /** Sent a note. Distinct from a reaction, and counts toward the Jar. */
     MESSAGE,
 
+    /** Played the day's family game. Counts for the Jar, but see below. */
+    PLAYED,
+
     PROPOSED_LATER,
     DISMISSED;
 
@@ -52,6 +61,10 @@ enum class Resolution {
      * judgement carried over from the prototype: a heart sent on purpose is
      * connection, and treating it as one is what keeps the app from nagging
      * someone who already did the thing.
+     *
+     * [PLAYED] is deliberately excluded, matching the prototype: playing the
+     * daily game is a nice thing to have done, but nobody on the other end
+     * heard from you.
      */
     val isConnection: Boolean
         get() = this == CALLED || this == REACTED || this == MESSAGE
@@ -91,10 +104,13 @@ data class Thresholds(
     val cooldownMinutes: Int,
 ) {
     init {
-        require(walkingMinutes in 1..240) { "walkingMinutes out of range: $walkingMinutes" }
-        require(sessionMinutes in 1..240) { "sessionMinutes out of range: $sessionMinutes" }
-        require(dailyCap in 0..10) { "dailyCap out of range: $dailyCap" }
-        require(cooldownMinutes in 0..1440) { "cooldownMinutes out of range: $cooldownMinutes" }
+        // Ranges match the prototype's settings form and the CHECK
+        // constraints in 0001_init.sql, so a value one layer accepts can
+        // never be rejected by another.
+        require(walkingMinutes in 1..120) { "walkingMinutes out of range: $walkingMinutes" }
+        require(sessionMinutes in 1..180) { "sessionMinutes out of range: $sessionMinutes" }
+        require(dailyCap in 1..10) { "dailyCap out of range: $dailyCap" }
+        require(cooldownMinutes in 1..1440) { "cooldownMinutes out of range: $cooldownMinutes" }
     }
 
     companion object {
@@ -106,10 +122,10 @@ data class Thresholds(
          * Study question 3 is how far people move away from this.
          */
         val SUGGESTED = Thresholds(
-            walkingMinutes = 12,
+            walkingMinutes = 10,
             sessionMinutes = 20,
             dailyCap = 2,
-            cooldownMinutes = 180,
+            cooldownMinutes = 120,
         )
     }
 }
@@ -162,7 +178,7 @@ data class Contact(
  * resolution-based count can see it.
  */
 data class Cue(
-    val clientId: UUID,
+    val id: UUID,
     /** The device's local day. */
     val firedDate: LocalDate,
     val triggerSource: TriggerSource,
@@ -170,11 +186,11 @@ data class Cue(
 )
 
 /**
- * Written at stage 9. The device generates [clientId], so re-uploading after a
+ * Written at stage 9. The device generates [id], so re-uploading after a
  * failed sync is an upsert rather than a duplicate row. See ADR-003.
  */
 data class LedgerEntry(
-    val clientId: UUID,
+    val id: UUID,
     val entryDate: LocalDate,
     /** The cue this resolved. Null when the user started the moment themselves. */
     val cueId: UUID?,

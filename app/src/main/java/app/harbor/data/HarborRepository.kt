@@ -54,7 +54,7 @@ interface HarborRepository {
     suspend fun append(entry: LedgerEntry)
 
     /** Marks a proposed-later plan as dealt with, so it stops suppressing. */
-    suspend fun markReminderDone(clientId: UUID)
+    suspend fun markReminderDone(id: UUID)
 
     /** Cues and entries not yet accepted by the server, oldest first. */
     suspend fun unsyncedCues(): List<Cue>

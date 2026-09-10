@@ -89,13 +89,13 @@ internal object LedgerJson {
     // --- cue --------------------------------------------------------------
 
     fun cue(c: Cue): JSONObject = JSONObject()
-        .put("client_id", c.clientId.toString())
+        .put("id", c.id.toString())
         .put("fired_date", c.firedDate.toString())
         .put("trigger_source", c.triggerSource.wire)
         .put("fired_at", c.firedAt.toString())
 
     fun cue(o: JSONObject): Cue = Cue(
-        clientId = UUID.fromString(o.getString("client_id")),
+        id = UUID.fromString(o.getString("id")),
         firedDate = LocalDate.parse(o.getString("fired_date")),
         triggerSource = TriggerSource.entries.fromWire(o.getString("trigger_source")),
         firedAt = Instant.parse(o.getString("fired_at")),
@@ -110,7 +110,7 @@ internal object LedgerJson {
     // --- ledger -----------------------------------------------------------
 
     fun entry(e: LedgerEntry): JSONObject = JSONObject()
-        .put("client_id", e.clientId.toString())
+        .put("id", e.id.toString())
         .put("entry_date", e.entryDate.toString())
         .put("cue_id", e.cueId?.toString())
         .put("contact_id", e.contactId?.toString())
@@ -124,7 +124,7 @@ internal object LedgerJson {
         .put("occurred_at", e.occurredAt.toString())
 
     fun entry(o: JSONObject): LedgerEntry = LedgerEntry(
-        clientId = UUID.fromString(o.getString("client_id")),
+        id = UUID.fromString(o.getString("id")),
         entryDate = LocalDate.parse(o.getString("entry_date")),
         cueId = o.optStringOrNull("cue_id")?.let(UUID::fromString),
         contactId = o.optStringOrNull("contact_id")?.let(UUID::fromString),

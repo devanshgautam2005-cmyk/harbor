@@ -117,7 +117,7 @@ class HarborStore(context: Context) : HarborRepository {
     override suspend fun recordCue(cue: Cue) {
         writeList(KEY_CUES) {
             (readCues() + cue)
-                .associateBy { it.clientId }
+                .associateBy { it.id }
                 .values
                 .sortedBy { it.firedAt }
                 .takeLast(RETAINED)
@@ -130,7 +130,7 @@ class HarborStore(context: Context) : HarborRepository {
             // Idempotent: re-appending the same moment replaces it rather than
             // duplicating, matching the server's upsert key.
             (readLedger() + entry)
-                .associateBy { it.clientId }
+                .associateBy { it.id }
                 .values
                 .sortedBy { it.occurredAt }
                 .takeLast(RETAINED)
@@ -138,16 +138,16 @@ class HarborStore(context: Context) : HarborRepository {
         }
     }
 
-    override suspend fun markReminderDone(clientId: UUID) {
+    override suspend fun markReminderDone(id: UUID) {
         writeList(KEY_LEDGER) {
             readLedger()
-                .map { if (it.clientId == clientId) it.copy(reminderDone = true) else it }
+                .map { if (it.id == id) it.copy(reminderDone = true) else it }
                 .let(LedgerJson::entries)
         }
         // The entry changed, so it has to go up to the server again.
         write {
             val synced = prefs.getStringSet(KEY_SYNCED_ENTRIES, emptySet()).orEmpty()
-            putStringSet(KEY_SYNCED_ENTRIES, synced - clientId.toString())
+            putStringSet(KEY_SYNCED_ENTRIES, synced - id.toString())
         }
     }
 
@@ -155,12 +155,12 @@ class HarborStore(context: Context) : HarborRepository {
 
     override suspend fun unsyncedCues(): List<Cue> = withContext(Dispatchers.IO) {
         val synced = prefs.getStringSet(KEY_SYNCED_CUES, emptySet()).orEmpty()
-        readCues().filter { it.clientId.toString() !in synced }.sortedBy { it.firedAt }
+        readCues().filter { it.id.toString() !in synced }.sortedBy { it.firedAt }
     }
 
     override suspend fun unsyncedEntries(): List<LedgerEntry> = withContext(Dispatchers.IO) {
         val synced = prefs.getStringSet(KEY_SYNCED_ENTRIES, emptySet()).orEmpty()
-        readLedger().filter { it.clientId.toString() !in synced }.sortedBy { it.occurredAt }
+        readLedger().filter { it.id.toString() !in synced }.sortedBy { it.occurredAt }
     }
 
     override suspend fun markSynced(cueIds: List<UUID>, entryIds: List<UUID>) {
@@ -168,8 +168,8 @@ class HarborStore(context: Context) : HarborRepository {
         write {
             // Only track ids we still hold, so these sets cannot grow forever
             // as old rows age out of the retained window.
-            val heldCues = readCues().mapTo(mutableSetOf()) { it.clientId.toString() }
-            val heldEntries = readLedger().mapTo(mutableSetOf()) { it.clientId.toString() }
+            val heldCues = readCues().mapTo(mutableSetOf()) { it.id.toString() }
+            val heldEntries = readLedger().mapTo(mutableSetOf()) { it.id.toString() }
             val cues = prefs.getStringSet(KEY_SYNCED_CUES, emptySet()).orEmpty()
             val entries = prefs.getStringSet(KEY_SYNCED_ENTRIES, emptySet()).orEmpty()
 

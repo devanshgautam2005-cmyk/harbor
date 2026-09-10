@@ -37,7 +37,7 @@ class CuePolicyTest {
         proposedTime: Instant? = null,
         reminderDone: Boolean = false,
     ) = LedgerEntry(
-        clientId = UUID.randomUUID(),
+        id = UUID.randomUUID(),
         entryDate = today,
         cueId = UUID.randomUUID(),
         contactId = UUID.randomUUID(),
@@ -182,11 +182,35 @@ class CuePolicyTest {
     }
 
     @Test
-    fun a_daily_cap_of_zero_suppresses_everything() {
+    fun a_cap_of_one_suppresses_after_a_single_cue() {
+        // A cap of zero is not expressible: the schema and the prototype both
+        // require at least 1, because cues_enabled is how you turn cues off.
+        // Two ways to say the same thing would only be a way to disagree.
         assertEquals(
             Decision.Hold(Reason.DAILY_CAP_REACHED),
-            decide(settings = settings.copy(thresholds = thresholds.copy(dailyCap = 0))),
+            decide(
+                settings = settings.copy(thresholds = thresholds.copy(dailyCap = 1)),
+                cuesToday = 1,
+                lastCueAt = now.minus(Duration.ofHours(9)),
+            ),
         )
+    }
+
+    @Test
+    fun a_cap_below_one_is_rejected_rather_than_silently_accepted() {
+        val error = runCatching { thresholds.copy(dailyCap = 0) }.exceptionOrNull()
+        assertEquals(IllegalArgumentException::class.java, error?.javaClass)
+    }
+
+    @Test
+    fun the_suggested_calibration_matches_the_prototype() {
+        // These are the numbers the study measures drift against, and they
+        // are duplicated in 0001_init.sql as column defaults. If you retune
+        // one, retune both.
+        assertEquals(10, Thresholds.SUGGESTED.walkingMinutes)
+        assertEquals(20, Thresholds.SUGGESTED.sessionMinutes)
+        assertEquals(2, Thresholds.SUGGESTED.dailyCap)
+        assertEquals(120, Thresholds.SUGGESTED.cooldownMinutes)
     }
 
     @Test

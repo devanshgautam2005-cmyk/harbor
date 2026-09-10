@@ -4,6 +4,13 @@
 Next.js prototype. The product logic lives in `lib/harbor/model.ts`; the
 screens are `components/harbor/*.tsx`.
 
+**Pinned at `e60eef7` (2026-09-10).** The prototype is a live target — it
+gained three features while this document was being written — so the schema
+tracks a named commit rather than whatever `main` happens to be. Bump the pin
+deliberately, in a PR that also updates the table below. Do not chase it
+commit by commit: half of what lands there may be cut before the study, and
+migrating twice for a feature that never ships is wasted work.
+
 **Settled 2026-09-10:** v0.1 targets the whole prototype, not Slack Tide
 alone. The prototype is the reference for product behaviour, resolved
 divergence by divergence below. The spelling is **Harbor**. The Android app
@@ -133,11 +140,42 @@ reads like a v0 simplification rather than a design decision.
 Recommendation: keep both. A global default in settings, an optional
 per-contact override. It is a superset, so neither design is foreclosed.
 
-## Schema consequences
+## Outstanding at the pin
 
-Once the above lands, `user_thresholds` holds `cuesEnabled`, `minimum`,
-`sound` and `reducedMotion` alongside the four numbers. Rename it
-`user_settings`; the name is already wrong.
+`e60eef7` (PR #1) added Lighthouse Beacon, Quick Share and a daily family
+game. Partially absorbed:
+
+| Prototype addition | Status |
+| --- | --- |
+| `Resolution` gains `played` | **Done** — in the enum. Deliberately *not* a connection: playing the game is nice, but nobody heard from you. Matches `cueEligibility`, which still counts only called/reacted/message |
+| `source` gains `signal`, `game` | **Done** — in the enum |
+| Lighthouse Beacon | **No schema needed.** `beaconWarmth()` derives entirely from existing moments |
+| `Signal` type + `signals[]` (Quick Share) | **Not built** — needs its own table, plus media storage |
+| `games: Record<string, string>` | **Not built** — needs a small day-keyed table |
+
+The enum values were taken now even though two of their features do not
+exist, because adding a value to a live enum cannot happen in the same
+transaction that uses it. Taking them early costs a line; taking them late
+costs a two-migration dance.
+
+## Schema shape
+
+`user_settings` (not `user_thresholds` — it holds four preferences as well as
+the four numbers).
+
+**Identity belongs to the device.** Every row the app creates uses a UUID the
+phone generated as its primary key. There is no server-generated id to map
+back to, so sync is a plain `on conflict (id) do update` and a phone that has
+been offline for a week pushes its whole backlog in one call. An earlier draft
+had server-generated `id` plus a separate `client_id`, which quietly made
+`ledger_entries.cue_id` unfillable: the device cannot know a server id it has
+never read back.
+
+**Thresholds match the prototype exactly** — 10 walking minutes, 20 session,
+cap 2, cooldown 120 — and so do the accepted ranges, so a value one layer
+takes cannot be refused by another. The study's drift view reads its baseline
+from the column defaults rather than hardcoding them, so retuning a suggestion
+cannot silently desynchronise the analysis.
 
 ## Repo hygiene in harvest-pulse
 
