@@ -74,6 +74,11 @@ internal fun CueSurface(
     var line by remember { mutableStateOf("") }
     var settled by remember { mutableStateOf(false) }
 
+    // What the user chose, held so the pulse can amend that same entry rather
+    // than writing a second one.
+    var chosen by remember { mutableStateOf<Resolution?>(null) }
+    var proposed by remember { mutableStateOf<Instant?>(null) }
+
     BackHandler(enabled = step == CueStep.Cue) { onDismiss() }
 
     val who = contact?.label ?: "someone at home"
@@ -218,8 +223,9 @@ internal fun CueSurface(
                 )
                 CuePath(main = "Send it", sub = "nothing owed either way", enabled = line.isNotBlank()) {
                     settled = true
+                    chosen = Resolution.REACTED
                     onRecord(Resolution.REACTED, null, null)
-                    onDismiss()
+                    step = CueStep.Pulse
                 }
                 CueOut("back") { step = CueStep.Cue }
             }
@@ -245,17 +251,44 @@ internal fun CueSurface(
                 ).forEach { (label, at) ->
                     CuePath(main = label, sub = "a reminder inside Harbor") {
                         settled = true
+                        chosen = Resolution.PROPOSED_LATER
+                        proposed = at
                         onRecord(Resolution.PROPOSED_LATER, at, null)
-                        onDismiss()
+                        step = CueStep.Pulse
                     }
                 }
                 CueOut("back") { step = CueStep.Cue }
+            }
+
+            // Stage 8. Asked once, after a choice the user actually made.
+            //
+            // Deliberately not asked after a dismissal: dismissing has to cost
+            // nothing, and a question is a cost. That leaves the dismiss rate
+            // itself as the signal for those — see docs/03, study question 1.
+            CueStep.Pulse -> Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(13.dp),
+            ) {
+                CueTitle("Kept.", small = true)
+                CueSub("Was this a good moment to be asked?")
+
+                CuePath(main = "Good time", sub = "ask me at moments like this") {
+                    onRecord(chosen ?: Resolution.REACTED, proposed, FeedbackPulse.GOOD_TIME)
+                    onDismiss()
+                }
+                CuePath(main = "Not this time", sub = "this one caught me wrong") {
+                    onRecord(chosen ?: Resolution.REACTED, proposed, FeedbackPulse.BAD_TIME)
+                    onDismiss()
+                }
+
+                CueOut("skip") { onDismiss() }
             }
         }
     }
 }
 
-private enum class CueStep { Cue, React, Later }
+private enum class CueStep { Cue, React, Later, Pulse }
 
 /** The shapes a call can be given beforehand. Ported from the prototype. */
 private val TOPICS = listOf("Catch up", "Ask for help", "Share news", "Just because")

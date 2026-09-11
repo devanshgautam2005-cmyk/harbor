@@ -1,6 +1,13 @@
 package app.harbor.cue
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import app.harbor.domain.FeedbackPulse
+import app.harbor.ui.theme.SurfaceGreen
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +60,7 @@ fun CallFlow(
     measuredMinutes: Int,
     initialTopic: String?,
     onPlant: (minutes: Int, feeling: Feeling, flower: FlowerKind, topic: String?) -> Unit,
+    onPulse: (FeedbackPulse) -> Unit,
     onDone: () -> Unit,
 ) {
     var step by remember { mutableStateOf(Step.Reflect) }
@@ -61,12 +69,17 @@ fun CallFlow(
     var flower by remember { mutableStateOf(Feeling.STEADY.flower) }
     var about by remember { mutableStateOf(initialTopic.orEmpty()) }
     var wholeLibrary by remember { mutableStateOf(false) }
+    var pulsed by remember { mutableStateOf(false) }
 
     Column(
         Modifier
             .fillMaxSize()
+            // .call-screen -- sand settling into paper
+            .background(
+                Brush.verticalGradient(listOf(Color(0xFFF3E9D2), Color(0xFFFBF1DE))),
+            )
             .verticalScroll(rememberScrollState())
-            .padding(28.dp),
+            .padding(horizontal = 26.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -77,35 +90,63 @@ fun CallFlow(
                 Text("How did that feel?", style = MaterialTheme.typography.headlineMedium)
                 Spacer(Modifier.size(20.dp))
 
-                Feeling.entries.forEach { option ->
-                    val selected = option == feeling
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .border(
-                                width = if (selected) 2.dp else 1.dp,
-                                color = if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                            .clickable {
-                                feeling = option
-                                // Changing how it felt re-picks the flower, so
-                                // the suggestion always matches the answer.
-                                flower = option.flower
-                            }
-                            .padding(14.dp),
+                Feeling.entries.chunked(2).forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text(option.label, style = MaterialTheme.typography.titleMedium)
-                        Text(option.caption, style = MaterialTheme.typography.bodySmall)
+                        row.forEach { option ->
+                            val selected = option == feeling
+                            Column(
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        if (selected) Color(0xFFF6D68C)
+                                        else MaterialTheme.colorScheme.surface,
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.outlineVariant,
+                                        shape = RoundedCornerShape(16.dp),
+                                    )
+                                    .clickable {
+                                        feeling = option
+                                        // Changing how it felt re-picks the
+                                        // flower, so the suggestion always
+                                        // matches the answer.
+                                        flower = option.flower
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                            ) {
+                                Text(
+                                    option.label,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                    ),
+                                )
+                                Text(
+                                    option.caption,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    ),
+                                )
+                            }
+                        }
                     }
                     Spacer(Modifier.size(10.dp))
                 }
 
-                Spacer(Modifier.size(12.dp))
+                Spacer(Modifier.size(2.dp))
                 Row(
-                    Modifier.fillMaxWidth(),
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -222,13 +263,22 @@ fun CallFlow(
                 )
                 Spacer(Modifier.size(24.dp))
 
-                // A longer call opens a fuller bloom, bounded at both ends so
-                // a short call is still a whole flower.
-                FlowerMark(
-                    kind = flower,
-                    modifier = Modifier.size(200.dp),
-                    scale = Flowers.bloomScale(minutes).toFloat(),
-                )
+                Box(contentAlignment = Alignment.BottomCenter) {
+                    Box(
+                        Modifier
+                            .padding(bottom = 18.dp)
+                            .size(width = 130.dp, height = 34.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(SurfaceGreen),
+                    )
+                    // A longer call opens a fuller bloom, bounded at both ends
+                    // so a short call is still a whole flower.
+                    FlowerMark(
+                        kind = flower,
+                        modifier = Modifier.size(200.dp),
+                        scale = Flowers.bloomScale(minutes).toFloat(),
+                    )
+                }
 
                 Spacer(Modifier.size(24.dp))
                 Text("It opened.", style = MaterialTheme.typography.headlineMedium)
@@ -240,7 +290,32 @@ fun CallFlow(
                     textAlign = TextAlign.Center,
                 )
 
-                Spacer(Modifier.size(28.dp))
+                Spacer(Modifier.size(24.dp))
+
+                // Stage 8, for calls. Asked after the reward rather than
+                // before it, so it never reads as the price of the flower.
+                if (!pulsed) {
+                    Text(
+                        "Was this a good moment to be asked?",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { pulsed = true; onPulse(FeedbackPulse.GOOD_TIME) },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("Good time") }
+                        OutlinedButton(
+                            onClick = { pulsed = true; onPulse(FeedbackPulse.BAD_TIME) },
+                            modifier = Modifier.weight(1f),
+                        ) { Text("Not this time") }
+                    }
+                    Spacer(Modifier.size(16.dp))
+                }
+
                 Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
                     Text("Back to your day")
                 }

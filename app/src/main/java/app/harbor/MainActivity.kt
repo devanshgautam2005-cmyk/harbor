@@ -109,6 +109,13 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                 },
+                                onPulse = { pulse ->
+                                    // Amends the same row again, which is safe
+                                    // because append is keyed on the entry id.
+                                    scope.launch {
+                                        store.append(entry.copy(feedbackPulse = pulse))
+                                    }
+                                },
                                 onDone = {
                                     reflecting = null
                                     screen = Screen.Garden
