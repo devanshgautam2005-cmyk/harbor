@@ -185,6 +185,33 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                 FieldLabel(who, focus.bloom.minutes, ink, muted)
             }
         }
+
+        // An empty field should say so rather than showing bare ground, and
+        // while this is being built it also says why it is empty.
+        if (projected.isEmpty()) {
+            Box(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        if (blooms.isEmpty()) {
+                            "Nothing planted here yet."
+                        } else {
+                            "Nothing in view."
+                        },
+                        style = MaterialTheme.typography.titleLarge.copy(color = ink),
+                    )
+                    Text(
+                        "blooms=" + blooms.size +
+                            " contacts=" + contacts.size +
+                            " entries=" + entries.size +
+                            " frame=" + frame.width + "x" + frame.height,
+                        style = MaterialTheme.typography.bodySmall.copy(color = muted),
+                    )
+                }
+            }
+        }
     }
 }
 
