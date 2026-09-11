@@ -15,7 +15,7 @@ Three questions, in priority order. If the build slips, protect question 1.
    (ADR-002). Write it up that way — "reported a call" — rather than implying
    a measurement we did not take.
 3. **Where do people move their threshold?** If everyone sits on the shipped
-   default of 12 minutes, either it is right or the calibration screen is
+   default of 10 minutes, either it is right or the calibration screen is
    invisible. The exit interview separates those.
 
 `backend/supabase/migrations/0002_study_export.sql` defines the views that

@@ -44,6 +44,9 @@ See [`backend/README.md`](backend/README.md). You need the Supabase CLI and a
   screen of the prototype ended up, the palette and component vocabulary, and
   what looks like a bug but is a decision. Start here if you are restyling or
   reskinning
+- [`docs/06-onboarding.md`](docs/06-onboarding.md) — the brief for a first-run
+  flow that does not exist yet: what it must collect, why the order is what it
+  is, and the permission screen the study lives or dies on
 - [`docs/slack-tide-handoff.html`](docs/slack-tide-handoff.html) — the original
   pipeline spec. Open it in a browser.
 
