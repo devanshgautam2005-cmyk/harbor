@@ -82,6 +82,67 @@ class FieldTest {
         assertTrue(Field.project(many, cam, 1080.0, 2000.0).size <= 260)
     }
 
+    // --- scale -------------------------------------------------------------
+    //
+    // The whole suite passed while a big garden rendered as 260 specks eleven
+    // pixels wide, every one of them shut. Everything was individually true
+    // and the result was unusable, so these assert the thing you would
+    // actually have looked at.
+
+    @Test
+    fun `a patch grows as it fills, or there is no field to walk through`() {
+        // Garden caps a patch so the plan view stays a tidy blob. Standing
+        // inside it, that cap would put three hundred flowers in the same
+        // disc as thirteen.
+        assertTrue(Field.extent(blooms(300)) > Field.extent(blooms(20)) * 1.5)
+    }
+
+    @Test
+    fun `the near edge of a big field is big enough to be a flower`() {
+        val many = blooms(335)
+        val out = Field.project(many, Field.openingCamera(many), 1080.0, 2116.0)
+        assertTrue("nothing projected at all", out.isNotEmpty())
+        val nearest = out.last()
+        assertTrue(
+            "nearest bloom was only ${nearest.size}px across",
+            nearest.size > 30.0,
+        )
+    }
+
+    @Test
+    fun `a big field has something open in it and something still a bud`() {
+        val many = blooms(335)
+        val out = Field.project(many, Field.openingCamera(many), 1080.0, 2116.0)
+        assertTrue("nothing was open", out.any { it.openness > 0.5 })
+        assertTrue("nothing was left as a bud", out.any { it.openness < 0.1 })
+    }
+
+    @Test
+    fun `most of a big field stays shut, so opening still means something`() {
+        val many = blooms(335)
+        val out = Field.project(many, Field.openingCamera(many), 1080.0, 2116.0)
+        val open = out.count { it.openness > 0.5 }
+        assertTrue("$open of ${out.size} open is a wall, not a field", open < out.size / 4)
+    }
+
+    @Test
+    fun `standing back scales with the ground covered, not the head count`() {
+        // Two gardens with the same number of flowers but different spreads
+        // should not be viewed from the same distance.
+        val tight = Field.layout(listOf(clusterOf(40)))
+        val wide = Field.layout(
+            listOf(
+                clusterOf(40),
+                Field.Cluster(
+                    contactId = UUID.fromString("33333333-3333-3333-3333-333333333333"),
+                    plot = Garden.plotFor("33333333-3333-3333-3333-333333333333", 6),
+                    flowers = List(40) { FlowerKind.entries[0] to 12 },
+                ),
+            ),
+        )
+        assertTrue(Field.restingBack(wide) > Field.restingBack(tight))
+    }
+
     // --- projection --------------------------------------------------------
 
     @Test
@@ -182,7 +243,7 @@ class FieldTest {
     fun `choosing a bloom focuses that one and not a nearer neighbour`() {
         val field = blooms(40)
         val target = field[7]
-        val out = Field.project(field, Field.facing(target, field.size), 1080.0, 2000.0)
+        val out = Field.project(field, Field.facing(target, field), 1080.0, 2000.0)
         val focus = Field.focused(out, chosen = target)
         assertNotNull("the chosen bloom should be in focus", focus)
         assertEquals(target.index, focus!!.bloom.index)
@@ -195,7 +256,7 @@ class FieldTest {
         // neighbour, and this records it rather than pretending otherwise.
         val field = blooms(40)
         val target = field[7]
-        val out = Field.project(field, Field.facing(target, field.size), 1080.0, 2000.0)
+        val out = Field.project(field, Field.facing(target, field), 1080.0, 2000.0)
         val emergent = Field.focused(out)
         assertNotNull(emergent)
         assertTrue(

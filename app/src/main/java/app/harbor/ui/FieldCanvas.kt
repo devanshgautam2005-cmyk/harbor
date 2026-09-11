@@ -146,7 +146,7 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                     detectTapGestures { at ->
                         val hit = Field.hit(projected, at.x.toDouble(), at.y.toDouble())
                         chosen = hit?.bloom
-                        if (hit != null) flyTo(Field.facing(hit.bloom, blooms.size))
+                        if (hit != null) flyTo(Field.facing(hit.bloom, blooms))
                     }
                 },
         ) {

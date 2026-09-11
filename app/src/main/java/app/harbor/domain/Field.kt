@@ -2,8 +2,10 @@ package app.harbor.domain
 
 import java.util.UUID
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
 
@@ -121,17 +123,28 @@ object Field {
         min(4600.0, 700.0 + count * 46.0)
 
     /**
-     * Where the camera rests for a garden of this size.
+     * How far across the planted ground is.
      *
-     * Few flowers: stand among them, close and low. Many: step back and lift,
-     * because the point of a large field is that it is large, and you cannot
-     * see that with your face in it.
+     * The camera is placed from this rather than from a flower count, which
+     * was the earlier mistake: counting made a packed patch of three hundred
+     * push the viewer six hundred units further back than a patch of twenty,
+     * even though both covered the same ground. Everything arrived eleven
+     * pixels wide and permanently shut.
      */
-    fun restingHeight(count: Int): Double =
-        min(190.0, EYE + count * 1.5)
+    fun extent(blooms: List<Bloom>): Double {
+        if (blooms.size < 2) return 220.0
+        val spanX = blooms.maxOf { it.x } - blooms.minOf { it.x }
+        val spanZ = blooms.maxOf { it.z } - blooms.minOf { it.z }
+        return max(220.0, max(spanX, spanZ))
+    }
 
-    fun restingBack(count: Int): Double =
-        min(760.0, 180.0 + count * 7.0)
+    /** Eye height for a field this big: enough to see over it, not a map. */
+    fun restingHeight(blooms: List<Bloom>): Double =
+        (extent(blooms) * 0.16).coerceIn(EYE, 240.0)
+
+    /** Far enough out that the near edge is comfortably inside the frame. */
+    fun restingBack(blooms: List<Bloom>): Double =
+        (extent(blooms) * 0.75).coerceIn(240.0, 1500.0)
 
     /**
      * Lay the blooms out on the ground plane.
@@ -142,7 +155,7 @@ object Field {
      */
     fun layout(clusters: List<Cluster>): List<Bloom> = clusters.flatMap { cluster ->
         cluster.flowers.mapIndexed { index, (kind, minutes) ->
-            val spot = Garden.flowerSpot(cluster.plot.seed, index, cluster.plot.radius)
+            val spot = spread(cluster.plot.seed, index, cluster.plot.radius)
             Bloom(
                 contactId = cluster.contactId,
                 kind = kind,
@@ -159,6 +172,30 @@ object Field {
         }
     }
 
+    /**
+     * Where a flower sits in its patch, allowed to keep going outward.
+     *
+     * [Garden.flowerSpot] caps its radius, which is right for a plan view: a
+     * patch stays a tidy blob you can label. Standing inside it, that cap is
+     * fatal — three hundred flowers would occupy the same disc as thirteen,
+     * and a field that does not grow is just a crowd.
+     *
+     * Same hash, same golden angle, same jitter, with the cap removed. Below
+     * about thirteen flowers the cap never binds, so the two views agree
+     * exactly; past that the plan compresses what the field lets spread. That
+     * is a deliberate difference between two drawings of one garden, not two
+     * different gardens.
+     */
+    fun spread(seed: UInt, index: Int, radius: Double): Garden.Spot {
+        val r = radius * 0.76 * sqrt((index + 0.6) / 13.0)
+        val angle = index * 2.399963 + Garden.rand(seed, index + 70) * 0.55
+        return Garden.Spot(
+            x = cos(angle) * r + (Garden.rand(seed, index + 120) - 0.5) * 9,
+            y = (sin(angle) * r + (Garden.rand(seed, index + 180) - 0.5) * 7) *
+                Garden.GROUND_SQUASH,
+        )
+    }
+
     /** The centre of everything planted, so a camera can be aimed at it. */
     fun centre(blooms: List<Bloom>): Pair<Double, Double> {
         if (blooms.isEmpty()) return 0.0 to 0.0
@@ -168,10 +205,11 @@ object Field {
     /** The camera a garden of this size opens at: behind the field, looking in. */
     fun openingCamera(blooms: List<Bloom>): Camera {
         val (cx, cz) = centre(blooms)
+        val half = if (blooms.isEmpty()) 0.0 else (blooms.maxOf { it.z } - cz)
         return Camera(
             x = cx,
-            z = cz - restingBack(blooms.size),
-            height = restingHeight(blooms.size),
+            z = cz - half - restingBack(blooms),
+            height = restingHeight(blooms),
         )
     }
 
@@ -193,7 +231,7 @@ object Field {
 
         val focal = (width / 2) / tan(camera.fov / 2)
         val horizon = height * HORIZON
-        val far = renderDistance(blooms.size)
+        val far = max(renderDistance(blooms.size), extent(blooms) * 3.0)
         val centreX = width / 2
 
         val visible = ArrayList<Projected>(min(blooms.size, MAX_DRAWN))
@@ -308,10 +346,10 @@ object Field {
      * Stops short rather than arriving on top of it: [NEAR] culls anything
      * closer, so walking all the way in would make the flower vanish.
      */
-    fun facing(bloom: Bloom, count: Int): Camera = Camera(
+    fun facing(bloom: Bloom, blooms: List<Bloom>): Camera = Camera(
         x = bloom.x,
         z = bloom.z - NEAR * 4.2,
-        height = min(EYE, restingHeight(count)),
+        height = min(EYE, restingHeight(blooms)),
     )
 
     /** Keeps a walking camera inside the field it is walking in. */
