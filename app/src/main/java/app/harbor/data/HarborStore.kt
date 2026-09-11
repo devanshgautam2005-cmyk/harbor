@@ -51,6 +51,9 @@ class HarborStore(context: Context) : HarborRepository {
     private val _busyWindows = MutableStateFlow(readBusyWindows())
     override val busyWindows: StateFlow<List<BusyWindow>> = _busyWindows.asStateFlow()
 
+    private val _dailyAnswers = MutableStateFlow(readDailyAnswers())
+    override val dailyAnswers: StateFlow<Map<LocalDate, String>> = _dailyAnswers.asStateFlow()
+
     // --- settings ---------------------------------------------------------
 
     private fun readSettings(): UserSettings {
@@ -99,6 +102,29 @@ class HarborStore(context: Context) : HarborRepository {
         val sorted = windows.sortedWith(compareBy({ it.day }, { it.start }))
         write { putString(KEY_BUSY, LedgerJson.busyWindows(sorted).toString()) }
         _busyWindows.value = sorted
+    }
+
+    // --- the daily question -----------------------------------------------
+
+    private fun readDailyAnswers(): Map<LocalDate, String> {
+        val raw = prefs.getString(KEY_ANSWERS, null) ?: return emptyMap()
+        return runCatching {
+            val o = JSONObject(raw)
+            o.keys().asSequence().associate { LocalDate.parse(it) to o.getString(it) }
+        }.getOrDefault(emptyMap())
+    }
+
+    override suspend fun setDailyAnswer(day: LocalDate, answer: String) {
+        val updated = _dailyAnswers.value + (day to answer)
+        write {
+            putString(
+                KEY_ANSWERS,
+                JSONObject().apply {
+                    updated.forEach { (d, text) -> put(d.toString(), text) }
+                }.toString(),
+            )
+        }
+        _dailyAnswers.value = updated
     }
 
     // --- reads ------------------------------------------------------------
@@ -232,6 +258,7 @@ class HarborStore(context: Context) : HarborRepository {
         const val KEY_SETTINGS = "settings"
         const val KEY_CONTACTS = "contacts"
         const val KEY_BUSY = "busy_windows"
+        const val KEY_ANSWERS = "daily_answers"
         const val KEY_LEDGER = "ledger"
         const val KEY_CUES = "cues"
         const val KEY_SYNCED_CUES = "synced_cue_ids"

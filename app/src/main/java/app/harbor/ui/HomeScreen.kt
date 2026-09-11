@@ -24,7 +24,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.harbor.data.HarborRepository
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.rememberCoroutineScope
 import app.harbor.domain.CallStats
+import app.harbor.domain.DailyQuestion
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.domain.Weather
@@ -49,6 +54,7 @@ fun HomeScreen(
     onOpenGarden: () -> Unit,
     onOpenCues: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenNotes: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -134,6 +140,12 @@ fun HomeScreen(
             }
         }
 
+        OutlinedButton(onClick = onOpenNotes, modifier = Modifier.fillMaxWidth()) {
+            Text("Leave a line")
+        }
+
+        DailyQuestionCard(store)
+
         Button(onClick = onOpenGarden, modifier = Modifier.fillMaxWidth()) {
             Text(
                 when (flowersGrown) {
@@ -146,6 +158,56 @@ fun HomeScreen(
 
         OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
             Text("Your pace")
+        }
+    }
+}
+
+/**
+ * One small question a day.
+ *
+ * Reshaped, not ported. The prototype shows your family's answers beside
+ * yours; there is no family side in this build (ADR-007), so inventing their
+ * replies would be the one thing the prototype is careful never to do.
+ *
+ * What survives is a daily prompt worth sitting with, and something small to
+ * bring to a call. Honest, and noticeably less than the prototype's version —
+ * this is the screen ADR-007 costs the most.
+ */
+@Composable
+private fun DailyQuestionCard(store: HarborRepository) {
+    val scope = rememberCoroutineScope()
+    val answers by store.dailyAnswers.collectAsState()
+    val today = remember { LocalDate.now() }
+    val question = remember(today) { DailyQuestion.forDay(today) }
+    val answered = answers[today]
+    var draft by remember { mutableStateOf("") }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Today's little question", style = MaterialTheme.typography.labelMedium)
+            Text(question, style = MaterialTheme.typography.titleMedium)
+
+            if (answered != null) {
+                Text(answered, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "No streak to keep. Answer today, skip tomorrow — either is fine.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it.take(200) },
+                    placeholder = { Text("Whatever comes to mind…") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(
+                    onClick = {
+                        val text = draft.trim()
+                        if (text.isNotEmpty()) scope.launch { store.setDailyAnswer(today, text) }
+                    },
+                    enabled = draft.isNotBlank(),
+                ) { Text("Keep my answer") }
+            }
         }
     }
 }

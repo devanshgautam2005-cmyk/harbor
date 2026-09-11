@@ -42,7 +42,12 @@ interface HarborRepository {
 
     suspend fun setSettings(settings: UserSettings)
 
+    /** Answers to the daily question, by local day. */
+    val dailyAnswers: StateFlow<Map<LocalDate, String>>
+
     suspend fun setBusyWindows(windows: List<BusyWindow>)
+
+    suspend fun setDailyAnswer(day: LocalDate, answer: String)
 
     suspend fun upsertContact(contact: Contact)
 

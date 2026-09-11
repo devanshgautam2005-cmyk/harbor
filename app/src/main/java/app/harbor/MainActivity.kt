@@ -18,6 +18,7 @@ import app.harbor.ui.ContactScreen
 import app.harbor.ui.CuesSetupScreen
 import app.harbor.ui.GardenScreen
 import app.harbor.ui.HomeScreen
+import app.harbor.ui.NotesScreen
 import app.harbor.ui.ScheduleScreen
 import app.harbor.ui.SettingsScreen
 import app.harbor.ui.theme.HarborTheme
@@ -32,7 +33,7 @@ import app.harbor.ui.theme.HarborTheme
  */
 class MainActivity : ComponentActivity() {
 
-    private enum class Screen { Home, Cues, Contact, Garden, Schedule, Settings }
+    private enum class Screen { Home, Cues, Contact, Garden, Schedule, Settings, Notes }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +59,7 @@ class MainActivity : ComponentActivity() {
                             onOpenGarden = { screen = Screen.Garden },
                             onOpenCues = { screen = Screen.Cues },
                             onOpenSettings = { screen = Screen.Settings },
+                            onOpenNotes = { screen = Screen.Notes },
                             modifier = inset,
                         )
 
@@ -75,6 +77,12 @@ class MainActivity : ComponentActivity() {
                         )
 
                         Screen.Garden -> GardenScreen(store = store, modifier = inset)
+
+                        Screen.Notes -> NotesScreen(
+                            store = store,
+                            onDone = home,
+                            modifier = inset,
+                        )
 
                         Screen.Schedule -> ScheduleScreen(
                             store = store,
