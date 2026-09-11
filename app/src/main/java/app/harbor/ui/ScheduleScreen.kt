@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
@@ -229,7 +230,7 @@ private fun WeekGrid(
             Modifier
                 .fillMaxWidth()
                 .height(HOUR_HEIGHT * hours)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surface),
         ) {
             val columnWidth = (maxWidth - GUTTER) / days.size
@@ -247,8 +248,16 @@ private fun WeekGrid(
                 return snapped.coerceIn(FIRST_HOUR * 60, LAST_HOUR * 60)
             }
 
+            // Read through a snapshot rather than closing over `blocks`.
+            //
+            // pointerInput restarts whenever one of its keys changes, so
+            // keying it on the list meant the first preview frame of a drag
+            // tore down the detector that was producing it: a block could be
+            // created but never sized, and every drag ended as a cancel.
+            val latest by rememberUpdatedState(blocks)
+
             fun hitTest(at: Offset): Pair<Int, Grab>? {
-                blocks.forEachIndexed { i, b ->
+                latest.forEachIndexed { i, b ->
                     val x = gutterPx + colPx * days.indexOf(b.day)
                     val top = (b.start.toMinutes() - FIRST_HOUR * 60) / 60f * hourPx
                     val bottom = (b.end.toMinutes() - FIRST_HOUR * 60) / 60f * hourPx
@@ -290,9 +299,9 @@ private fun WeekGrid(
                 Text(
                     shortHour(FIRST_HOUR + h),
                     modifier = Modifier
-                        .offset(y = HOUR_HEIGHT * h + 2.dp)
+                        .offset(y = HOUR_HEIGHT * h + 4.dp)
                         .width(GUTTER)
-                        .padding(end = 5.dp),
+                        .padding(start = 7.dp, end = 5.dp),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 9.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -351,10 +360,10 @@ private fun WeekGrid(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .pointerInput(blocks, colPx, hourPx) {
+                    .pointerInput(colPx, hourPx) {
                         detectTapGestures { at -> onSelect(hitTest(at)?.first) }
                     }
-                    .pointerInput(blocks, colPx, hourPx) {
+                    .pointerInput(colPx, hourPx) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = { at ->
                                 cursor = at
@@ -367,7 +376,7 @@ private fun WeekGrid(
                                     val end = (start + SNAP_MINUTES)
                                         .coerceAtMost(LAST_HOUR * 60)
                                     if (end > start) {
-                                        working = blocks + BusyWindow(
+                                        working = latest + BusyWindow(
                                             day = days[dayAt(at.x)],
                                             start = minutesToTime(start),
                                             end = minutesToTime(end),
@@ -379,11 +388,11 @@ private fun WeekGrid(
                                         onPreview(working)
                                     }
                                 } else {
-                                    working = blocks
+                                    working = latest
                                     index = hit.first
                                     grab = hit.second
                                     grabOffset = minuteAt(at.y) -
-                                        blocks[hit.first].start.toMinutes()
+                                        latest[hit.first].start.toMinutes()
                                     onSelect(index)
                                 }
                             },
