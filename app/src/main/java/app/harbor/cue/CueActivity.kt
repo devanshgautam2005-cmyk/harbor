@@ -183,6 +183,13 @@ class CueActivity : ComponentActivity() {
                                     topic = topic,
                                 )
                             },
+                            onPulse = { pulse ->
+                                record(
+                                    resolution = Resolution.CALLED,
+                                    pulse = pulse,
+                                    callMinutes = measuredMinutes,
+                                )
+                            },
                             onDone = { finish() },
                         )
                     }
