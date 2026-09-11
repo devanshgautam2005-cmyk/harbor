@@ -102,6 +102,8 @@ fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                 plots.map { it.second },
                 viewport.width.toDouble(),
                 viewport.height.toDouble(),
+                // No sky wheel yet, so there is nothing for that band to hold.
+                skyBand = 0.0,
             )
         }
     }
@@ -155,11 +157,20 @@ fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                             contact = contact,
                             flowers = flowersByContact[contact.id].orEmpty().mapNotNull { it.flower },
                             detailed = camera.k >= Garden.DETAIL_ZOOM,
-                            measurer = measurer,
-                            nameStyle = nameStyle,
                         )
                     }
                 }
+            }
+
+            // Names are drawn outside the camera transform, in screen space.
+            // Inside it they were multiplied by the zoom, which at a normal
+            // fit made them larger than the plots they labelled.
+            plots.forEach { (contact, plot) ->
+                val label = measurer.measure(contact.label, nameStyle)
+                val x = (plot.x * camera.k + camera.x).toFloat() - label.size.width / 2f
+                val y = ((plot.y + plot.radius * Garden.GROUND_SQUASH) * camera.k + camera.y)
+                    .toFloat() + 8f
+                drawText(textLayoutResult = label, topLeft = Offset(x, y))
             }
         }
     }
@@ -170,8 +181,6 @@ private fun DrawScope.drawPlot(
     contact: Contact,
     flowers: List<FlowerKind>,
     detailed: Boolean,
-    measurer: TextMeasurer,
-    nameStyle: TextStyle,
 ) {
     translate(plot.x.toFloat(), plot.y.toFloat()) {
         // The ground: a closed Catmull-Rom loop around a noisy radius, so a
@@ -181,18 +190,6 @@ private fun DrawScope.drawPlot(
         scale(1f, Garden.GROUND_SQUASH.toFloat(), pivot = Offset.Zero) {
             drawPath(ground, color = toneOf(contact))
         }
-
-        // Whose patch this is. sceneBounds already reserves room below each
-        // plot for exactly this — without it the garden is a set of anonymous
-        // blobs, which is a much colder thing to be shown.
-        val label = measurer.measure(contact.label, nameStyle)
-        drawText(
-            textLayoutResult = label,
-            topLeft = Offset(
-                -label.size.width / 2f,
-                (plot.radius * Garden.GROUND_SQUASH).toFloat() + 10f,
-            ),
-        )
 
         if (flowers.isEmpty()) return@translate
 

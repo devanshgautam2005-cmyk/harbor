@@ -33,7 +33,7 @@ object Garden {
     const val DETAIL_ZOOM = 1.12
 
     /** The sky owns the top of the frame and the hint the bottom. */
-    private const val SKY_BAND = 92.0
+    const val SKY_BAND = 92.0
     private const val HINT_BAND = 42.0
 
     data class Plot(
@@ -137,15 +137,26 @@ object Garden {
 
     fun clampZoom(k: Double): Double = min(MAX_ZOOM, max(MIN_ZOOM, k))
 
-    /** The camera that shows the whole garden at once. */
-    fun fitCamera(plots: List<Plot>, width: Double, height: Double): Camera {
+    /**
+     * The camera that shows the whole garden at once.
+     *
+     * @param skyBand room reserved at the top. The prototype keeps [SKY_BAND]
+     *   clear for its sky wheel; a caller that has not drawn one should pass 0
+     *   rather than leave the garden sitting in an empty gap.
+     */
+    fun fitCamera(
+        plots: List<Plot>,
+        width: Double,
+        height: Double,
+        skyBand: Double = SKY_BAND,
+    ): Camera {
         if (width <= 0 || height <= 0) return Camera(0.0, 0.0, 1.0)
         val b = sceneBounds(plots)
-        val usable = max(130.0, height - SKY_BAND - HINT_BAND)
+        val usable = max(130.0, height - skyBand - HINT_BAND)
         val k = clampZoom(min(width / b.width, usable / b.height) * 0.96)
         return Camera(
             x = width / 2 - (b.x + b.width / 2) * k,
-            y = SKY_BAND + usable / 2 - (b.y + b.height / 2) * k,
+            y = skyBand + usable / 2 - (b.y + b.height / 2) * k,
             k = k,
         )
     }
