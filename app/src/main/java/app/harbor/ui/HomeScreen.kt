@@ -55,6 +55,7 @@ fun HomeScreen(
     onOpenCues: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenNotes: () -> Unit,
+    onReflect: (LedgerEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -83,6 +84,22 @@ fun HomeScreen(
         Text("harbor", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.size(4.dp))
         Text(settings.weather.greeting, style = MaterialTheme.typography.headlineMedium)
+
+        // A call Harbor watched you start but never heard about. Offered here
+        // because nobody reopens an app the moment a call ends.
+        CallStats.pendingReflection(entries, Instant.now())?.let { waiting ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("How did that go?", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "You called ${who?.label ?: "someone"} earlier. It only " +
+                            "takes a moment, and it is what grows the flower.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    OutlinedButton(onClick = { onReflect(waiting) }) { Text("Tell me") }
+                }
+            }
+        }
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -197,6 +197,10 @@ fun CuesSetupScreen(
                                     Intent(context, CueActivity::class.java).apply {
                                         putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
                                         putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
+                                        putExtra(
+                                            CueNotifier.EXTRA_SOURCE,
+                                            TriggerSource.MANUAL.name,
+                                        )
                                     },
                                 )
                             }

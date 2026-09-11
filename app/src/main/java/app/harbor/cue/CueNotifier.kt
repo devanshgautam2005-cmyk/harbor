@@ -36,6 +36,7 @@ object CueNotifier {
 
     const val EXTRA_CUE_ID = "cue_id"
     const val EXTRA_CONTACT_ID = "contact_id"
+    const val EXTRA_SOURCE = "trigger_source"
 
     /** One id, so a second cue replaces rather than stacks. */
     private const val NOTIFICATION_ID = 1
@@ -52,6 +53,7 @@ object CueNotifier {
             Intent(context, CueActivity::class.java).apply {
                 putExtra(EXTRA_CUE_ID, cue.id.toString())
                 putExtra(EXTRA_CONTACT_ID, contact?.id?.toString())
+                putExtra(EXTRA_SOURCE, cue.triggerSource.name)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

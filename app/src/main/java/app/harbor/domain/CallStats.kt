@@ -1,5 +1,7 @@
 package app.harbor.domain
 
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -40,6 +42,32 @@ object CallStats {
             .eachCount()
             .maxByOrNull { it.value }
             ?.key
+
+    /**
+     * A call that happened but was never reflected on.
+     *
+     * Harbor hands off to the phone's dialer, and people do not come back to
+     * an app the moment a call ends — they put the phone in a pocket. So the
+     * entry is written when the dialer opens and the reflection is offered
+     * later, which is the only version of this that survives contact with how
+     * calls actually end.
+     *
+     * Bounded to [WINDOW] because being asked about a call from last Tuesday
+     * is worse than not being asked at all.
+     */
+    fun pendingReflection(entries: List<LedgerEntry>, now: Instant): LedgerEntry? =
+        entries
+            .filter {
+                it.resolution == Resolution.CALLED &&
+                    it.feeling == null &&
+                    it.flower == null &&
+                    Duration.between(it.occurredAt, now) < WINDOW &&
+                    !Duration.between(it.occurredAt, now).isNegative
+            }
+            .maxByOrNull { it.occurredAt }
+
+    /** How long a call stays worth asking about. */
+    val WINDOW: Duration = Duration.ofHours(12)
 
     /** "40 min", "1 hr", "1 hr 20 min". */
     fun formatDuration(minutes: Int?): String {

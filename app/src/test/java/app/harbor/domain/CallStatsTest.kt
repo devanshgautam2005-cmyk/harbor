@@ -140,6 +140,46 @@ class CallStatsTest {
         }
     }
 
+    // --- reflections waiting to be offered --------------------------------
+
+    @Test
+    fun a_call_with_no_feeling_is_waiting_to_be_reflected_on() {
+        val entry = call(minutes = null, flower = null)
+        assertEquals(entry, CallStats.pendingReflection(listOf(entry), now.plusSeconds(600)))
+    }
+
+    @Test
+    fun a_call_already_reflected_on_is_not_offered_again() {
+        val done = call(minutes = 12, flower = FlowerKind.DAISY).copy(feeling = Feeling.WARM)
+        assertNull(CallStats.pendingReflection(listOf(done), now.plusSeconds(600)))
+    }
+
+    @Test
+    fun a_call_from_yesterday_is_left_alone() {
+        // Being asked how a call from last Tuesday went is worse than not
+        // being asked at all.
+        val old = call(minutes = null, flower = null)
+        val later = old.occurredAt.plus(CallStats.WINDOW).plusSeconds(60)
+        assertNull(CallStats.pendingReflection(listOf(old), later))
+    }
+
+    @Test
+    fun the_most_recent_unreflected_call_is_the_one_offered() {
+        val first = call(minutes = null, flower = null)
+        val second = call(minutes = null, flower = null)
+            .copy(occurredAt = now.plusSeconds(300))
+        assertEquals(
+            second,
+            CallStats.pendingReflection(listOf(first, second), now.plusSeconds(600)),
+        )
+    }
+
+    @Test
+    fun a_reaction_is_never_offered_a_reflection() {
+        val reaction = call(minutes = null, flower = null, resolution = Resolution.REACTED)
+        assertNull(CallStats.pendingReflection(listOf(reaction), now.plusSeconds(600)))
+    }
+
     @Test
     fun every_flower_kind_has_a_spec() {
         for (kind in FlowerKind.entries) {

@@ -47,7 +47,7 @@ import app.harbor.ui.FlowerMark
  * point: the garden records that calls happened, it does not score them.
  */
 @Composable
-internal fun CallFlow(
+fun CallFlow(
     who: String,
     /** Measured from handing off to the dialer until the user came back. */
     measuredMinutes: Int,

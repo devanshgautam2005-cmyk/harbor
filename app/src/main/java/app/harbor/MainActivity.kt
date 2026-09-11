@@ -13,7 +13,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.rememberCoroutineScope
+import app.harbor.cue.CallFlow
 import app.harbor.data.HarborStore
+import app.harbor.domain.LedgerEntry
+import kotlinx.coroutines.launch
 import app.harbor.ui.ContactScreen
 import app.harbor.ui.CuesSetupScreen
 import app.harbor.ui.GardenScreen
@@ -33,7 +37,7 @@ import app.harbor.ui.theme.HarborTheme
  */
 class MainActivity : ComponentActivity() {
 
-    private enum class Screen { Home, Cues, Contact, Garden, Schedule, Settings, Notes }
+    private enum class Screen { Home, Cues, Contact, Garden, Schedule, Settings, Notes, Reflect }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +48,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             HarborTheme {
                 var screen by remember { mutableStateOf(Screen.Home) }
+                var reflecting by remember { mutableStateOf<LedgerEntry?>(null) }
+                val scope = rememberCoroutineScope()
                 val home = { screen = Screen.Home }
 
                 // Back returns to home from anywhere else, and leaves the app
@@ -60,6 +66,10 @@ class MainActivity : ComponentActivity() {
                             onOpenCues = { screen = Screen.Cues },
                             onOpenSettings = { screen = Screen.Settings },
                             onOpenNotes = { screen = Screen.Notes },
+                            onReflect = { entry ->
+                                reflecting = entry
+                                screen = Screen.Reflect
+                            },
                             modifier = inset,
                         )
 
@@ -77,6 +87,34 @@ class MainActivity : ComponentActivity() {
                         )
 
                         Screen.Garden -> GardenScreen(store = store, modifier = inset)
+
+                        Screen.Reflect -> reflecting?.let { entry ->
+                            CallFlow(
+                                who = store.contacts.value
+                                    .firstOrNull { it.id == entry.contactId }?.label ?: "them",
+                                measuredMinutes = entry.callMinutes ?: 10,
+                                initialTopic = entry.topic,
+                                onPlant = { minutes, feeling, flower, topic ->
+                                    // Amends the existing row rather than
+                                    // writing another: append is keyed on the
+                                    // id, so this is an idempotent replace.
+                                    scope.launch {
+                                        store.append(
+                                            entry.copy(
+                                                callMinutes = minutes,
+                                                feeling = feeling,
+                                                flower = flower,
+                                                topic = topic ?: entry.topic,
+                                            ),
+                                        )
+                                    }
+                                },
+                                onDone = {
+                                    reflecting = null
+                                    screen = Screen.Garden
+                                },
+                            )
+                        } ?: run { screen = Screen.Home }
 
                         Screen.Notes -> NotesScreen(
                             store = store,

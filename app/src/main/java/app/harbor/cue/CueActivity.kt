@@ -89,6 +89,7 @@ class CueActivity : ComponentActivity() {
      * The id is generated once and reused, which makes [HarborRepository.append]
      * an idempotent replace — the same guarantee the server's upsert gives.
      */
+    private var source: TriggerSource = TriggerSource.WALKING_STOP
     private var entryId: UUID? = null
     private var resolution: Resolution? = null
     private var proposedTime: Instant? = null
@@ -135,6 +136,13 @@ class CueActivity : ComponentActivity() {
         store = HarborStore(applicationContext)
         cueId = intent.getStringExtra(CueNotifier.EXTRA_CUE_ID)?.let(UUID::fromString)
         contactId = intent.getStringExtra(CueNotifier.EXTRA_CONTACT_ID)?.let(UUID::fromString)
+        // Whatever actually raised this cue. Hardcoding WALKING_STOP here
+        // meant a cue the user asked for was written to the ledger as a sensed
+        // one — which would have quietly inflated the single number the study
+        // exists to measure.
+        source = intent.getStringExtra(CueNotifier.EXTRA_SOURCE)
+            ?.let { runCatching { TriggerSource.valueOf(it) }.getOrNull() }
+            ?: TriggerSource.WALKING_STOP
         val contact = store.contacts.value.firstOrNull { it.id == contactId }
 
         // The notification has done its job; the surface takes over the sound.
@@ -222,7 +230,7 @@ class CueActivity : ComponentActivity() {
             entryDate = now.atZone(ZoneId.systemDefault()).toLocalDate(),
             cueId = cueId,
             contactId = contactId,
-            triggerSource = TriggerSource.WALKING_STOP,
+            triggerSource = source,
             thresholdSnapshot = store.settings.value.thresholds,
             resolution = resolution,
             proposedTime = this.proposedTime.takeIf { resolution == Resolution.PROPOSED_LATER },
