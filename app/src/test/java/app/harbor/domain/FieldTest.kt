@@ -293,6 +293,36 @@ class FieldTest {
         assertNull(Field.hit(out, -5000.0, -5000.0))
     }
 
+    @Test
+    fun `you cannot walk out the far side into nothing`() {
+        val field = blooms(120)
+        // Try to march a long way past the last flower.
+        val gone = Field.clamp(
+            Field.Camera(x = 0.0, z = 90_000.0, height = Field.EYE),
+            field,
+        )
+        val out = Field.project(field, gone, 1080.0, 2116.0)
+        assertTrue("walking forward emptied the world", out.isNotEmpty())
+    }
+
+    @Test
+    fun `you can still walk in among them`() {
+        val field = blooms(120)
+        val front = field.minOf { it.z }
+        val inside = Field.clamp(
+            Field.Camera(x = 0.0, z = front + 40.0, height = Field.EYE),
+            field,
+        )
+        assertTrue("the clamp shut you out of your own field", inside.z > front)
+        assertTrue(Field.project(field, inside, 1080.0, 2116.0).isNotEmpty())
+    }
+
+    @Test
+    fun `pace follows the size of the field`() {
+        assertTrue(Field.pace(blooms(400)) > Field.pace(blooms(12)))
+        assertTrue("a swipe must not cross the whole field", Field.pace(blooms(12)) < 1.0)
+    }
+
     // --- camera ------------------------------------------------------------
 
     @Test

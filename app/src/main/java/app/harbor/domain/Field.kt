@@ -352,14 +352,32 @@ object Field {
         height = min(EYE, restingHeight(blooms)),
     )
 
-    /** Keeps a walking camera inside the field it is walking in. */
+    /**
+     * How fast a drag walks, in world units per pixel.
+     *
+     * Has to come from the size of the field. A fixed pace that feels right
+     * in a large garden crosses a small one in a single swipe -- which it
+     * did: three drags put the camera a thousand units past the last flower,
+     * looking at empty ground.
+     */
+    fun pace(blooms: List<Bloom>): Double =
+        (extent(blooms) / 900.0).coerceIn(0.22, 3.0)
+
+    /**
+     * Keeps a walking camera inside the field it is walking in.
+     *
+     * You can walk among the flowers, which is the point, but not out the far
+     * side of them: the far bound stops short of the last bloom so there is
+     * always something ahead. Walking until the world is empty is not
+     * exploring, it is getting lost.
+     */
     fun clamp(camera: Camera, blooms: List<Bloom>): Camera {
         if (blooms.isEmpty()) return camera
-        val margin = 900.0
-        val minX = blooms.minOf { it.x } - margin
-        val maxX = blooms.maxOf { it.x } + margin
-        val minZ = blooms.minOf { it.z } - renderDistance(blooms.size)
-        val maxZ = blooms.maxOf { it.z } + margin
+        val side = max(400.0, extent(blooms) * 0.6)
+        val minX = blooms.minOf { it.x } - side
+        val maxX = blooms.maxOf { it.x } + side
+        val minZ = blooms.minOf { it.z } - restingBack(blooms) * 1.8
+        val maxZ = max(minZ, blooms.maxOf { it.z } - NEAR * 2)
         return camera.copy(
             x = camera.x.coerceIn(minX, maxX),
             z = camera.z.coerceIn(minZ, maxZ),

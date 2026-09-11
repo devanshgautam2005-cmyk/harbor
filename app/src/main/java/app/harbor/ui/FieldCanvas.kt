@@ -130,11 +130,15 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                     // Pinch lifts the eye, which tips this view towards the
                     // plan the other mode shows.
                     detectTransformGestures { _, pan, zoom, _ ->
-                        val reach = (camera.height / Field.EYE).coerceIn(0.6, 4.0)
+                        // Pace comes from the size of the field, and rises a
+                        // little as the eye lifts, so the ground moves under
+                        // the finger at about the same rate either way.
+                        val pace = Field.pace(blooms) *
+                            (camera.height / Field.EYE).coerceIn(0.7, 2.5)
                         camera = Field.clamp(
                             camera.copy(
-                                x = camera.x - pan.x * 1.6 * reach,
-                                z = camera.z - pan.y * 2.4 * reach,
+                                x = camera.x - pan.x * pace,
+                                z = camera.z - pan.y * pace * 1.4,
                                 height = camera.height / zoom,
                             ),
                             blooms,
@@ -186,8 +190,8 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
             }
         }
 
-        // An empty field should say so rather than showing bare ground, and
-        // while this is being built it also says why it is empty.
+        // Bare ground with no explanation is indistinguishable from a bug --
+        // it was one, twice, while this was being built.
         if (projected.isEmpty()) {
             Box(Modifier.fillMaxSize()) {
                 Column(
@@ -203,10 +207,7 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                         style = MaterialTheme.typography.titleLarge.copy(color = ink),
                     )
                     Text(
-                        "blooms=" + blooms.size +
-                            " contacts=" + contacts.size +
-                            " entries=" + entries.size +
-                            " frame=" + frame.width + "x" + frame.height,
+                        "Walk back, or switch to Top.",
                         style = MaterialTheme.typography.bodySmall.copy(color = muted),
                     )
                 }
