@@ -24,6 +24,7 @@ import app.harbor.ui.HarborShell
 import app.harbor.ui.HarborTab
 import app.harbor.ui.HomeScreen
 import app.harbor.ui.NotesScreen
+import app.harbor.ui.PersonScreen
 import app.harbor.ui.ScheduleScreen
 import app.harbor.ui.SettingsScreen
 import app.harbor.ui.theme.HarborTheme
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
         Contact(null, "Your person"),
         Garden(null, "Your garden"),
         Notes(null, "A line"),
+        Person(null, null),
         Reflect(null, null),
     }
 
@@ -60,6 +62,7 @@ class MainActivity : ComponentActivity() {
             HarborTheme {
                 var screen by remember { mutableStateOf(Screen.Home) }
                 var reflecting by remember { mutableStateOf<LedgerEntry?>(null) }
+                var showing by remember { mutableStateOf<java.util.UUID?>(null) }
                 val scope = rememberCoroutineScope()
                 val home = { screen = Screen.Home }
 
@@ -87,6 +90,10 @@ class MainActivity : ComponentActivity() {
                                 onOpenCues = { screen = Screen.Cues },
                                 onOpenSettings = { screen = Screen.Settings },
                                 onOpenNotes = { screen = Screen.Notes },
+                                onOpenPerson = { id ->
+                                    showing = id
+                                    screen = Screen.Person
+                                },
                                 onReflect = { entry ->
                                     reflecting = entry
                                     screen = Screen.Reflect
@@ -108,6 +115,14 @@ class MainActivity : ComponentActivity() {
                             )
 
                             Screen.Garden -> GardenScreen(store = store, modifier = inset)
+
+                            Screen.Person -> PersonScreen(
+                                store = store,
+                                contactId = showing,
+                                onLeaveLine = { screen = Screen.Notes },
+                                onEdit = { screen = Screen.Contact },
+                                modifier = inset,
+                            )
 
                             Screen.Notes -> NotesScreen(
                                 store = store,

@@ -66,6 +66,7 @@ fun HomeScreen(
     onOpenCues: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenNotes: () -> Unit,
+    onOpenPerson: (java.util.UUID) -> Unit,
     onReflect: (LedgerEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -151,7 +152,7 @@ fun HomeScreen(
                                     it.flower != null
                             },
                             usual = CallStats.usualMinutes(entries, contact.id),
-                            onClick = onOpenCues,
+                            onClick = { onOpenPerson(contact.id) },
                             modifier = Modifier.weight(1f),
                         )
                     }
