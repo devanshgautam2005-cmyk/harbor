@@ -1,356 +1,290 @@
 package app.harbor.domain
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.UUID
 
 /**
- * The field's projection, checked as arithmetic.
+ * The field's terrain, layout and camera, checked as arithmetic.
  *
- * Everything here is what a 3D view gets wrong in ways a screenshot hides: a
- * flower that drifts between the two views, a horizon that eats the field, a
- * bud that never opens, a render distance that quietly draws ten thousand
- * things.
+ * This is the half of the port that a screenshot cannot check: whether the
+ * island is an island, whether the river actually cuts a valley, whether the
+ * camera tips continuously rather than snapping, and whether the whole thing
+ * comes out the same twice.
  */
 class FieldTest {
 
-    private val who = UUID.fromString("11111111-1111-1111-1111-111111111111")
+    private val mom = UUID.fromString("11111111-1111-1111-1111-111111111111")
+    private val dad = UUID.fromString("22222222-2222-2222-2222-222222222222")
 
-    private fun clusterOf(n: Int, minutes: Int? = 12): Field.Cluster =
-        Field.Cluster(
-            contactId = who,
-            plot = Garden.plotFor(who.toString(), 0),
-            flowers = List(n) { FlowerKind.entries[it % FlowerKind.entries.size] to minutes },
+    private fun people(vararg calls: Int) = calls.mapIndexed { i, n ->
+        Field.Person(
+            contactId = if (i == 0) mom else dad,
+            label = if (i == 0) "Mom" else "Dad",
+            calls = n,
+            flower = FlowerKind.entries[i % FlowerKind.entries.size],
         )
+    }
 
-    private fun blooms(n: Int) = Field.layout(listOf(clusterOf(n)))
-
-    // --- layout ------------------------------------------------------------
+    // --- noise --------------------------------------------------------------
 
     @Test
-    fun `a flower keeps its place when later ones are planted`() {
-        val five = blooms(5)
-        val twenty = blooms(20)
-        repeat(5) { i ->
-            assertEquals(five[i].x, twenty[i].x, 1e-9)
-            assertEquals(five[i].z, twenty[i].z, 1e-9)
+    fun `the hash is stable and stays in range`() {
+        repeat(200) { i ->
+            val v = Terrain.hash2(i, i * 7, Terrain.SEED)
+            assertTrue("hash out of range: $v", v >= 0.0 && v < 1.0)
+            assertEquals(v, Terrain.hash2(i, i * 7, Terrain.SEED), 0.0)
         }
     }
 
     @Test
-    fun `layout is stable across calls`() {
-        assertEquals(blooms(9).map { it.x to it.z }, blooms(9).map { it.x to it.z })
+    fun `the hash does not collapse for negative or huge coordinates`() {
+        // 32-bit wrap-around is load-bearing here; widening it would change
+        // the island, and collapsing it would tile the world.
+        val seen = HashSet<Double>()
+        listOf(-9999, -1, 0, 1, 65536, 1 shl 20).forEach { x ->
+            listOf(-9999, -1, 0, 1, 65536).forEach { y ->
+                seen += Terrain.hash2(x, y, Terrain.SEED)
+            }
+        }
+        assertTrue("hash collapsed: only ${seen.size} distinct values", seen.size >= 28)
     }
 
     @Test
-    fun `two people do not land on the same ground`() {
-        val other = UUID.fromString("22222222-2222-2222-2222-222222222222")
-        val a = Field.layout(listOf(clusterOf(6)))
-        val b = Field.layout(
-            listOf(
-                Field.Cluster(
-                    contactId = other,
-                    plot = Garden.plotFor(other.toString(), 1),
-                    flowers = List(6) { FlowerKind.entries[0] to 12 },
-                ),
-            ),
-        )
-        val overlapping = a.any { p -> b.any { q -> kotlin.math.hypot(p.x - q.x, p.z - q.z) < 8 } }
-        assertTrue("clusters should not sit on top of each other", !overlapping)
-    }
-
-    // --- render distance ---------------------------------------------------
-
-    @Test
-    fun `seeing further is earned by having more to see`() {
-        assertTrue(Field.renderDistance(200) > Field.renderDistance(10))
-    }
-
-    @Test
-    fun `render distance is bounded however big the garden gets`() {
-        assertEquals(Field.renderDistance(100_000), Field.renderDistance(50_000), 1e-9)
-        assertTrue(Field.renderDistance(100_000) <= 4600.0)
-    }
-
-    @Test
-    fun `a big field never draws more than the cap`() {
-        val many = blooms(4000)
-        val cam = Field.openingCamera(many)
-        assertTrue(Field.project(many, cam, 1080.0, 2000.0).size <= 260)
-    }
-
-    // --- scale -------------------------------------------------------------
-    //
-    // The whole suite passed while a big garden rendered as 260 specks eleven
-    // pixels wide, every one of them shut. Everything was individually true
-    // and the result was unusable, so these assert the thing you would
-    // actually have looked at.
-
-    @Test
-    fun `a patch grows as it fills, or there is no field to walk through`() {
-        // Garden caps a patch so the plan view stays a tidy blob. Standing
-        // inside it, that cap would put three hundred flowers in the same
-        // disc as thirteen.
-        assertTrue(Field.extent(blooms(300)) > Field.extent(blooms(20)) * 1.5)
-    }
-
-    @Test
-    fun `the near edge of a big field is big enough to be a flower`() {
-        val many = blooms(335)
-        val out = Field.project(many, Field.openingCamera(many), 1080.0, 2116.0)
-        assertTrue("nothing projected at all", out.isNotEmpty())
-        val nearest = out.last()
-        assertTrue(
-            "nearest bloom was only ${nearest.size}px across",
-            nearest.size > 30.0,
-        )
-    }
-
-    @Test
-    fun `a big field has something open in it and something still a bud`() {
-        val many = blooms(335)
-        val out = Field.project(many, Field.openingCamera(many), 1080.0, 2116.0)
-        assertTrue("nothing was open", out.any { it.openness > 0.5 })
-        assertTrue("nothing was left as a bud", out.any { it.openness < 0.1 })
-    }
-
-    @Test
-    fun `most of a big field stays shut, so opening still means something`() {
-        val many = blooms(335)
-        val out = Field.project(many, Field.openingCamera(many), 1080.0, 2116.0)
-        val open = out.count { it.openness > 0.5 }
-        assertTrue("$open of ${out.size} open is a wall, not a field", open < out.size / 4)
-    }
-
-    @Test
-    fun `standing back scales with the ground covered, not the head count`() {
-        // Two gardens with the same number of flowers but different spreads
-        // should not be viewed from the same distance.
-        val tight = Field.layout(listOf(clusterOf(40)))
-        val wide = Field.layout(
-            listOf(
-                clusterOf(40),
-                Field.Cluster(
-                    contactId = UUID.fromString("33333333-3333-3333-3333-333333333333"),
-                    plot = Garden.plotFor("33333333-3333-3333-3333-333333333333", 6),
-                    flowers = List(40) { FlowerKind.entries[0] to 12 },
-                ),
-            ),
-        )
-        assertTrue(Field.restingBack(wide) > Field.restingBack(tight))
-    }
-
-    // --- projection --------------------------------------------------------
-
-    @Test
-    fun `nearer blooms are drawn later so they cover the far ones`() {
-        val field = blooms(60)
-        val out = Field.project(field, Field.openingCamera(field), 1080.0, 2000.0)
-        for (i in 1 until out.size) {
-            assertTrue("painter order broken at $i", out[i].depth <= out[i - 1].depth)
+    fun `fbm stays inside the unit range`() {
+        for (i in 0 until 300) {
+            val v = Terrain.fbm(i * 0.37, i * 0.11, Terrain.SEED, 5)
+            assertTrue("fbm out of range: $v", v in 0.0..1.0)
         }
     }
 
+    // --- terrain ------------------------------------------------------------
+
     @Test
-    fun `the same distance twice as far is drawn half the size`() {
-        val near = Field.Bloom(who, FlowerKind.entries[0], 12, 0.0, 300.0, 1u, 0)
-        val far = near.copy(z = 600.0)
-        val cam = Field.Camera(x = 0.0, z = 0.0)
-        val out = Field.project(listOf(near, far), cam, 1000.0, 2000.0)
-        val n = out.first { it.bloom.z == 300.0 }
-        val f = out.first { it.bloom.z == 600.0 }
-        // Size also carries openness, so compare the raw projection instead.
-        assertEquals(2.0, (n.baseY - 2000.0 * Field.HORIZON) / (f.baseY - 2000.0 * Field.HORIZON), 1e-6)
+    fun `the field is an island, not a rectangle`() {
+        val middle = Terrain.landAt(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2)
+        val corner = Terrain.landAt(0.0, 0.0)
+        assertTrue("the middle should be land, was $middle", middle > 0.3)
+        assertTrue("the corner should be sea, was $corner", corner < 0.2)
     }
 
     @Test
-    fun `everything sits below the horizon`() {
-        val field = blooms(120)
-        val height = 2000.0
-        Field.project(field, Field.openingCamera(field), 1080.0, height).forEach {
-            assertTrue("a bloom floated above the horizon", it.baseY > height * Field.HORIZON)
-        }
-    }
-
-    @Test
-    fun `what is behind you is not drawn`() {
-        val ahead = Field.Bloom(who, FlowerKind.entries[0], 12, 0.0, 500.0, 1u, 0)
-        val behind = ahead.copy(z = -500.0)
-        val out = Field.project(listOf(ahead, behind), Field.Camera(0.0, 0.0), 1000.0, 2000.0)
-        assertEquals(1, out.size)
-        assertEquals(500.0, out.first().bloom.z, 1e-9)
-    }
-
-    @Test
-    fun `beyond the render distance is not drawn`() {
-        val far = Field.Bloom(who, FlowerKind.entries[0], 12, 0.0, 90_000.0, 1u, 0)
-        assertTrue(Field.project(listOf(far), Field.Camera(0.0, 0.0), 1000.0, 2000.0).isEmpty())
-    }
-
-    // --- opening -----------------------------------------------------------
-
-    @Test
-    fun `distance closes a bloom and approaching opens it`() {
-        val width = 1000.0
-        val far = Field.renderDistance(50)
-        val close = Field.opennessOf(60.0, 0.0, width, far)
-        val distant = Field.opennessOf(1400.0, 0.0, width, far)
-        assertTrue("close should be open, was $close", close > 0.8)
-        assertTrue("distant should be a bud, was $distant", distant < 0.15)
-    }
-
-    @Test
-    fun `the one you are looking at opens more than its neighbours`() {
-        val width = 1000.0
-        val far = Field.renderDistance(50)
-        val centre = Field.opennessOf(120.0, 0.0, width, far)
-        val edge = Field.opennessOf(120.0, 460.0, width, far)
-        assertTrue("centre $centre should beat edge $edge", centre > edge)
-    }
-
-    @Test
-    fun `openness stays inside its range`() {
-        val far = Field.renderDistance(80)
-        listOf(-9000.0, 0.0, 30.0, 700.0, 5000.0).forEach { d ->
-            listOf(-4000.0, 0.0, 4000.0).forEach { o ->
-                val v = Field.opennessOf(d, o, 1000.0, far)
-                assertTrue("openness $v out of range", v in 0.0..1.0)
+    fun `height is always a fraction`() {
+        for (row in 0 until Terrain.ROWS step 7) {
+            for (col in 0 until Terrain.COLS step 7) {
+                val z = Terrain.heightAt(col * Terrain.CELL, row * Terrain.CELL)
+                assertTrue("height out of range: $z", z in 0.0..1.0)
             }
         }
     }
 
     @Test
-    fun `nothing pops in at the far edge`() {
-        val far = 2000.0
-        assertEquals(1.0, Field.fadeOf(10.0, far), 1e-9)
-        assertEquals(0.0, Field.fadeOf(far, far), 1e-9)
-        assertTrue(Field.fadeOf(far * 0.92, far) in 0.0..1.0)
+    fun `the river cuts a valley rather than running over a hill`() {
+        var checked = 0
+        var y = 200.0
+        while (y < Terrain.FIELD_H - 200) {
+            val x = Terrain.riverAt(y)
+            val onRiver = Terrain.heightAt(x, y)
+            val away = Terrain.heightAt(x + 300, y)
+            if (Terrain.landAt(x, y) > 0.25 && Terrain.landAt(x + 300, y) > 0.25) {
+                assertTrue(
+                    "river at y=$y sat above its bank ($onRiver vs $away)",
+                    onRiver <= away + 1e-9,
+                )
+                checked++
+            }
+            y += 150
+        }
+        assertTrue("no river samples were on land at all", checked > 3)
     }
 
     @Test
-    fun `a longer call opens a fuller bloom, within bounds`() {
-        assertTrue(Field.fullnessOf(45) > Field.fullnessOf(5))
-        assertEquals(Field.fullnessOf(600), Field.fullnessOf(60), 1e-9)
-        assertEquals(1.0, Field.fullnessOf(null), 1e-9)
-    }
-
-    // --- focus and touch ---------------------------------------------------
-
-    @Test
-    fun `choosing a bloom focuses that one and not a nearer neighbour`() {
-        val field = blooms(40)
-        val target = field[7]
-        val out = Field.project(field, Field.facing(target, field), 1080.0, 2000.0)
-        val focus = Field.focused(out, chosen = target)
-        assertNotNull("the chosen bloom should be in focus", focus)
-        assertEquals(target.index, focus!!.bloom.index)
+    fun `settle finds ground worth planting`() {
+        val at = Terrain.settle(Terrain.FIELD_W * 0.4, Terrain.FIELD_H * 0.66)
+        assertTrue("settled into the sea", Terrain.landAt(at.x, at.y) >= 0.26)
     }
 
     @Test
-    fun `a neighbour really can be nearer, which is why choosing exists`() {
-        // Not a wish: golden-angle placement genuinely puts other flowers
-        // between you and the one you walked to. Emergent focus picks that
-        // neighbour, and this records it rather than pretending otherwise.
-        val field = blooms(40)
-        val target = field[7]
-        val out = Field.project(field, Field.facing(target, field), 1080.0, 2000.0)
-        val emergent = Field.focused(out)
-        assertNotNull(emergent)
-        assertTrue(
-            "emergent focus should be the most open thing on screen",
-            out.none { it.openness > emergent!!.openness },
-        )
+    fun `a patch outline is never a circle`() {
+        val ring = Terrain.blobRing(0.0, 0.0, 100.0, 4000)
+        val radii = ring.map { kotlin.math.hypot(it.x, it.y) }
+        assertTrue("outline was a circle", radii.max() - radii.min() > 12)
+        assertEquals(ring, Terrain.blobRing(0.0, 0.0, 100.0, 4000))
     }
 
     @Test
-    fun `a chosen bloom that walked out of view falls back to what is open`() {
-        val field = blooms(40)
-        val offscreen = Field.Bloom(who, FlowerKind.entries[0], 12, 99_000.0, 99_000.0, 1u, 999)
-        val out = Field.project(field, Field.openingCamera(field), 1080.0, 2000.0)
-        // Should not throw, and should not return the absent bloom.
-        val focus = Field.focused(out, chosen = offscreen)
-        assertTrue(focus == null || focus.bloom.index != 999)
+    fun `a point inside the outline reads as inside`() {
+        val ring = Terrain.blobRing(500.0, 500.0, 120.0, 77)
+        assertTrue(Terrain.inRing(ring, 500.0, 500.0))
+        assertTrue(!Terrain.inRing(ring, 5000.0, 5000.0))
+    }
+
+    // --- patches ------------------------------------------------------------
+
+    @Test
+    fun `a patch grows with what has been planted in it`() {
+        val small = Field.patches(people(1)).first()
+        val large = Field.patches(people(20)).first()
+        assertTrue("planting more did not widen the patch", large.radius > small.radius)
     }
 
     @Test
-    fun `an empty field focuses nothing`() {
-        assertNull(Field.focused(emptyList()))
+    fun `patches stop growing once they reach the prototype's size`() {
+        val six = Field.patches(people(6)).first().radius
+        val many = Field.patches(people(400)).first().radius
+        assertEquals(six, many, 1e-9)
     }
 
     @Test
-    fun `a tap finds the bloom under it and a miss finds nothing`() {
-        val field = blooms(30)
-        val out = Field.project(field, Field.openingCamera(field), 1080.0, 2000.0)
-        val target = out.last()
-        val centreY = target.baseY - target.size * 0.5
-        assertEquals(
-            target.bloom.index,
-            Field.hit(out, target.screenX, centreY)?.bloom?.index,
-        )
-        assertNull(Field.hit(out, -5000.0, -5000.0))
+    fun `two people do not land on the same ground`() {
+        val both = Field.patches(people(5, 5))
+        val d = kotlin.math.hypot(both[0].x - both[1].x, both[0].y - both[1].y)
+        assertTrue("patches overlap: centres $d apart", d > both[0].radius)
     }
 
     @Test
-    fun `you cannot walk out the far side into nothing`() {
-        val field = blooms(120)
-        // Try to march a long way past the last flower.
-        val gone = Field.clamp(
-            Field.Camera(x = 0.0, z = 90_000.0, height = Field.EYE),
-            field,
-        )
-        val out = Field.project(field, gone, 1080.0, 2116.0)
-        assertTrue("walking forward emptied the world", out.isNotEmpty())
+    fun `every person gets a place, however many there are`() {
+        val many = Field.patches(List(12) {
+            Field.Person(UUID.randomUUID(), "P$it", 3, FlowerKind.DAISY)
+        })
+        assertEquals(12, many.size)
+        many.forEach {
+            assertTrue("a patch fell off the world", it.x > -500 && it.x < Terrain.FIELD_W + 500)
+        }
     }
 
     @Test
-    fun `you can still walk in among them`() {
-        val field = blooms(120)
-        val front = field.minOf { it.z }
-        val inside = Field.clamp(
-            Field.Camera(x = 0.0, z = front + 40.0, height = Field.EYE),
-            field,
-        )
-        assertTrue("the clamp shut you out of your own field", inside.z > front)
-        assertTrue(Field.project(field, inside, 1080.0, 2116.0).isNotEmpty())
+    fun `the palette has shared colours first and two per patch after`() {
+        val patches = Field.patches(people(4, 4))
+        val palette = Field.palette(patches)
+        assertEquals(Field.PATCH_PAINT_FROM + 4, palette.size)
+        assertEquals(Flowers.spec(patches[0].flower).petalDeep, palette[Field.PATCH_PAINT_FROM])
+        assertEquals(Flowers.spec(patches[0].flower).petal, palette[Field.PATCH_PAINT_FROM + 1])
+        assertTrue("the palette must not leave a colour undefined", palette.all { it != 0L })
     }
 
     @Test
-    fun `pace follows the size of the field`() {
-        assertTrue(Field.pace(blooms(400)) > Field.pace(blooms(12)))
-        assertTrue("a swipe must not cross the whole field", Field.pace(blooms(12)) < 1.0)
+    fun `sparse ground is faint and planted ground is not`() {
+        assertTrue(Field.alphaFor(7) < Field.alphaFor(0))
+        assertTrue(Field.alphaFor(Field.PATCH_PAINT_FROM) > Field.alphaFor(0))
     }
 
-    // --- camera ------------------------------------------------------------
+    // --- cells --------------------------------------------------------------
 
     @Test
-    fun `a bigger garden is viewed from further back and higher up`() {
-        val small = Field.openingCamera(blooms(4))
-        val large = Field.openingCamera(blooms(300))
-        assertTrue(large.height > small.height)
-    }
-
-    @Test
-    fun `the camera cannot wander out of the world`() {
-        val field = blooms(30)
-        val lost = Field.Camera(x = 1e9, z = 1e9, height = 1e9)
-        val back = Field.clamp(lost, field)
-        assertTrue(back.x < 1e8)
-        assertTrue(back.z < 1e8)
-        assertTrue(back.height <= 420.0)
+    fun `the field comes out the same twice`() {
+        val patches = Field.patches(people(6, 3))
+        val a = Field.cells(patches)
+        val b = Field.cells(patches)
+        assertEquals(a.size, b.size)
+        assertEquals(a.first(), b.first())
+        assertEquals(a.last(), b.last())
     }
 
     @Test
-    fun `an empty field still projects and still has a camera`() {
-        val none = Field.layout(emptyList())
-        assertTrue(Field.project(none, Field.openingCamera(none), 1080.0, 2000.0).isEmpty())
+    fun `nothing is drawn out at sea`() {
+        Field.cells(Field.patches(people(6, 3))).forEach {
+            assertTrue("a cell was placed on water", Terrain.landAt(it.x, it.y) >= 0.2)
+        }
     }
 
     @Test
-    fun `a zero sized viewport draws nothing rather than dividing by it`() {
-        val field = blooms(10)
-        assertTrue(Field.project(field, Field.openingCamera(field), 0.0, 0.0).isEmpty())
+    fun `flowers only grow inside somebody's patch`() {
+        val patches = Field.patches(people(6, 3))
+        Field.cells(patches).forEach {
+            if (it.kind == Field.Kind.FLOWER) {
+                assertTrue("a flower grew in open country", it.patch >= 0)
+                assertTrue(
+                    "a flower took a colour that is not its patch's",
+                    it.paint >= Field.PATCH_PAINT_FROM,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `every cell points at a colour the palette actually has`() {
+        val patches = Field.patches(people(6, 3))
+        val palette = Field.palette(patches)
+        Field.cells(patches).forEach {
+            assertTrue("paint ${it.paint} is past the palette", it.paint in palette.indices)
+        }
+    }
+
+    @Test
+    fun `a field with nobody in it is still a field`() {
+        val cells = Field.cells(emptyList())
+        assertTrue("the island vanished without people on it", cells.size > 1000)
+        assertTrue(cells.none { it.kind == Field.Kind.FLOWER })
+    }
+
+    // --- camera -------------------------------------------------------------
+
+    @Test
+    fun `the overview zoom fits the whole island`() {
+        val base = Field.overviewZoom(1080.0, 2000.0)
+        assertTrue(Terrain.FIELD_W * base >= 1080.0 - 1)
+    }
+
+    @Test
+    fun `zoom cannot go below the overview or past the limit`() {
+        val base = 0.5
+        assertEquals(base, Field.clampZoom(0.001, base), 1e-9)
+        assertEquals(base * Field.MAX_REL, Field.clampZoom(9999.0, base), 1e-9)
+    }
+
+    @Test
+    fun `the view is flat until it starts tipping, and fully tipped after`() {
+        val base = 0.5
+        assertEquals(0.0, Field.tiltFor(base * 1.0, base), 1e-9)
+        assertEquals(0.0, Field.tiltFor(base * Field.TILT_FROM, base), 1e-9)
+        assertEquals(1.0, Field.tiltFor(base * Field.TILT_TO, base), 1e-9)
+        assertEquals(1.0, Field.tiltFor(base * 30, base), 1e-9)
+    }
+
+    @Test
+    fun `the tip is continuous, never a jump`() {
+        val base = 0.5
+        var last = 0.0
+        var step = Field.TILT_FROM
+        while (step <= Field.TILT_TO) {
+            val tilt = Field.tiltFor(base * step, base)
+            assertTrue("tilt went backwards", tilt >= last - 1e-9)
+            assertTrue("tilt jumped by ${tilt - last}", tilt - last < 0.2)
+            last = tilt
+            step += 0.05
+        }
+    }
+
+    @Test
+    fun `an untipped camera is a plain overhead map`() {
+        val cam = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, 0.5)
+        val lens = Field.buildLens(cam, 0.5, 2000.0)
+        val out = Field.Point()
+        Field.project(cam.x + 100, cam.y, 0.5, cam, lens, 1080.0, 2000.0, out)
+        assertEquals(0.0, lens.tilt, 1e-9)
+        assertEquals(1080.0 / 2 + 100 * 0.5, out.x, 1e-6)
+        assertEquals(cam.zoom, out.s, 1e-9)
+    }
+
+    @Test
+    fun `once tipped, further away is smaller`() {
+        val base = 0.5
+        val cam = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base * Field.TILT_TO)
+        val lens = Field.buildLens(cam, base, 2000.0)
+        val near = Field.Point()
+        val far = Field.Point()
+        // The eye sits behind the camera at increasing y, so depth is
+        // cam.y + back - wy: a *smaller* y is further away, not a larger one.
+        Field.project(cam.x, cam.y + 200, 0.4, cam, lens, 1080.0, 2000.0, near)
+        Field.project(cam.x, cam.y - 700, 0.4, cam, lens, 1080.0, 2000.0, far)
+        assertTrue("perspective did not shrink with distance", far.s < near.s)
+        assertTrue("the far point should sit higher up the screen", far.y < near.y)
+    }
+
+    @Test
+    fun `a zero sized viewport does not divide by it`() {
+        assertEquals(0.2, Field.overviewZoom(0.0, 0.0), 1e-9)
     }
 }

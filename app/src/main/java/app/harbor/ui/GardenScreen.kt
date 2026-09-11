@@ -67,66 +67,17 @@ import app.harbor.ui.theme.SurfaceSky
  * prototype's own JavaScript. This file only draws.
  */
 /**
- * The garden as a page of its own, from either of two cameras.
+ * The garden as a page of its own.
  *
- * Home embeds the plan view at a fixed height, exactly as the prototype does
- * — the garden is the centre of this app, not a place you visit. This screen
- * adds the one thing a fixed embed cannot give: the choice to stand in it.
- *
- * Both modes draw the same world from the same derived coordinates, so a
- * flower does not move between them. Field is the default because it is the
- * one that carries what a year of calls feels like; Top is there because it
- * is the one that answers "how many, and whose".
+ * The field, full bleed. There is no 2D/3D switch any more: the camera tips
+ * from overhead to landscape as you zoom, so the plan view is what you get by
+ * pulling back, and every framing in between is a real one. A toggle asked
+ * people to classify what they wanted before they could look, and the honest
+ * answer is usually "somewhere between".
  */
 @Composable
-fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
-    var field by remember { mutableStateOf(true) }
-
-    Box(modifier.fillMaxSize()) {
-        if (field) {
-            FieldCanvas(store, Modifier.fillMaxSize())
-        } else {
-            GardenCanvas(store, Modifier.fillMaxSize())
-        }
-
-        Row(
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 12.dp, end = 16.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            ViewTab("Field", field) { field = true }
-            ViewTab("Top", !field) { field = false }
-        }
-    }
-}
-
-/** Two words, one of them lit. Smaller than a segmented control deserves. */
-@Composable
-private fun ViewTab(label: String, current: Boolean, onClick: () -> Unit) {
-    Text(
-        label,
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(
-                if (current) MaterialTheme.colorScheme.primary else Color.Transparent,
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 7.dp),
-        style = MaterialTheme.typography.labelLarge.copy(
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (current) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        ),
-    )
-}
+fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) =
+    FieldCanvas(store, modifier.fillMaxSize())
 
 @Composable
 fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {

@@ -2,393 +2,373 @@ package app.harbor.domain
 
 import java.util.UUID
 import kotlin.math.abs
-import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sin
-import kotlin.math.sqrt
-import kotlin.math.tan
 
 /**
- * The garden seen from inside it.
+ * The garden as a place you can be in.
  *
- * The top-down garden answers "what have I grown". This answers something the
- * plan view cannot: what it is like to be standing in it. A hundred calls read
- * as a hundred dots from above; from ground level they read as a field that
- * runs past the horizon, which is the feeling the thing is actually for.
+ * Ported from the `fieldtrial.html` prototype, which is the design authority
+ * for this screen the way `harvest-pulse` is for the rest of the app. The
+ * terrain it stands on is in [Terrain]; this is everything above ground —
+ * whose patch is where, what each cell of the field is, and the camera.
  *
- * ## Same ground, two cameras
+ * ## One camera, not two views
  *
- * This does not invent a second world. Every bloom sits at the coordinates
- * [Garden] already assigns it — the plan view's y axis is this one's z, with
- * the isometric squash undone. So a flower is in the same place in both views,
- * and switching between them is a camera move rather than a different scene.
- * That is also why nothing here needs storing: position still falls out of the
- * hash of a person's id and a flower's index.
+ * There is no 2D mode and 3D mode. [tiltFor] blends a flat overhead
+ * projection into a perspective one as you zoom in, so the plan view *is* the
+ * field seen from far enough away, and everything in between is a real
+ * position on that dial. Pulling back is how you get the map; leaning in is
+ * how you get the landscape. The readout calls the three states plan,
+ * tipping and landscape.
  *
- * ## Why there is no 3D engine underneath this
+ * That is why this replaced a Field/Top toggle: a toggle asks the user to
+ * classify what they want before they can look, and the honest answer is
+ * usually "somewhere between".
  *
- * Every bloom is a billboard — a flat thing always facing the viewer — so the
- * only 3D that matters is where its base lands and how big it is. That is a
- * divide per bloom, which means it draws on the same canvas as everything else
- * in Harbor, needs no model files, and hands the artwork back as one draw call
- * per flower. When real flower art arrives it slots into that call; nothing
- * here changes.
+ * ## Why flowers appear and disappear
  *
- * Pure arithmetic, no Android, no Compose, so the projection can be tested
- * exactly rather than eyeballed on a device.
+ * A planted cell is a coloured dot until it is drawn larger than
+ * [FLOWER_AT] pixels, at which point it opens into an actual flower. That is
+ * level of detail doing the work of an animation: walking in opens the buds
+ * around you because they got big, not because anything is keyframed.
+ *
+ * Pure arithmetic, no Android, so the projection can be tested exactly.
  */
 object Field {
 
-    /** Ground units across an open flower. */
-    const val BLOOM_SIZE = 30.0
+    // --- camera constants, from the prototype -----------------------------
 
-    /** A bud is roughly a third of the flower it becomes. */
-    const val BUD_SCALE = 0.34
+    /** Relative zoom where the overhead view starts tipping into perspective. */
+    const val TILT_FROM = 2.1
 
-    /** Nearer than this is behind you, or close enough to be meaningless. */
-    const val NEAR = 26.0
+    /** Relative zoom by which the tip is complete. */
+    const val TILT_TO = 4.2
 
-    /** Where the ground meets the sky, as a fraction of the viewport. */
-    const val HORIZON = 0.40
+    /** How far in you can go, as a multiple of the overview zoom. */
+    const val MAX_REL = 30.0
 
-    /** Eye height above the ground, in the same units as the plan view. */
-    const val EYE = 52.0
+    private const val EYE = 300.0
+    private const val SET_BACK = 2.4
+    private const val HORIZON = 0.14
+    private const val ELEVATION = 170.0
 
-    private const val FOV = 1.05
+    /** Drawn radius at which a planted dot becomes a flower. */
+    const val FLOWER_AT = 5.5
 
-    /** Beyond this many on screen the field reads as texture, not flowers. */
-    private const val MAX_DRAWN = 260
+    /** Cell radius in pixels is this times its size, times the projected scale. */
+    const val DOT_SCALE = 3.3
 
-    /** A bloom, placed on the ground plane. */
-    data class Bloom(
+    // --- paint palette ----------------------------------------------------
+    //
+    // Colours are bucketed so the whole field draws in about a dozen fills
+    // rather than one per cell. The index a cell carries is its bucket.
+
+    val VEG = listOf(0xFFB7CC63, 0xFF9EBC50, 0xFF86A742, 0xFF6C9035, 0xFF53752A)
+    val WATER = listOf(0xFF9ED3EC, 0xFF72BBE0)
+
+    /**
+     * Sparse ground, drawn faintly.
+     *
+     * The prototype reaches for `CIRCLE_PAINT.length - 1` here, which is
+     * evaluated after the patch colours have been appended — so its bare
+     * ground silently takes the last person's petal colour. Harmless in a
+     * mock with four fixed people; in Harbor the ground would change colour
+     * when a contact is added. This is the constant that was meant.
+     */
+    const val BARE = 0xFFB4B5AB
+
+    /** Where per-patch colours start in the palette. Two each: deep, then petal. */
+    const val PATCH_PAINT_FROM = 8
+
+    private const val BARE_PAINT = 7
+
+    enum class Kind { DOT, CROSS, SQUARE, FLOWER }
+
+    /** One person's planted ground. */
+    data class Patch(
         val contactId: UUID?,
-        val kind: FlowerKind,
-        /** Minutes the call ran, which decides how full the bloom opens. */
-        val minutes: Int?,
+        val label: String,
+        val calls: Int,
         val x: Double,
-        val z: Double,
-        val seed: UInt,
-        /** Index within its cluster. Stable for the life of the flower. */
-        val index: Int,
+        val y: Double,
+        val radius: Double,
+        val ring: List<Garden.Spot>,
+        /** The flower this patch is planted with, which gives it its colour. */
+        val flower: FlowerKind,
     )
 
     /**
-     * Where the viewer is standing.
+     * One cell of the field.
      *
-     * [height] is eye height; raising it tips the view towards the plan the
-     * top-down garden shows, which is what makes the two modes feel like one
-     * place rather than two screens.
+     * There are tens of thousands of these, so it holds numbers and indices
+     * rather than objects, and the drawing layer never allocates per cell.
      */
-    data class Camera(
+    data class Cell(
         val x: Double,
+        val y: Double,
         val z: Double,
-        val height: Double = EYE,
-        val fov: Double = FOV,
-    )
-
-    /** One bloom, resolved to the screen. */
-    data class Projected(
-        val bloom: Bloom,
-        val screenX: Double,
-        /** Where the stem meets the ground. */
-        val baseY: Double,
-        /** Drawn diameter, already including how far open it is. */
+        val kind: Kind,
         val size: Double,
-        /** Distance ahead of the camera. Bigger is further. */
-        val depth: Double,
-        /** 0 is a closed bud, 1 is fully open. */
-        val openness: Double,
-        /** Fades in rather than popping at the render edge. */
-        val alpha: Double,
+        val paint: Int,
+        /** Index into the patch list, or -1 for open country. */
+        val patch: Int,
+        /** Stable per-cell randomness, used for petal spin and colour choice. */
+        val tone: Double,
     )
 
-    /** One person's patch, as a cluster centre plus the flowers in it. */
-    data class Cluster(
-        val contactId: UUID?,
-        val plot: Garden.Plot,
-        /** Oldest first, so an index never changes once planted. */
-        val flowers: List<Pair<FlowerKind, Int?>>,
+    data class Camera(val x: Double, val y: Double, val zoom: Double)
+
+    /** What the camera works out once per frame, rather than once per cell. */
+    data class Lens(
+        val tilt: Double,
+        val focal: Double,
+        val eye: Double,
+        val back: Double,
+        val camZ: Double,
     )
 
-    /**
-     * How far you can see, as a function of how much there is to see.
-     *
-     * A handful of calls should all be visible at once or the field looks
-     * empty and broken. A year of them should fade into the distance instead
-     * of costing a thousand draw calls. So the horizon is earned: it opens up
-     * as the garden fills, the way a render distance does.
-     */
-    fun renderDistance(count: Int): Double =
-        min(4600.0, 700.0 + count * 46.0)
-
-    /**
-     * How far across the planted ground is.
-     *
-     * The camera is placed from this rather than from a flower count, which
-     * was the earlier mistake: counting made a packed patch of three hundred
-     * push the viewer six hundred units further back than a patch of twenty,
-     * even though both covered the same ground. Everything arrived eleven
-     * pixels wide and permanently shut.
-     */
-    fun extent(blooms: List<Bloom>): Double {
-        if (blooms.size < 2) return 220.0
-        val spanX = blooms.maxOf { it.x } - blooms.minOf { it.x }
-        val spanZ = blooms.maxOf { it.z } - blooms.minOf { it.z }
-        return max(220.0, max(spanX, spanZ))
+    /** Somewhere to put a projected point without allocating in the hot loop. */
+    class Point {
+        @JvmField var x: Double = 0.0
+        @JvmField var y: Double = 0.0
+        @JvmField var s: Double = 1.0
     }
 
-    /** Eye height for a field this big: enough to see over it, not a map. */
-    fun restingHeight(blooms: List<Bloom>): Double =
-        (extent(blooms) * 0.16).coerceIn(EYE, 240.0)
+    /** The zoom at which the whole island just fills the frame. */
+    fun overviewZoom(width: Double, height: Double): Double =
+        if (width <= 0 || height <= 0) 0.2
+        else max(width / Terrain.FIELD_W, height / Terrain.FIELD_H)
 
-    /** Far enough out that the near edge is comfortably inside the frame. */
-    fun restingBack(blooms: List<Bloom>): Double =
-        (extent(blooms) * 0.75).coerceIn(240.0, 1500.0)
+    fun clampZoom(zoom: Double, base: Double): Double =
+        min(base * MAX_REL, max(base, zoom))
 
-    /**
-     * Lay the blooms out on the ground plane.
-     *
-     * Reuses [Garden.flowerSpot] so a flower is in the same place here as in
-     * the plan view; the squash that makes the plan look isometric is undone
-     * to recover the true ground position.
-     */
-    fun layout(clusters: List<Cluster>): List<Bloom> = clusters.flatMap { cluster ->
-        cluster.flowers.mapIndexed { index, (kind, minutes) ->
-            val spot = spread(cluster.plot.seed, index, cluster.plot.radius)
-            Bloom(
-                contactId = cluster.contactId,
-                kind = kind,
-                minutes = minutes,
-                x = cluster.plot.x + spot.x,
-                // Both terms are plan coordinates, squashed to read as
-                // isometric. Undoing that once recovers true ground spacing;
-                // undoing it twice, as an earlier version did, stretched every
-                // cluster into a long corridor in z.
-                z = (cluster.plot.y + spot.y) / Garden.GROUND_SQUASH,
-                seed = cluster.plot.seed,
-                index = index,
-            )
-        }
-    }
+    /** 0 is flat overhead, 1 is full perspective. Everything between is real. */
+    fun tiltFor(zoom: Double, base: Double): Double =
+        Terrain.smooth((zoom / base - TILT_FROM) / (TILT_TO - TILT_FROM))
 
     /**
-     * Where a flower sits in its patch, allowed to keep going outward.
+     * The eye for this camera.
      *
-     * [Garden.flowerSpot] caps its radius, which is right for a plan view: a
-     * patch stays a tidy blob you can label. Standing inside it, that cap is
-     * fatal — three hundred flowers would occupy the same disc as thirteen,
-     * and a field that does not grow is just a crowd.
-     *
-     * Same hash, same golden angle, same jitter, with the cap removed. Below
-     * about thirteen flowers the cap never binds, so the two views agree
-     * exactly; past that the plan compresses what the field lets spread. That
-     * is a deliberate difference between two drawings of one garden, not two
-     * different gardens.
+     * [Lens.camZ] is sampled under what you are looking at rather than under
+     * the viewer, so the framing does not lurch every time the ground beneath
+     * you changes height.
      */
-    fun spread(seed: UInt, index: Int, radius: Double): Garden.Spot {
-        val r = radius * 0.76 * sqrt((index + 0.6) / 13.0)
-        val angle = index * 2.399963 + Garden.rand(seed, index + 70) * 0.55
-        return Garden.Spot(
-            x = cos(angle) * r + (Garden.rand(seed, index + 120) - 0.5) * 9,
-            y = (sin(angle) * r + (Garden.rand(seed, index + 180) - 0.5) * 7) *
-                Garden.GROUND_SQUASH,
-        )
-    }
-
-    /** The centre of everything planted, so a camera can be aimed at it. */
-    fun centre(blooms: List<Bloom>): Pair<Double, Double> {
-        if (blooms.isEmpty()) return 0.0 to 0.0
-        return blooms.sumOf { it.x } / blooms.size to blooms.sumOf { it.z } / blooms.size
-    }
-
-    /** The camera a garden of this size opens at: behind the field, looking in. */
-    fun openingCamera(blooms: List<Bloom>): Camera {
-        val (cx, cz) = centre(blooms)
-        val half = if (blooms.isEmpty()) 0.0 else (blooms.maxOf { it.z } - cz)
-        return Camera(
-            x = cx,
-            z = cz - half - restingBack(blooms),
-            height = restingHeight(blooms),
+    fun buildLens(camera: Camera, base: Double, height: Double): Lens {
+        val rel = max(camera.zoom / base, 0.6)
+        val eye = max(34.0, EYE * TILT_TO / rel)
+        return Lens(
+            tilt = tiltFor(camera.zoom, base),
+            focal = height * 0.92,
+            eye = eye,
+            back = eye * SET_BACK,
+            camZ = Terrain.heightAt(camera.x, camera.y) * ELEVATION,
         )
     }
 
     /**
-     * Project the world onto the screen.
+     * World to screen.
      *
-     * Returns only what is actually visible, ordered far to near so a painter
-     * can draw them in sequence and get occlusion for free. Capped at
-     * [MAX_DRAWN]: past that the far ones contribute a pixel each, and the
-     * cost is real on the mid-range phones this study runs on.
+     * Projects flat and in perspective, then mixes the two by [Lens.tilt].
+     * Mixing the *results* rather than switching between them is what makes
+     * the tip continuous — there is no frame where the world jumps.
      */
     fun project(
-        blooms: List<Bloom>,
+        wx: Double,
+        wy: Double,
+        wz: Double,
         camera: Camera,
+        lens: Lens,
         width: Double,
         height: Double,
-    ): List<Projected> {
-        if (width <= 0 || height <= 0) return emptyList()
-
-        val focal = (width / 2) / tan(camera.fov / 2)
-        val horizon = height * HORIZON
-        val far = max(renderDistance(blooms.size), extent(blooms) * 3.0)
-        val centreX = width / 2
-
-        val visible = ArrayList<Projected>(min(blooms.size, MAX_DRAWN))
-
-        for (bloom in blooms) {
-            val dz = bloom.z - camera.z
-            if (dz <= NEAR || dz > far) continue
-
-            val scale = focal / dz
-            val screenX = centreX + (bloom.x - camera.x) * scale
-
-            // Generous margin: a bloom whose centre is off screen can still
-            // have petals on it.
-            if (screenX < -width * 0.4 || screenX > width * 1.4) continue
-
-            val baseY = horizon + camera.height * scale
-            val openness = opennessOf(dz, screenX - centreX, width, far)
-            val fullness = fullnessOf(bloom.minutes)
-            val diameter =
-                BLOOM_SIZE * fullness * (BUD_SCALE + (1 - BUD_SCALE) * openness) * scale
-
-            visible += Projected(
-                bloom = bloom,
-                screenX = screenX,
-                baseY = baseY,
-                size = diameter,
-                depth = dz,
-                openness = openness,
-                alpha = fadeOf(dz, far),
-            )
+        out: Point,
+    ): Point {
+        val flatX = width / 2 + (wx - camera.x) * camera.zoom
+        val flatY = height * 0.5 + (wy - camera.y) * camera.zoom
+        if (lens.tilt <= 0.002) {
+            out.x = flatX
+            out.y = flatY
+            out.s = camera.zoom
+            return out
         }
-
-        visible.sortByDescending { it.depth }
-        return if (visible.size <= MAX_DRAWN) visible else visible.takeLast(MAX_DRAWN)
+        // Depth. The eye sits at camera.y + back and looks toward decreasing
+        // y, so +y runs *toward* the viewer and the far edge of the field is
+        // its low-y edge. Easy to get backwards; the floor stops anything at
+        // or behind the eye from projecting to infinity.
+        val d = max(lens.eye * 0.3, camera.y + lens.back - wy)
+        val tx = width / 2 + lens.focal * (wx - camera.x) / d
+        val ty = height * HORIZON + lens.focal * (lens.eye + lens.camZ - wz * ELEVATION) / d
+        val ts = lens.focal / d
+        out.x = flatX + (tx - flatX) * lens.tilt
+        out.y = flatY + (ty - flatY) * lens.tilt
+        out.s = camera.zoom + (ts - camera.zoom) * lens.tilt
+        return out
     }
 
-    /**
-     * How open a bloom is: near and central opens, far and peripheral stays a
-     * bud.
-     *
-     * Two terms, because distance alone gives you a wall of open flowers as
-     * soon as you walk in. The centre term is what makes the thing you are
-     * looking at the thing that opens — one flower at a time, the way an
-     * attention-following interface behaves, rather than the whole front row
-     * blooming at once.
-     */
-    fun opennessOf(depth: Double, offsetFromCentre: Double, width: Double, far: Double): Double {
-        val nearBand = NEAR * 2
-        val openBy = min(far * 0.45, nearBand + 620.0)
-        val proximity = 1.0 - smoothstep(nearBand, openBy, depth)
-        val reach = max(1.0, width * 0.42)
-        val central = 1.0 - smoothstep(0.0, reach, abs(offsetFromCentre))
-        return (proximity * (0.35 + 0.65 * central)).coerceIn(0.0, 1.0)
-    }
+    // --- patches ----------------------------------------------------------
 
-    /** A longer call opens a fuller bloom, bounded so a short one is still whole. */
-    fun fullnessOf(minutes: Int?): Double {
-        if (minutes == null) return 1.0
-        return (0.78 + 0.42 * sqrt(min(minutes, 60) / 60.0)).coerceIn(0.78, 1.2)
-    }
-
-    /** The last tenth of the render distance fades, so nothing pops into being. */
-    fun fadeOf(depth: Double, far: Double): Double =
-        (1.0 - smoothstep(far * 0.82, far, depth)).coerceIn(0.0, 1.0)
-
-    /**
-     * The bloom the viewer is attending to.
-     *
-     * Two ways to be that bloom, and the order matters.
-     *
-     * A [chosen] one wins outright. Openness alone cannot carry this: flowers
-     * are placed on a golden angle, so walking up to one regularly leaves a
-     * neighbour between you and it, and that neighbour is nearer and opens
-     * wider. Inferring focus there meant tapping a flower and watching a
-     * different flower open, which reads as the tap having missed.
-     *
-     * Otherwise it is emergent — whatever is most open, which by construction
-     * is near the middle and close to hand. That is the right behaviour while
-     * wandering, where nothing has been chosen.
-     *
-     * Null in an empty field, or when everything is still a distant bud.
-     */
-    fun focused(projected: List<Projected>, chosen: Bloom? = null): Projected? {
-        if (chosen != null) {
-            val pick = projected.firstOrNull { same(it.bloom, chosen) }
-            if (pick != null) return pick
-        }
-        return projected.filter { it.openness > 0.45 }.maxByOrNull { it.openness }
-    }
-
-    /**
-     * Identity that survives a relayout.
-     *
-     * Position is derived, not stored, so comparing coordinates would break
-     * the moment anything upstream rounded differently. A bloom is which
-     * person's patch it is in and where in that patch it sits.
-     */
-    fun same(a: Bloom, b: Bloom): Boolean =
-        a.contactId == b.contactId && a.index == b.index
-
-    /** Which bloom a tap landed on, nearest first so the front one wins. */
-    fun hit(projected: List<Projected>, x: Double, y: Double): Projected? =
-        projected.lastOrNull { p ->
-            val radius = max(22.0, p.size * 0.62)
-            val centreY = p.baseY - p.size * 0.5
-            abs(x - p.screenX) <= radius && abs(y - centreY) <= radius
-        }
-
-    /**
-     * A camera standing in front of one bloom, close enough to read it.
-     *
-     * Stops short rather than arriving on top of it: [NEAR] culls anything
-     * closer, so walking all the way in would make the flower vanish.
-     */
-    fun facing(bloom: Bloom, blooms: List<Bloom>): Camera = Camera(
-        x = bloom.x,
-        z = bloom.z - NEAR * 4.2,
-        height = min(EYE, restingHeight(blooms)),
+    /** Where the first few patches are aimed, before [Terrain.settle] adjusts. */
+    private val SPOTS = listOf(
+        0.40 to 0.66,
+        0.68 to 0.74,
+        0.55 to 0.42,
+        0.82 to 0.55,
     )
 
     /**
-     * How fast a drag walks, in world units per pixel.
+     * A place to aim patch [index] at.
      *
-     * Has to come from the size of the field. A fixed pace that feels right
-     * in a large garden crosses a small one in a single swipe -- which it
-     * did: three drags put the camera a thousand units past the last flower,
-     * looking at empty ground.
+     * The prototype has four people and four hand-placed spots. Harbor does
+     * not know how many people there will be, so past the fourth this walks a
+     * golden-angle spiral out from the middle — which never repeats and never
+     * clusters, and stays deterministic.
      */
-    fun pace(blooms: List<Bloom>): Double =
-        (extent(blooms) / 900.0).coerceIn(0.22, 3.0)
+    fun spotFor(index: Int): Pair<Double, Double> {
+        SPOTS.getOrNull(index)?.let { return it }
+        val n = index - SPOTS.size
+        val angle = n * 2.399963
+        val radius = 0.16 + 0.055 * kotlin.math.sqrt(n + 1.0)
+        return (0.5 + kotlin.math.cos(angle) * radius) to
+            (0.56 + kotlin.math.sin(angle) * radius * 0.8)
+    }
 
     /**
-     * Keeps a walking camera inside the field it is walking in.
+     * Lay out one patch per person.
      *
-     * You can walk among the flowers, which is the point, but not out the far
-     * side of them: the far bound stops short of the last bloom so there is
-     * always something ahead. Walking until the world is empty is not
-     * exploring, it is getting lost.
+     * Radius follows the prototype, then grows with how much has been planted
+     * — a patch of one call should not cover the same ground as a patch of
+     * twenty. It reaches the prototype's size at six calls, which is where
+     * the two agree exactly.
      */
-    fun clamp(camera: Camera, blooms: List<Bloom>): Camera {
-        if (blooms.isEmpty()) return camera
-        val side = max(400.0, extent(blooms) * 0.6)
-        val minX = blooms.minOf { it.x } - side
-        val maxX = blooms.maxOf { it.x } + side
-        val minZ = blooms.minOf { it.z } - restingBack(blooms) * 1.8
-        val maxZ = max(minZ, blooms.maxOf { it.z } - NEAR * 2)
-        return camera.copy(
-            x = camera.x.coerceIn(minX, maxX),
-            z = camera.z.coerceIn(minZ, maxZ),
-            height = camera.height.coerceIn(18.0, 420.0),
+    fun patches(people: List<Person>): List<Patch> = people.mapIndexed { i, person ->
+        val (fx, fy) = spotFor(i)
+        val at = Terrain.settle(fx * Terrain.FIELD_W, fy * Terrain.FIELD_H)
+        val seed = 4000 + i * 37
+        val full = 165 + Terrain.hash2(i, 3, seed) * 60
+        val growth = 0.72 + 0.28 * min(1.0, person.calls / 6.0)
+        val radius = full * growth
+        Patch(
+            contactId = person.contactId,
+            label = person.label,
+            calls = person.calls,
+            x = at.x,
+            y = at.y,
+            radius = radius,
+            ring = Terrain.blobRing(at.x, at.y, radius, seed),
+            flower = person.flower,
         )
     }
 
-    /** Hermite ease. 0 below [from], 1 above [to]. */
-    fun smoothstep(from: Double, to: Double, at: Double): Double {
-        if (to <= from) return if (at >= to) 1.0 else 0.0
-        val t = ((at - from) / (to - from)).coerceIn(0.0, 1.0)
-        return t * t * (3 - 2 * t)
+    /** A person, as the field needs them. */
+    data class Person(
+        val contactId: UUID?,
+        val label: String,
+        val calls: Int,
+        /** What this patch is planted with — the kind chosen most often here. */
+        val flower: FlowerKind,
+    )
+
+    /** Which patch contains a point, or -1. */
+    fun patchAt(patches: List<Patch>, px: Double, py: Double): Int {
+        for (i in patches.indices) {
+            val p = patches[i]
+            if (abs(px - p.x) > p.radius * 1.5 || abs(py - p.y) > p.radius * 1.5) continue
+            if (Terrain.inRing(p.ring, px, py)) return i
+        }
+        return -1
+    }
+
+    /** The full palette for a given set of patches: shared colours, then two each. */
+    fun palette(patches: List<Patch>): LongArray {
+        val out = LongArray(PATCH_PAINT_FROM + patches.size * 2)
+        VEG.forEachIndexed { i, c -> out[i] = c }
+        WATER.forEachIndexed { i, c -> out[VEG.size + i] = c }
+        out[BARE_PAINT] = BARE
+        patches.forEachIndexed { i, p ->
+            val spec = Flowers.spec(p.flower)
+            out[PATCH_PAINT_FROM + i * 2] = spec.petalDeep
+            out[PATCH_PAINT_FROM + i * 2 + 1] = spec.petal
+        }
+        return out
+    }
+
+    /** How opaque a bucket draws. Sparse ground recedes; planted ground does not. */
+    fun alphaFor(paint: Int): Float = when {
+        paint == BARE_PAINT -> 0.45f
+        paint >= PATCH_PAINT_FROM -> 0.95f
+        else -> 0.9f
+    }
+
+    // --- the cells --------------------------------------------------------
+
+    /**
+     * Build the whole field, once.
+     *
+     * Tens of thousands of cells, each decided by the terrain under it: water
+     * where it is low, rock where it is high and steep, groves where growth
+     * clumps, tilled rows where the ground is worked, and flowers wherever
+     * somebody's patch covers it. Everything is a pure function of position,
+     * so this is rebuilt rather than stored, and always comes out the same.
+     */
+    fun cells(patches: List<Patch>): List<Cell> {
+        val out = ArrayList<Cell>(Terrain.COLS * Terrain.ROWS / 2)
+        for (row in 0 until Terrain.ROWS) {
+            for (col in 0 until Terrain.COLS) {
+                val jx = (Terrain.hash2(col, row, Terrain.SEED + 5) - 0.5) * Terrain.CELL * 0.5
+                val jy = (Terrain.hash2(col, row, Terrain.SEED + 6) - 0.5) * Terrain.CELL * 0.5
+                val x = col * Terrain.CELL + jx
+                val y = row * Terrain.CELL + jy
+                if (Terrain.landAt(x, y) < 0.2) continue
+
+                val z = Terrain.heightAt(x, y)
+                val m = Terrain.moistureAt(x, y)
+                val grove = Terrain.grovesAt(x, y)
+                val till = Terrain.tilledAt(x, y)
+                val slope = abs(z - Terrain.heightAt(x + Terrain.CELL, y)) +
+                    abs(z - Terrain.heightAt(x, y + Terrain.CELL))
+                val chance = Terrain.hash2(col, row, Terrain.SEED + 7)
+                val patch = patchAt(patches, x, y)
+
+                var kind = Kind.DOT
+                var size = 0.1
+                var paint = BARE_PAINT
+
+                if (patch >= 0 && z > 0.3) {
+                    // Inside somebody's patch the ground is planted: denser,
+                    // larger, and in their flower's colour.
+                    kind = Kind.FLOWER
+                    size = 0.72 + chance * 0.9 + grove * 0.5
+                    paint = PATCH_PAINT_FROM + patch * 2 + (if (chance > 0.55) 1 else 0)
+                } else if (z < 0.3) {
+                    size = 0.5 + (0.3 - z) * 2.4
+                    paint = 5 + (if (chance > 0.5) 1 else 0)
+                } else if (z < 0.35) {
+                    size = 0.3
+                    paint = 5
+                } else if (z > 0.74 && slope > 0.026) {
+                    kind = Kind.SQUARE
+                    size = 0.34 + slope * 3
+                } else if (grove > 0.5) {
+                    size = 0.6 + (grove - 0.5) * 3.4 + m * 0.6
+                    paint = min(4.0, floor(z * 3.6 + chance * 1.4)).toInt()
+                } else if (m > 0.44) {
+                    size = 0.26 + (m - 0.44) * 2.4
+                    paint = min(4.0, floor(z * 3.2 + chance)).toInt()
+                } else if (till > 0.55 && till < 0.67 && z < 0.7) {
+                    kind = Kind.CROSS
+                    size = 0.4
+                } else if (chance > 0.987 && z > 0.36) {
+                    kind = Kind.SQUARE
+                    size = 0.3
+                } else {
+                    size = 0.13 + m * 0.2
+                    paint = BARE_PAINT
+                }
+
+                out += Cell(x, y, z, kind, min(size, 2.4), paint, patch, chance)
+            }
+        }
+        return out
     }
 }

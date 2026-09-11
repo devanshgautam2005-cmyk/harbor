@@ -112,7 +112,8 @@ fun HomeScreen(
             )
         }
 
-        // .garden-holder — 404px of garden, on the home screen
+        // .field-holder — the field itself, on the home screen, exactly as
+        // the trial page has it. Tapping opens it full bleed.
         Box(
             Modifier
                 .padding(horizontal = 16.dp)
@@ -121,7 +122,7 @@ fun HomeScreen(
                 .clip(RoundedCornerShape(24.dp))
                 .clickable(onClick = onOpenGarden),
         ) {
-            GardenCanvas(store, Modifier.fillMaxSize())
+            FieldCanvas(store, Modifier.fillMaxSize())
         }
 
         Flow(Modifier.pageContent()) {
