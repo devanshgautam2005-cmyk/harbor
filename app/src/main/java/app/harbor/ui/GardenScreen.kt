@@ -7,12 +7,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +35,8 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.drawText
@@ -63,14 +67,66 @@ import app.harbor.ui.theme.SurfaceSky
  * prototype's own JavaScript. This file only draws.
  */
 /**
- * The garden as a page of its own.
+ * The garden as a page of its own, from either of two cameras.
  *
- * Home embeds the same canvas at a fixed height, exactly as the prototype
- * does — the garden is the centre of this app, not a place you visit.
+ * Home embeds the plan view at a fixed height, exactly as the prototype does
+ * — the garden is the centre of this app, not a place you visit. This screen
+ * adds the one thing a fixed embed cannot give: the choice to stand in it.
+ *
+ * Both modes draw the same world from the same derived coordinates, so a
+ * flower does not move between them. Field is the default because it is the
+ * one that carries what a year of calls feels like; Top is there because it
+ * is the one that answers "how many, and whose".
  */
 @Composable
-fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) =
-    GardenCanvas(store, modifier.fillMaxSize())
+fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
+    var field by remember { mutableStateOf(true) }
+
+    Box(modifier.fillMaxSize()) {
+        if (field) {
+            FieldCanvas(store, Modifier.fillMaxSize())
+        } else {
+            GardenCanvas(store, Modifier.fillMaxSize())
+        }
+
+        Row(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 16.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            ViewTab("Field", field) { field = true }
+            ViewTab("Top", !field) { field = false }
+        }
+    }
+}
+
+/** Two words, one of them lit. Smaller than a segmented control deserves. */
+@Composable
+private fun ViewTab(label: String, current: Boolean, onClick: () -> Unit) {
+    Text(
+        label,
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(
+                if (current) MaterialTheme.colorScheme.primary else Color.Transparent,
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (current) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        ),
+    )
+}
 
 @Composable
 fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
