@@ -69,12 +69,12 @@ internal fun CueSurface(
     onCall: (topic: String?, number: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var step by remember { mutableStateOf(Step.Cue) }
+    var step by remember { mutableStateOf(CueStep.Cue) }
     var topic by remember { mutableStateOf<String?>(null) }
     var line by remember { mutableStateOf("") }
     var settled by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = step == Step.Cue) { onDismiss() }
+    BackHandler(enabled = step == CueStep.Cue) { onDismiss() }
 
     val who = contact?.label ?: "someone at home"
     val usual = usualMinutes ?: 12
@@ -140,7 +140,7 @@ internal fun CueSurface(
         }
 
         when (step) {
-            Step.Cue -> Column(
+            CueStep.Cue -> Column(
                 Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(13.dp),
@@ -187,10 +187,10 @@ internal fun CueSurface(
                     onCall(topic, contact?.phoneE164)
                 }
                 CuePath(main = "Send a reaction", sub = "one line, nothing owed") {
-                    step = Step.React
+                    step = CueStep.React
                 }
                 CuePath(main = "Propose a later time", sub = "becomes today's next nudge") {
-                    step = Step.Later
+                    step = CueStep.Later
                 }
 
                 Spacer(Modifier.size(4.dp))
@@ -203,7 +203,7 @@ internal fun CueSurface(
                 )
             }
 
-            Step.React -> Column(
+            CueStep.React -> Column(
                 Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(13.dp),
@@ -221,10 +221,10 @@ internal fun CueSurface(
                     onRecord(Resolution.REACTED, null, null)
                     onDismiss()
                 }
-                CueOut("back") { step = Step.Cue }
+                CueOut("back") { step = CueStep.Cue }
             }
 
-            Step.Later -> Column(
+            CueStep.Later -> Column(
                 Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(13.dp),
@@ -249,13 +249,13 @@ internal fun CueSurface(
                         onDismiss()
                     }
                 }
-                CueOut("back") { step = Step.Cue }
+                CueOut("back") { step = CueStep.Cue }
             }
         }
     }
 }
 
-private enum class Step { Cue, React, Later }
+private enum class CueStep { Cue, React, Later }
 
 /** The shapes a call can be given beforehand. Ported from the prototype. */
 private val TOPICS = listOf("Catch up", "Ask for help", "Share news", "Just because")
