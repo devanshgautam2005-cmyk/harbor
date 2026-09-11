@@ -1,6 +1,8 @@
 package app.harbor.ui.theme
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -237,3 +239,71 @@ private val Tone.ink: Color
         Tone.GREEN, Tone.SKY -> Forest
         Tone.GOLD, Tone.ORANGE -> DeepGreen
     }
+
+/**
+ * `.btn-primary` — the one thing a screen is actually asking for.
+ *
+ * Written here rather than reached for as a Material Button because a filled
+ * Button brings Material's own shape, elevation and ripple, and those are the
+ * three things this design most wants to not have. Forest on paper, flat,
+ * softly rounded, full width by default.
+ */
+@Composable
+fun PrimaryAction(
+    text: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) = Box(
+    modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(999.dp))
+        .background(
+            if (enabled) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outlineVariant,
+        )
+        .clickable(enabled = enabled, onClick = onClick)
+        .padding(vertical = 16.dp),
+    contentAlignment = Alignment.Center,
+) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (enabled) MaterialTheme.colorScheme.onPrimary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    )
+}
+
+/**
+ * `.btn-quiet` — an action that must not compete with the primary one.
+ *
+ * An outline and nothing else. Used where two actions sit together and only
+ * one of them is the answer.
+ */
+@Composable
+fun QuietAction(
+    text: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) = Box(
+    modifier
+        .clip(RoundedCornerShape(999.dp))
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(999.dp))
+        .clickable(enabled = enabled, onClick = onClick)
+        .padding(horizontal = 20.dp, vertical = 13.dp),
+    contentAlignment = Alignment.Center,
+) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    )
+}

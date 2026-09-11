@@ -8,19 +8,16 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,12 +25,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.harbor.cue.CueActivity
 import app.harbor.cue.CueNotifier
 import app.harbor.data.HarborRepository
+import app.harbor.ui.theme.Avatar
+import app.harbor.ui.theme.AvatarSize
+import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.Notice
+import app.harbor.ui.theme.PageIntro
+import app.harbor.ui.theme.PrimaryAction
+import app.harbor.ui.theme.QuietAction
+import app.harbor.ui.theme.SectionHeading
+import app.harbor.ui.theme.SmallCopy
+import app.harbor.ui.theme.SoftSurface
+import app.harbor.ui.theme.Surface
+import app.harbor.ui.theme.pageContent
 import app.harbor.domain.Cue
 import app.harbor.domain.TriggerSource
 import java.time.Instant
@@ -108,71 +118,62 @@ fun CuesSetupScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text("A cue, never a demand.", style = MaterialTheme.typography.headlineMedium)
+        Flow(Modifier.pageContent()) {
+            PageIntro(
+                eyebrow = "Gentle cues",
+                title = "A cue, never a demand.",
+                subtitle = "Harbor can notice the quiet moment just after a walk " +
+                    "ends, and offer you the chance to call home. That is the " +
+                    "whole of it.",
+            )
 
-        OutlinedButton(onClick = onOpenGarden) { Text("See your garden") }
-
-        Text(
-            "Harbor can notice the quiet moment just after a walk ends, and " +
-                "offer you the chance to call home. That is the whole of it.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-
-        Card(Modifier.fillMaxWidth()) {
-            Column(
-                Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text("What Harbor reads", style = MaterialTheme.typography.titleMedium)
-                Text(
+            Surface {
+                SectionHeading("What Harbor reads")
+                SmallCopy(
                     "Whether your phone thinks you are walking or still. Not " +
                         "where you are, not what you are doing, not which apps " +
                         "you use.",
-                    style = MaterialTheme.typography.bodyMedium,
                 )
 
-                Text("Where it stays", style = MaterialTheme.typography.titleMedium)
-                Text(
+                SectionHeading("Where it stays")
+                SmallCopy(
                     "On this phone. Your movement is never sent to us and never " +
                         "shared with your family — not as a summary, not ever. " +
                         "The only things that leave are the ones you chose: that " +
                         "a cue appeared, and what you decided to do about it.",
-                    style = MaterialTheme.typography.bodyMedium,
                 )
 
-                Text("What you keep control of", style = MaterialTheme.typography.titleMedium)
-                Text(
+                SectionHeading("What you keep control of")
+                SmallCopy(
                     "Every cue can be dismissed, and dismissing costs nothing — " +
                         "there is no streak to break. At most " +
                         "${settings.thresholds.dailyCap} a day, with at least " +
                         "${settings.thresholds.cooldownMinutes} minutes between " +
                         "them. You choose those numbers, and you can turn this " +
                         "off whenever you like.",
-                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
-        }
 
-        // Without someone to call, a cue can only say "someone at home" and
-        // cannot dial. Worth surfacing before the switch, not after.
-        val who = contact.firstOrNull()
-        Card(Modifier.fillMaxWidth()) {
-            Column(
-                Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text("Who you would call", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    who?.let { "${it.label} — ${it.phoneE164}" }
-                        ?: "Nobody yet. A cue needs someone to be about.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedButton(onClick = onEditContact) {
-                    Text(if (who == null) "Choose someone" else "Change")
+            // Without someone to call, a cue can only say "someone at home" and
+            // cannot dial. Worth surfacing before the switch, not after.
+            val who = contact.firstOrNull()
+            SoftSurface {
+                SectionHeading("Who you would call")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (who != null) {
+                        Avatar(who.label, who.tone, size = AvatarSize.SM)
+                        Spacer(Modifier.size(12.dp))
+                    }
+                    SmallCopy(
+                        who?.let { "${it.label} — ${it.phoneE164}" }
+                            ?: "Nobody yet. A cue needs someone to be about.",
+                    )
+                }
+                QuietAction(if (who == null) "Choose someone" else "Change") {
+                    onEditContact()
                 }
 
                 if (who != null) {
@@ -182,104 +183,96 @@ fun CuesSetupScreen(
                     // and CuePolicy already lets a manual request past every
                     // gate, on the grounds that someone standing there asking
                     // for the prompt should get it.
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch {
-                                val now = Instant.now()
-                                val cue = Cue(
-                                    id = UUID.randomUUID(),
-                                    firedDate = now.atZone(ZoneId.systemDefault()).toLocalDate(),
-                                    triggerSource = TriggerSource.MANUAL,
-                                    firedAt = now,
-                                )
-                                store.recordCue(cue)
-                                context.startActivity(
-                                    Intent(context, CueActivity::class.java).apply {
-                                        putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
-                                        putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
-                                        putExtra(
-                                            CueNotifier.EXTRA_SOURCE,
-                                            TriggerSource.MANUAL.name,
-                                        )
-                                    },
-                                )
-                            }
-                        },
-                    ) {
-                        Text("Show me a cue now")
+                    QuietAction("Show me a cue now") {
+                        scope.launch {
+                            val now = Instant.now()
+                            val cue = Cue(
+                                id = UUID.randomUUID(),
+                                firedDate = now.atZone(ZoneId.systemDefault()).toLocalDate(),
+                                triggerSource = TriggerSource.MANUAL,
+                                firedAt = now,
+                            )
+                            store.recordCue(cue)
+                            context.startActivity(
+                                Intent(context, CueActivity::class.java).apply {
+                                    putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
+                                    putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
+                                    putExtra(
+                                        CueNotifier.EXTRA_SOURCE,
+                                        TriggerSource.MANUAL.name,
+                                    )
+                                },
+                            )
+                        }
                     }
-                    Text(
+                    SmallCopy(
                         "Hear their sound and see the moment, without waiting " +
                             "for a walk. This does not use up today's allowance.",
-                        style = MaterialTheme.typography.bodySmall,
+                        size = 13,
                     )
                 }
             }
-        }
 
-        when {
-            Sensing.isActive(context, store) -> {
-                Text(
-                    "Cues are on. Harbor will wait for a walk of at least " +
-                        "${settings.thresholds.walkingMinutes} minutes.",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                OutlinedButton(onClick = { scope.launch { Sensing.disable(context, store) } }) {
-                    Text("Turn cues off")
+            when {
+                Sensing.isActive(context, store) -> {
+                    SmallCopy(
+                        "Cues are on. Harbor will wait for a walk of at least " +
+                            "${settings.thresholds.walkingMinutes} minutes.",
+                        size = 15,
+                    )
+                    QuietAction("Turn cues off") {
+                        scope.launch { Sensing.disable(context, store) }
+                    }
+                }
+
+                // The setting says on, but the permission has since been revoked
+                // from system settings. Saying "cues are on" here would be a lie
+                // the user has no way to catch.
+                settings.cuesEnabled && !hasPermission -> {
+                    SmallCopy(
+                        "Cues are paused. Harbor no longer has permission to " +
+                            "notice when you stop walking.",
+                        size = 15,
+                    )
+                    PrimaryAction("Give permission again", onClick = ::turnOn)
+                }
+
+                else -> {
+                    PrimaryAction("Turn on gentle cues", onClick = ::turnOn)
+                    SmallCopy(
+                        "You can do this later. Harbor works without it — you " +
+                            "can always start a moment yourself.",
+                        size = 13,
+                    )
                 }
             }
 
-            // The setting says on, but the permission has since been revoked
-            // from system settings. Saying "cues are on" here would be a lie
-            // the user has no way to catch.
-            settings.cuesEnabled && !hasPermission -> {
-                Text(
-                    "Cues are paused. Harbor no longer has permission to notice " +
-                        "when you stop walking.",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Button(onClick = ::turnOn) { Text("Give permission again") }
-            }
-
-            else -> {
-                Button(onClick = ::turnOn) { Text("Turn on gentle cues") }
-                Text(
-                    "You can do this later. Harbor works without it — you can " +
-                        "always start a moment yourself.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-
-        if (refused) {
-            Text(
-                "That is completely fine. Cues stay off, and nothing else " +
-                    "changes. If you change your mind, Android may not ask " +
-                    "again — you can grant it from system settings.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Column {
-                TextButton(onClick = { openAppSettings(context) }) {
-                    Text("Open system settings")
-                }
-                TextButton(
-                    onClick = { hasPermission = ActivityTransitions.hasPermission(context) },
-                ) {
+            if (refused) {
+                Surface {
+                    SmallCopy(
+                        "That is completely fine. Cues stay off, and nothing " +
+                            "else changes. If you change your mind, Android may " +
+                            "not ask again — you can grant it from system settings.",
+                    )
+                    TextLink("Open system settings") { openAppSettings(context) }
                     // Rechecking on resume would need a lifecycle observer whose
-                    // API has moved around between Compose versions. A button the
+                    // API has moved around between Compose versions. A link the
                     // user presses is duller and cannot break.
-                    Text("I have granted it — check again")
+                    TextLink("I have granted it — check again") {
+                        hasPermission = ActivityTransitions.hasPermission(context)
+                    }
                 }
             }
-        }
 
-        if (failed) {
-            Text(
-                "Harbor could not start listening. Google Play services may be " +
-                    "unavailable on this phone. Cues stay off rather than " +
-                    "pretending to work.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            if (failed) {
+                Notice(
+                    "Harbor could not start listening. Google Play services may " +
+                        "be unavailable on this phone. Cues stay off rather than " +
+                        "pretending to work.",
+                )
+            }
+
+            TextLink("See your garden", onOpenGarden)
         }
     }
 }

@@ -41,8 +41,26 @@ private val HarborColors = lightColorScheme(
     onSurface = DeepGreen,
     surfaceVariant = Sand,
     onSurfaceVariant = Sage,
+    // The whole container ladder, not part of it.
+    //
+    // lightColorScheme() fills anything left unset from the Material baseline
+    // palette, which is purple. Setting only some of these is worse than
+    // setting none: Card resolves to surfaceContainerHighest, so leaving that
+    // one out painted every card #E6E0E9 lavender on a cream page -- half the
+    // pixels of the cues screen, on a palette with no purple in it at all.
+    surfaceContainerLowest = Cream,
+    surfaceContainerLow = Cream,
     surfaceContainer = Cream,
     surfaceContainerHigh = Sand,
+    surfaceContainerHighest = Sand,
+    surfaceBright = Cream,
+    surfaceDim = Sand,
+
+    // Used when something dark sits on the page -- snackbars, mostly. Baseline
+    // leaves these a neutral charcoal that belongs to a different app.
+    inverseSurface = DeepGreen,
+    inverseOnSurface = Paper,
+    inversePrimary = PaleGreen,
 
     outline = Sage,
     outlineVariant = PaleGreen,

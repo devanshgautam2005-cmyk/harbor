@@ -7,6 +7,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import app.harbor.domain.FeedbackPulse
+import app.harbor.ui.theme.PrimaryAction
+import app.harbor.ui.theme.QuietAction
 import app.harbor.ui.theme.SurfaceGreen
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,7 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -180,9 +181,7 @@ fun CallFlow(
                 )
 
                 Spacer(Modifier.size(20.dp))
-                Button(onClick = { step = Step.Flower }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Choose a flower")
-                }
+                PrimaryAction("Choose a flower") { step = Step.Flower }
             }
 
             Step.Flower -> {
@@ -245,14 +244,9 @@ fun CallFlow(
                     )
                 }
 
-                Button(
-                    onClick = {
-                        onPlant(minutes, feeling, flower, about.trim().ifEmpty { null })
-                        step = Step.Bloom
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Plant ${Flowers.spec(flower).name.lowercase()}")
+                PrimaryAction("Plant ${Flowers.spec(flower).name.lowercase()}") {
+                    onPlant(minutes, feeling, flower, about.trim().ifEmpty { null })
+                    step = Step.Bloom
                 }
             }
 
@@ -304,21 +298,19 @@ fun CallFlow(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        OutlinedButton(
-                            onClick = { pulsed = true; onPulse(FeedbackPulse.GOOD_TIME) },
-                            modifier = Modifier.weight(1f),
-                        ) { Text("Good time") }
-                        OutlinedButton(
-                            onClick = { pulsed = true; onPulse(FeedbackPulse.BAD_TIME) },
-                            modifier = Modifier.weight(1f),
-                        ) { Text("Not this time") }
+                        QuietAction("Good time", Modifier.weight(1f)) {
+                            pulsed = true
+                            onPulse(FeedbackPulse.GOOD_TIME)
+                        }
+                        QuietAction("Not this time", Modifier.weight(1f)) {
+                            pulsed = true
+                            onPulse(FeedbackPulse.BAD_TIME)
+                        }
                     }
                     Spacer(Modifier.size(16.dp))
                 }
 
-                Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
-                    Text("Back to your day")
-                }
+                PrimaryAction("Back to your day", onClick = onDone)
             }
         }
     }
