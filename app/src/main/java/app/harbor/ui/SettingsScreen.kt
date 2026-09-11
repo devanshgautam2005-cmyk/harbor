@@ -59,6 +59,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     store: HarborRepository,
     onEditSchedule: () -> Unit,
+    onOpenCues: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -193,7 +194,11 @@ fun SettingsScreen(
                 }
             }
 
+            // Both of these used to sit at the bottom of home, under the
+            // garden, where they competed with the things you open Harbor to
+            // do. They are settings; they live with the settings.
             TextLink("When you are busy", onEditSchedule)
+            TextLink("Find a quiet moment", onOpenCues)
             TextLink("Back", onDone)
         }
     }

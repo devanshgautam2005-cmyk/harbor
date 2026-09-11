@@ -117,6 +117,7 @@ fun NotesScreen(
                     feeling = null,
                     flower = null,
                     topic = null,
+                    note = text,
                     occurredAt = now,
                 ),
             )
@@ -178,8 +179,9 @@ fun NotesScreen(
             }
 
             Notice(
-                "Harbor keeps that you left a line and when. The words themselves " +
-                    "are yours and are not stored.",
+                "Harbor keeps your line so you can look back at it, along with " +
+                    "when you left it. It never sends anything itself — that is " +
+                    "still you, in whatever app you chose.",
             )
 
             val sent = entries
@@ -194,7 +196,14 @@ fun NotesScreen(
                             entry.occurredAt.atZone(ZoneId.systemDefault())
                                 .toLocalDate().toString(),
                         )
-                        SmallCopy("You left a line.")
+                        // A line left before Harbor kept the words, or a
+                        // picture, has nothing to show but the fact of it.
+                        entry.note?.takeIf { it.isNotBlank() }?.let {
+                            Text(
+                                "\u201c$it\u201d",
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        } ?: SmallCopy("You sent something.")
                     }
                 }
             }

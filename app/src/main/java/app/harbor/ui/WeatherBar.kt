@@ -1,10 +1,12 @@
 package app.harbor.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,12 +36,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
+import app.harbor.domain.DailyQuestion
 import app.harbor.domain.Weather
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Gold
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
@@ -59,6 +64,13 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
     val steps = Weather.entries
     val last = steps.size - 1
     val index = steps.indexOf(settings.weather).coerceAtLeast(0)
+
+    val answers by store.dailyAnswers.collectAsState()
+    val today = remember { LocalDate.now() }
+    val question = remember(today) { DailyQuestion.forDay(today) }
+    val answered = answers[today]
+    var expanded by remember { mutableStateOf(false) }
+    var draft by remember { mutableStateOf("") }
 
     var trackWidth by remember { mutableStateOf(0) }
     val density = LocalDensity.current
@@ -154,6 +166,63 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
                 )
+            }
+        }
+
+        // One word about today, folded into the sky rather than asked again.
+        //
+        // It used to be its own card directly below this one, which meant the
+        // page asked how life was and then asked how today felt -- the same
+        // question twice, a thumb-scroll apart. Setting the weather and
+        // naming the day are one thought, so they are one card.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.background)
+                .clickable { if (answered == null) expanded = !expanded }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        ) {
+            when {
+                answered != null -> Column {
+                    Eyebrow(question)
+                    Text(
+                        answered,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+
+                expanded -> Column {
+                    Eyebrow(question)
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it.take(40) },
+                        placeholder = { Text("one word") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Pill(text = "Keep it", selected = draft.isNotBlank()) {
+                        val word = draft.trim()
+                        if (word.isNotEmpty()) {
+                            scope.launch { store.setDailyAnswer(today, word) }
+                            expanded = false
+                        }
+                    }
+                }
+
+                else -> Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SmallCopy(question, size = 13)
+                    Text(
+                        "+",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                }
             }
         }
     }

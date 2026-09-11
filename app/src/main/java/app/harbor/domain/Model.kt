@@ -301,6 +301,20 @@ data class LedgerEntry(
 
     /** The shape the user gave the call before it started. */
     val topic: String?,
+
+    /**
+     * The words of a line the user left, when there were any.
+     *
+     * Harbor used to keep only that a line happened, so the history read as a
+     * column of identical "You left a line." rows and told you nothing. It is
+     * kept now, deliberately, and the screen says so rather than promising
+     * otherwise.
+     *
+     * It syncs with the rest of the row. The study's export views are
+     * aggregate rollups and do not select it, so the research extract stays
+     * free of anyone's actual words -- keep it that way.
+     */
+    val note: String? = null,
     /** When the moment happened on the device — not when it synced. */
     val occurredAt: Instant,
 ) {

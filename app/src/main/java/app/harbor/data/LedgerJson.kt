@@ -157,6 +157,7 @@ internal object LedgerJson {
         .put("feeling", e.feeling?.wire)
         .put("flower", e.flower?.wire)
         .put("topic", e.topic)
+        .put("note", e.note)
         .put("occurred_at", e.occurredAt.toString())
 
     fun entry(o: JSONObject): LedgerEntry = LedgerEntry(
@@ -175,6 +176,7 @@ internal object LedgerJson {
         feeling = o.optStringOrNull("feeling")?.let { Feeling.entries.fromWire(it) },
         flower = o.optStringOrNull("flower")?.let { FlowerKind.entries.fromWire(it) },
         topic = o.optStringOrNull("topic"),
+        note = o.optStringOrNull("note"),
         occurredAt = Instant.parse(o.getString("occurred_at")),
     )
 

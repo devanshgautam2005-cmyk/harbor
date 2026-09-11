@@ -88,7 +88,6 @@ class MainActivity : ComponentActivity() {
                                 store = store,
                                 onOpenGarden = { screen = Screen.Garden },
                                 onOpenCues = { screen = Screen.Cues },
-                                onOpenSettings = { screen = Screen.Settings },
                                 onOpenNotes = { screen = Screen.Notes },
                                 onOpenPerson = { id ->
                                     showing = id
@@ -139,6 +138,7 @@ class MainActivity : ComponentActivity() {
                             Screen.Settings -> SettingsScreen(
                                 store = store,
                                 onEditSchedule = { screen = Screen.Schedule },
+                                onOpenCues = { screen = Screen.Cues },
                                 onDone = home,
                                 modifier = inset,
                             )
