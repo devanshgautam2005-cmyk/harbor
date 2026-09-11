@@ -1,6 +1,9 @@
 package app.harbor.ui
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.CoroutineScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,6 +71,31 @@ fun NotesScreen(
     LaunchedEffect(Unit) { entries = store.recentEntries() }
 
     val who = contacts.firstOrNull()
+
+    // A picture, handed straight to whatever sends it.
+    //
+    // Harbor deliberately does not keep the image, for the same reason it does
+    // not keep the words: a snapshot is something you sent someone, not a
+    // record this app is owed. The ledger holds that it happened.
+    val pickPicture = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { picked ->
+        if (picked != null && who != null) {
+            recordSnapshot(store, scope, who.id) { entries = it }
+            context.startActivity(
+                Intent.createChooser(
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "image/*"
+                        putExtra(Intent.EXTRA_STREAM, picked)
+                        if (line.isNotBlank()) putExtra(Intent.EXTRA_TEXT, line.trim())
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    },
+                    "Send your picture",
+                ),
+            )
+            line = ""
+        }
+    }
 
     fun record() {
         val text = line.trim()
@@ -141,6 +169,9 @@ fun NotesScreen(
                     }
                     Pill(text = "Just keep it", selected = false) { record() }
                 }
+                Pill(text = "Send a picture instead", selected = false) {
+                    if (who != null) pickPicture.launch("image/*")
+                }
                 if (who == null) {
                     SmallCopy("Add someone first — a line needs somebody to be for.")
                 }
@@ -170,5 +201,41 @@ fun NotesScreen(
 
             TextLink("Back", onDone)
         }
+    }
+}
+
+/**
+ * Records that a picture went out, without keeping the picture.
+ *
+ * Same shape of entry as a written line — from Harbor's point of view they are
+ * the same act, and the study counts them the same way.
+ */
+private fun recordSnapshot(
+    store: HarborRepository,
+    scope: CoroutineScope,
+    contactId: UUID,
+    onSaved: (List<LedgerEntry>) -> Unit,
+) {
+    val now = Instant.now()
+    scope.launch {
+        store.append(
+            LedgerEntry(
+                id = UUID.randomUUID(),
+                entryDate = now.atZone(ZoneId.systemDefault()).toLocalDate(),
+                cueId = null,
+                contactId = contactId,
+                triggerSource = TriggerSource.NOTE,
+                thresholdSnapshot = store.settings.value.thresholds,
+                resolution = Resolution.MESSAGE,
+                proposedTime = null,
+                feedbackPulse = null,
+                callMinutes = null,
+                feeling = null,
+                flower = null,
+                topic = null,
+                occurredAt = now,
+            ),
+        )
+        onSaved(store.recentEntries())
     }
 }
