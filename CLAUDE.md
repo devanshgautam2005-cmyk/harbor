@@ -96,6 +96,31 @@ INSTALL_FAILED_UPDATE_INCOMPATIBLE: ... signatures do not match
 Studio signs with your local debug keystore, CI with the runner's. Uninstall
 first, then install — `adb install -r` will not do it.
 
+**Two CI builds do not match each other either.** The runner generates a fresh
+debug keystore per run, so installing artifact N+1 over artifact N fails the
+same way. Every install from CI is therefore a wipe: back the ledger up first
+if you care about it.
+
+```sh
+adb -s emulator-5554 shell run-as app.harbor \
+    cat /data/data/app.harbor/shared_prefs/harbor.xml > prefs.xml
+# ... uninstall, install, launch once so shared_prefs/ exists, force-stop ...
+adb -s emulator-5554 push prefs.xml /data/local/tmp/h.xml
+adb -s emulator-5554 shell run-as app.harbor \
+    cp /data/local/tmp/h.xml /data/data/app.harbor/shared_prefs/harbor.xml
+```
+
+Restore while the app is stopped — SharedPreferences is cached in memory and a
+running process will overwrite the file on its next write. And `run-as ... sh
+-c '...'` does not survive the trip through `adb shell`: the quotes are eaten
+locally and the remote shell sees the words as separate arguments. Run each
+command on its own.
+
+**This is a study problem, not just a dev one.** Handing participants a new
+CI-built APK mid-week wipes their garden. Before anyone installs this on a real
+phone for the week, commit a checked-in debug keystore and point
+`signingConfigs.debug` at it, so every build shares one signature.
+
 A Studio deploy that dies midway leaves the package installed and marked
 `TEST_ONLY` with `notLaunched=true`. In that state `am start` returns
 `result code=0` and **no process ever spawns**, with nothing in the crash
