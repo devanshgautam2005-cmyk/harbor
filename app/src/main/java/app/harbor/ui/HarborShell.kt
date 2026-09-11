@@ -1,5 +1,6 @@
 package app.harbor.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,10 +114,10 @@ fun HarborShell(
     }
 }
 
-enum class HarborTab(val label: String, val glyph: String) {
-    Home("Home", "⌂"),
-    Schedule("Schedule", "◴"),
-    Account("Account", "●"),
+enum class HarborTab(val label: String) {
+    Home("Home"),
+    Schedule("Schedule"),
+    Account("Account"),
 }
 
 /** `.nav-item` — dimmed until current, when its mark takes the gold disc. */
@@ -131,13 +139,9 @@ private fun NavItem(tab: HarborTab, current: Boolean, onClick: () -> Unit) {
                 .background(if (current) Gold else MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                tab.glyph,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    color = if (current) MaterialTheme.colorScheme.onBackground
-                    else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f),
-                ),
-            )
+            val ink = if (current) MaterialTheme.colorScheme.onBackground
+            else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f)
+            Canvas(Modifier.size(19.dp)) { drawTabMark(tab, ink) }
         }
         Text(
             tab.label,
@@ -148,5 +152,66 @@ private fun NavItem(tab: HarborTab, current: Boolean, onClick: () -> Unit) {
                     .copy(alpha = if (current) 1f else 0.65f),
             ),
         )
+    }
+}
+
+/**
+ * The tab marks, drawn rather than typed.
+ *
+ * Unicode glyphs were standing in for icons and it showed — a bare dot for
+ * Account read as unfinished. These are the lucide shapes the prototype uses,
+ * reduced to what survives at 19dp: a roof, a clock, a head and shoulders.
+ */
+private fun DrawScope.drawTabMark(tab: HarborTab, ink: Color) {
+    val s = size.minDimension
+    val line = Stroke(width = s * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+
+    when (tab) {
+        HarborTab.Home -> {
+            drawPath(
+                Path().apply {
+                    moveTo(s * 0.12f, s * 0.45f)
+                    lineTo(s * 0.5f, s * 0.12f)
+                    lineTo(s * 0.88f, s * 0.45f)
+                },
+                color = ink,
+                style = line,
+            )
+            drawPath(
+                Path().apply {
+                    moveTo(s * 0.24f, s * 0.42f)
+                    lineTo(s * 0.24f, s * 0.88f)
+                    lineTo(s * 0.76f, s * 0.88f)
+                    lineTo(s * 0.76f, s * 0.42f)
+                },
+                color = ink,
+                style = line,
+            )
+        }
+
+        HarborTab.Schedule -> {
+            drawCircle(ink, radius = s * 0.4f, center = Offset(s / 2f, s / 2f), style = line)
+            drawPath(
+                Path().apply {
+                    moveTo(s * 0.5f, s * 0.28f)
+                    lineTo(s * 0.5f, s * 0.52f)
+                    lineTo(s * 0.7f, s * 0.62f)
+                },
+                color = ink,
+                style = line,
+            )
+        }
+
+        HarborTab.Account -> {
+            drawCircle(ink, radius = s * 0.2f, center = Offset(s / 2f, s * 0.33f), style = line)
+            drawPath(
+                Path().apply {
+                    moveTo(s * 0.17f, s * 0.9f)
+                    cubicTo(s * 0.17f, s * 0.6f, s * 0.83f, s * 0.6f, s * 0.83f, s * 0.9f)
+                },
+                color = ink,
+                style = line,
+            )
+        }
     }
 }
