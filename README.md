@@ -47,6 +47,9 @@ See [`backend/README.md`](backend/README.md). You need the Supabase CLI and a
 - [`docs/06-onboarding.md`](docs/06-onboarding.md) — the brief for a first-run
   flow that does not exist yet: what it must collect, why the order is what it
   is, and the permission screen the study lives or dies on
+- [`docs/07-reskin-prompt.md`](docs/07-reskin-prompt.md) — a prompt to hand a
+  coding agent with reference images when you want the app restyled, carrying
+  the constraints a reskin would otherwise break
 - [`docs/slack-tide-handoff.html`](docs/slack-tide-handoff.html) — the original
   pipeline spec. Open it in a browser.
 
