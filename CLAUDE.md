@@ -96,10 +96,19 @@ INSTALL_FAILED_UPDATE_INCOMPATIBLE: ... signatures do not match
 Studio signs with your local debug keystore, CI with the runner's. Uninstall
 first, then install — `adb install -r` will not do it.
 
-**Two CI builds do not match each other either.** The runner generates a fresh
-debug keystore per run, so installing artifact N+1 over artifact N fails the
-same way. Every install from CI is therefore a wipe: back the ledger up first
-if you care about it.
+**Fixed as of `app/debug.keystore`.** Gradle used to sign debug builds with
+whatever throwaway key sat in the builder's home directory, so no two machines
+— and no two CI runs — agreed. `signingConfigs.debug` now points at a keystore
+checked into the repo, and every build shares one signature, so `adb install
+-r` works and keeps the data.
+
+That key is the stock Android debug identity with the published password
+`android`; it is committed precisely because it is worthless, and Play rejects
+anything signed with it. Release signing is a separate key and does not belong
+in this repo.
+
+The rest of this section applies to any build made **before** that change, and
+to installing over one:
 
 ```sh
 adb -s emulator-5554 shell run-as app.harbor \
@@ -116,10 +125,9 @@ running process will overwrite the file on its next write. And `run-as ... sh
 locally and the remote shell sees the words as separate arguments. Run each
 command on its own.
 
-**This is a study problem, not just a dev one.** Handing participants a new
-CI-built APK mid-week wipes their garden. Before anyone installs this on a real
-phone for the week, commit a checked-in debug keystore and point
-`signingConfigs.debug` at it, so every build shares one signature.
+**Why this mattered enough to fix.** Handing participants a new build mid-week
+would have wiped their garden — the one thing the study measures. If you ever
+change the signing config, that is the consequence to weigh.
 
 A Studio deploy that dies midway leaves the package installed and marked
 `TEST_ONLY` with `notLaunched=true`. In that state `am start` returns
