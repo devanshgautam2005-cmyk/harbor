@@ -128,12 +128,17 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
         mutableStateOf(Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, 0.2))
     }
     var goal by remember { mutableStateOf(cam) }
-    var settled by remember { mutableStateOf(false) }
+    var touched by remember { mutableStateOf(false) }
 
-    // Frame the whole island once the size is known.
-    LaunchedEffect(base) {
-        if (!settled && base > 0 && frame.width > 0) {
-            settled = true
+    // Frame the whole island, and keep framing it until the user takes over.
+    //
+    // Latching on the first size that arrived was wrong: layout reports an
+    // early, smaller frame before it settles, so the camera locked to that
+    // one's overview zoom and the island then sat at a third of the width it
+    // should have filled. Re-aiming until the first gesture also means a
+    // rotation reframes instead of leaving the world off-centre.
+    LaunchedEffect(base, frame) {
+        if (!touched && base > 0 && frame.width > 0) {
             cam = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
             goal = cam
         }
@@ -170,6 +175,7 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                 .pointerInput(base) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         if (base <= 0) return@detectTransformGestures
+                        touched = true
                         val tilt = Field.tiltFor(goal.zoom, base)
                         val nextZoom = Field.clampZoom(goal.zoom * zoom, base)
                         goal = Field.Camera(
@@ -201,7 +207,10 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                                 best = patch
                             }
                         }
-                        best?.let { goal = Field.Camera(it.x, it.y, base * 6.5) }
+                        best?.let {
+                            touched = true
+                            goal = Field.Camera(it.x, it.y, base * 6.5)
+                        }
                     }
                 },
         ) {
@@ -210,9 +219,18 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
         }
 
         FieldControls(
-            onIn = { goal = goal.copy(zoom = Field.clampZoom(goal.zoom * 1.45, base)) },
-            onOut = { goal = goal.copy(zoom = Field.clampZoom(goal.zoom / 1.45, base)) },
+            onIn = {
+                touched = true
+                goal = goal.copy(zoom = Field.clampZoom(goal.zoom * 1.45, base))
+            },
+            onOut = {
+                touched = true
+                goal = goal.copy(zoom = Field.clampZoom(goal.zoom / 1.45, base))
+            },
+            // Pull back hands the camera back to the app, so the field keeps
+            // reframing itself again afterwards.
             onFit = {
+                touched = false
                 goal = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
             },
             modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
