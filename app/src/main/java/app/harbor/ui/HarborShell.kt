@@ -30,10 +30,13 @@ import app.harbor.ui.theme.Gold
  * The app shell, hand-translated from `app.tsx` and its `.app-header` and
  * `.bottom-nav` rules.
  *
- * A header that shows the mark on a top-level page and a way back elsewhere,
- * and a floating pill of three tabs. The pill is deliberately not a Material
- * navigation bar: it sits above the content rather than dividing the screen,
- * which keeps the garden feeling like the whole surface rather than a pane.
+ * A floating pill of three tabs, and nothing else. The prototype's wordmark
+ * header is deliberately not here: it spent 70dp on every screen telling
+ * someone which app they had opened.
+ *
+ * The pill is deliberately not a Material navigation bar either. It sits above
+ * the content rather than dividing the screen, which keeps the garden feeling
+ * like the whole surface rather than a pane with a bar under it.
  */
 @Composable
 fun HarborShell(
@@ -45,35 +48,20 @@ fun HarborShell(
 ) {
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(Modifier.fillMaxSize()) {
-            // .app-header
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .height(70.dp)
-                    .padding(horizontal = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                if (onBack == null) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            "harbor",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.5).sp,
-                            ),
-                        )
-                        Text(
-                            ".",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Gold,
-                            ),
-                        )
-                    }
-                } else {
+            // No wordmark. It cost 70dp on every screen to tell someone which
+            // app they had just opened, which they know — and on home that
+            // space belongs to the garden.
+            //
+            // A pushed screen still gets a way back, because system back is
+            // not a visible affordance and this is the only one.
+            if (onBack != null) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 24.dp, top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(
                         "Back",
                         modifier = Modifier
@@ -85,9 +73,11 @@ fun HarborShell(
                         ),
                     )
                     title?.let {
-                        Text(it, style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp))
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
+                        )
                     }
-                    Spacer(Modifier.width(44.dp))
                 }
             }
 
