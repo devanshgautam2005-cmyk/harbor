@@ -47,25 +47,25 @@ fun FieldSky(weather: Weather, modifier: Modifier = Modifier) {
     )
 
     Canvas(modifier.fillMaxSize()) {
-        val sky = skyOf(weather)
+        val sky = fieldTintOf(weather)
         drawRect(
             brush = Brush.verticalGradient(listOf(sky.top, sky.bottom)),
             size = size,
         )
 
-        if (sky.sun > 0f) drawSun(sky.sun)
+        if (sky.sun > 0f) drawFieldSun(sky.sun)
 
         // Three clouds at different widths and speeds, so the loop never
         // reads as a loop.
         if (sky.cloud > 0f) {
-            drawCloud(88.dp.toPx(), 16.dp.toPx(), phase(slow, 60_000f, 36_000f, 0f), sky)
+            drawFieldCloud(88.dp.toPx(), 16.dp.toPx(), loopPhase(slow, 60_000f, 36_000f, 0f), sky)
             if (weather != Weather.BRIGHT) {
-                drawCloud(66.dp.toPx(), 44.dp.toPx(), phase(slow, 60_000f, 48_000f, 0.19f), sky)
-                drawCloud(112.dp.toPx(), 28.dp.toPx(), phase(slow, 60_000f, 60_000f, 0.40f), sky)
+                drawFieldCloud(66.dp.toPx(), 44.dp.toPx(), loopPhase(slow, 60_000f, 48_000f, 0.19f), sky)
+                drawFieldCloud(112.dp.toPx(), 28.dp.toPx(), loopPhase(slow, 60_000f, 60_000f, 0.40f), sky)
             }
         }
 
-        if (sky.rain > 0f) drawRain(fast, sky.rain)
+        if (sky.rain > 0f) drawFieldRain(fast, sky.rain)
 
         if (sky.dim > 0f) {
             drawRect(color = Color(0xFF1E2C3C).copy(alpha = sky.dim), size = size)
@@ -74,12 +74,12 @@ fun FieldSky(weather: Weather, modifier: Modifier = Modifier) {
 }
 
 /** Where a looping thing is, given a shared clock and its own period. */
-private fun phase(t: Float, clockMs: Float, periodMs: Float, offset: Float): Float {
+private fun loopPhase(t: Float, clockMs: Float, periodMs: Float, offset: Float): Float {
     val turns = t * clockMs / periodMs + offset
     return turns - turns.toInt()
 }
 
-private fun DrawScope.drawSun(alpha: Float) {
+private fun DrawScope.drawFieldSun(alpha: Float) {
     val r = 75.dp.toPx()
     drawCircle(
         brush = Brush.radialGradient(
@@ -95,7 +95,7 @@ private fun DrawScope.drawSun(alpha: Float) {
     )
 }
 
-private fun DrawScope.drawCloud(width: Float, top: Float, phase: Float, sky: Sky) {
+private fun DrawScope.drawFieldCloud(width: Float, top: Float, phase: Float, sky: SkyTint) {
     val travel = size.width + 260.dp.toPx()
     val x = -130.dp.toPx() + travel * phase
     val h = 22.dp.toPx()
@@ -111,7 +111,7 @@ private fun DrawScope.drawCloud(width: Float, top: Float, phase: Float, sky: Sky
     drawCircle(colour, radius = 10.dp.toPx(), center = Offset(x + width * 0.78f, top + h - 8.dp.toPx()))
 }
 
-private fun DrawScope.drawRain(phase: Float, alpha: Float) {
+private fun DrawScope.drawFieldRain(phase: Float, alpha: Float) {
     val drop = 16.dp.toPx()
     val fall = size.height + drop * 2
     for (i in 0 until 26) {
@@ -136,7 +136,7 @@ private fun DrawScope.drawRain(phase: Float, alpha: Float) {
     }
 }
 
-private class Sky(
+private class SkyTint(
     val top: Color,
     val bottom: Color,
     val sun: Float,
@@ -146,24 +146,24 @@ private class Sky(
     val dim: Float,
 )
 
-private fun skyOf(weather: Weather): Sky = when (weather) {
-    Weather.CLEAR -> Sky(
+private fun fieldTintOf(weather: Weather): SkyTint = when (weather) {
+    Weather.CLEAR -> SkyTint(
         Color(0xFFDCEBF6), Color(0xFFEDF3E6),
         sun = 0.55f, cloud = 0f, cloudColour = Color.White, rain = 0f, dim = 0f,
     )
-    Weather.BRIGHT -> Sky(
+    Weather.BRIGHT -> SkyTint(
         Color(0xFFFBEBC8), Color(0xFFEEF4E4),
         sun = 1f, cloud = 0.5f, cloudColour = Color.White, rain = 0f, dim = 0f,
     )
-    Weather.CLOUDY -> Sky(
+    Weather.CLOUDY -> SkyTint(
         Color(0xFFDDE3E4), Color(0xFFE8EDE2),
         sun = 0f, cloud = 0.92f, cloudColour = Color.White, rain = 0f, dim = 0.07f,
     )
-    Weather.RAIN -> Sky(
+    Weather.RAIN -> SkyTint(
         Color(0xFFC8D4DA), Color(0xFFDAE3D6),
         sun = 0f, cloud = 0.9f, cloudColour = Color(0xFFE8ECEE), rain = 0.7f, dim = 0.13f,
     )
-    Weather.STORM -> Sky(
+    Weather.STORM -> SkyTint(
         Color(0xFFAAB6C0), Color(0xFFC2CDBE),
         sun = 0f, cloud = 0.92f, cloudColour = Color(0xFFCED4D8), rain = 1f, dim = 0.24f,
     )
