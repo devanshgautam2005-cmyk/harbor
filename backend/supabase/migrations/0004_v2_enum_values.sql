@@ -12,5 +12,8 @@
 -- of risk to retire two labels nothing writes. They stay as vestigial, and the
 -- Kotlin enum simply has no counterpart for them.
 
-alter type trigger_source add value 'note';
-alter type trigger_source add value 'game';
+-- IF NOT EXISTS because 'game' was already declared up front in 0001, when
+-- the enum was written to include values whose features did not exist yet.
+-- Without it this migration fails on any database that has run 0001.
+alter type trigger_source add value if not exists 'note';
+alter type trigger_source add value if not exists 'game';
