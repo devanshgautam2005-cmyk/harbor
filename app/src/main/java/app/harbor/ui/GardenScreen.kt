@@ -41,6 +41,11 @@ import app.harbor.domain.Flowers
 import app.harbor.domain.Garden
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
+import app.harbor.domain.Tone
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.SurfaceGreen
+import app.harbor.ui.theme.SurfaceOrange
+import app.harbor.ui.theme.SurfaceSky
 
 /**
  * The garden: one plot per person, one flower per call.
@@ -75,7 +80,8 @@ fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
     var camera by remember { mutableStateOf(Garden.Camera(0.0, 0.0, 1.0)) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
     val measurer = rememberTextMeasurer()
-    val nameStyle = MaterialTheme.typography.labelMedium.copy(color = Color(0xFF4A5347))
+    val nameStyle = MaterialTheme.typography.labelMedium
+        .copy(color = MaterialTheme.colorScheme.onBackground)
 
     // Fit once the Canvas has a size, and again if the garden grows. Done in
     // a side effect rather than during the draw phase: assigning state while
@@ -90,7 +96,7 @@ fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
         }
     }
 
-    Box(modifier.fillMaxSize().background(GROUND_SKY)) {
+    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (plots.isEmpty()) {
             Column(
                 Modifier.fillMaxSize().padding(32.dp),
@@ -224,11 +230,10 @@ private fun blobPath(points: List<Garden.Spot>): Path = Path().apply {
     close()
 }
 
+/** Plot colours come from the palette, not from numbers invented here. */
 private fun toneOf(contact: Contact): Color = when (contact.tone) {
-    app.harbor.domain.Tone.GREEN -> Color(0xFF9CB682)
-    app.harbor.domain.Tone.GOLD -> Color(0xFFC9AE6A)
-    app.harbor.domain.Tone.ORANGE -> Color(0xFFC79A72)
-    app.harbor.domain.Tone.SKY -> Color(0xFF8FA6B8)
+    Tone.GREEN -> SurfaceGreen
+    Tone.GOLD -> Gold
+    Tone.ORANGE -> SurfaceOrange
+    Tone.SKY -> SurfaceSky
 }
-
-private val GROUND_SKY = Color(0xFFEFF3E8)
