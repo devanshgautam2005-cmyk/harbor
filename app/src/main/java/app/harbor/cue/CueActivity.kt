@@ -91,6 +91,9 @@ class CueActivity : ComponentActivity() {
      */
     private var source: TriggerSource = TriggerSource.WALKING_STOP
     private var entryId: UUID? = null
+
+    /** The row as last written, so a partial amendment can build on it. */
+    private var lastEntry: LedgerEntry? = null
     private var resolution: Resolution? = null
     private var proposedTime: Instant? = null
 
@@ -165,6 +168,7 @@ class CueActivity : ComponentActivity() {
                         Phase.CUE -> CueSurface(
                             contact = contact,
                             usualMinutes = usualMinutes,
+                            source = source,
                             onRecord = ::record,
                             onCall = ::placeCall,
                             onDismiss = ::dismissAndFinish,
@@ -231,6 +235,14 @@ class CueActivity : ComponentActivity() {
         if (proposedTime != null) this.proposedTime = proposedTime
         val id = entryId ?: UUID.randomUUID().also { entryId = it }
 
+        // What was already answered survives a later partial write.
+        //
+        // This rebuilds the whole row against a stable id, so a call that
+        // carries only the pulse would otherwise erase the flower the user
+        // planted a second earlier -- and the pulse is asked immediately
+        // after planting, so that was very nearly every call.
+        val prior = lastEntry
+
         val now = Instant.now()
         val entry = LedgerEntry(
             id = id,
@@ -241,13 +253,14 @@ class CueActivity : ComponentActivity() {
             thresholdSnapshot = store.settings.value.thresholds,
             resolution = resolution,
             proposedTime = this.proposedTime.takeIf { resolution == Resolution.PROPOSED_LATER },
-            feedbackPulse = pulse,
-            callMinutes = callMinutes,
-            feeling = feeling,
-            flower = flower,
-            topic = topic,
+            feedbackPulse = pulse ?: prior?.feedbackPulse,
+            callMinutes = callMinutes ?: prior?.callMinutes,
+            feeling = feeling ?: prior?.feeling,
+            flower = flower ?: prior?.flower,
+            topic = topic ?: prior?.topic,
             occurredAt = now,
         )
+        lastEntry = entry
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { store.append(entry) }

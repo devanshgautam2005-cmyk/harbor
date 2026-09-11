@@ -35,8 +35,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -45,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import app.harbor.domain.Contact
 import app.harbor.domain.FeedbackPulse
 import app.harbor.domain.Resolution
+import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
 import app.harbor.ui.theme.SmallCopy
@@ -65,6 +73,7 @@ import java.time.ZoneId
 internal fun CueSurface(
     contact: Contact?,
     usualMinutes: Int?,
+    source: TriggerSource,
     onRecord: (Resolution, Instant?, FeedbackPulse?) -> Unit,
     onCall: (topic: String?, number: String?) -> Unit,
     onDismiss: () -> Unit,
@@ -151,7 +160,7 @@ internal fun CueSurface(
                 verticalArrangement = Arrangement.spacedBy(13.dp),
             ) {
                 CueTitle("Looks like you're free.")
-                CueSub("You just stopped walking — a good moment, if you want it.")
+                CueSub(source.opening)
 
                 // .cue-length — the ask, with a stated size
                 Box(
@@ -186,15 +195,24 @@ internal fun CueSurface(
                 CuePath(
                     main = "Call now",
                     sub = "~$usual min, usually",
+                    mark = PathMark.Phone,
                     enabled = contact?.phoneE164 != null,
                 ) {
                     settled = true
                     onCall(topic, contact?.phoneE164)
                 }
-                CuePath(main = "Send a reaction", sub = "one line, nothing owed") {
+                CuePath(
+                    main = "Send a reaction",
+                    sub = "one line, nothing owed",
+                    mark = PathMark.Heart,
+                ) {
                     step = CueStep.React
                 }
-                CuePath(main = "Propose a later time", sub = "becomes today's next nudge") {
+                CuePath(
+                    main = "Propose a later time",
+                    sub = "becomes today's next nudge",
+                    mark = PathMark.Clock,
+                ) {
                     step = CueStep.Later
                 }
 
@@ -221,7 +239,12 @@ internal fun CueSurface(
                     placeholder = { Text("thinking of you, that's all") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                CuePath(main = "Send it", sub = "nothing owed either way", enabled = line.isNotBlank()) {
+                CuePath(
+                    main = "Send it",
+                    sub = "nothing owed either way",
+                    mark = PathMark.Heart,
+                    enabled = line.isNotBlank(),
+                ) {
                     settled = true
                     chosen = Resolution.REACTED
                     onRecord(Resolution.REACTED, null, null)
@@ -249,7 +272,7 @@ internal fun CueSurface(
                         .let { if (it.toInstant().isAfter(now)) it.toInstant() else it.plusDays(1).toInstant() },
                     "Tomorrow" to now.atZone(zone).plusDays(1).with(LocalTime.of(18, 0)).toInstant(),
                 ).forEach { (label, at) ->
-                    CuePath(main = label, sub = "a reminder inside Harbor") {
+                    CuePath(main = label, sub = "a reminder inside Harbor", mark = PathMark.Clock) {
                         settled = true
                         chosen = Resolution.PROPOSED_LATER
                         proposed = at
@@ -354,6 +377,7 @@ private fun TopicChip(text: String, selected: Boolean, onClick: () -> Unit) = Te
 private fun CuePath(
     main: String,
     sub: String,
+    mark: PathMark? = null,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
@@ -367,12 +391,18 @@ private fun CuePath(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(15.dp))
-                .background(MaterialTheme.colorScheme.secondaryContainer),
-        )
+        if (mark != null) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                val ink = MaterialTheme.colorScheme.onSecondaryContainer
+                Canvas(Modifier.size(21.dp)) { drawPathMark(mark, ink) }
+            }
+        }
         Column {
             Text(
                 main,
@@ -420,4 +450,86 @@ private fun PulsingRing(content: @Composable () -> Unit) {
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.75f))
             .padding(6.dp),
     ) { content() }
+}
+
+/**
+ * Why this cue is on screen, in the user's words.
+ *
+ * The line was hardcoded to the walk, so asking for a cue from the settings
+ * screen told you that you had just stopped walking. Harbor is allowed to be
+ * wrong about whether this is a good moment -- that is what "not now" is for
+ * -- but it is never allowed to tell you something about yourself that did not
+ * happen. ADR-009.
+ */
+private val TriggerSource.opening: String
+    get() = when (this) {
+        TriggerSource.WALKING_STOP ->
+            "You just stopped walking — a good moment, if you want it."
+        TriggerSource.SESSION_END ->
+            "You just put something down — a good moment, if you want it."
+        TriggerSource.NOTE ->
+            "You were just thinking of them anyway."
+        TriggerSource.GAME ->
+            "You answered today's question. They would like the answer too."
+        TriggerSource.MANUAL ->
+            "You asked for this one. Here it is."
+    }
+
+/** Which mark sits beside a path. */
+private enum class PathMark { Phone, Heart, Clock }
+
+/**
+ * The path marks, drawn rather than shipped.
+ *
+ * These were empty coloured squares -- a placeholder that read as three
+ * unfinished buttons on the one screen that has to feel finished. Same
+ * approach as the nav marks: the lucide shapes, reduced to what survives at
+ * 21dp.
+ */
+private fun DrawScope.drawPathMark(mark: PathMark, ink: Color) {
+    val s = size.minDimension
+    val line = Stroke(width = s * 0.1f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+
+    when (mark) {
+        // A handset, cornered rather than curved so it stays legible small.
+        PathMark.Phone -> drawPath(
+            Path().apply {
+                moveTo(s * 0.26f, s * 0.12f)
+                lineTo(s * 0.44f, s * 0.12f)
+                lineTo(s * 0.52f, s * 0.36f)
+                lineTo(s * 0.38f, s * 0.46f)
+                cubicTo(s * 0.46f, s * 0.64f, s * 0.58f, s * 0.74f, s * 0.72f, s * 0.8f)
+                lineTo(s * 0.82f, s * 0.66f)
+                lineTo(s * 0.94f, s * 0.76f)
+                lineTo(s * 0.94f, s * 0.92f)
+                cubicTo(s * 0.6f, s * 0.94f, s * 0.22f, s * 0.56f, s * 0.26f, s * 0.12f)
+            },
+            color = ink,
+            style = line,
+        )
+
+        PathMark.Heart -> drawPath(
+            Path().apply {
+                moveTo(s * 0.5f, s * 0.86f)
+                cubicTo(s * 0.06f, s * 0.58f, s * 0.16f, s * 0.16f, s * 0.5f, s * 0.34f)
+                cubicTo(s * 0.84f, s * 0.16f, s * 0.94f, s * 0.58f, s * 0.5f, s * 0.86f)
+                close()
+            },
+            color = ink,
+            style = line,
+        )
+
+        PathMark.Clock -> {
+            drawCircle(ink, radius = s * 0.42f, center = Offset(s / 2f, s / 2f), style = line)
+            drawPath(
+                Path().apply {
+                    moveTo(s * 0.5f, s * 0.26f)
+                    lineTo(s * 0.5f, s * 0.52f)
+                    lineTo(s * 0.71f, s * 0.63f)
+                },
+                color = ink,
+                style = line,
+            )
+        }
+    }
 }

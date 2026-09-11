@@ -144,6 +144,14 @@ class MainActivity : ComponentActivity() {
                             )
 
                             Screen.Reflect -> reflecting?.let { entry ->
+                                // Each amendment builds on the last write, not
+                                // on the row as it was when this screen opened.
+                                // Both callbacks touch the same row, and
+                                // copying twice from the original meant the
+                                // pulse answer put the flower back to null.
+                                var amended by remember(entry.id) {
+                                    mutableStateOf(entry)
+                                }
                                 CallFlow(
                                     who = store.contacts.value
                                         .firstOrNull { it.id == entry.contactId }?.label
@@ -154,21 +162,19 @@ class MainActivity : ComponentActivity() {
                                         // Amends the existing row: append is
                                         // keyed on the id, so this replaces
                                         // rather than duplicates.
-                                        scope.launch {
-                                            store.append(
-                                                entry.copy(
-                                                    callMinutes = minutes,
-                                                    feeling = feeling,
-                                                    flower = flower,
-                                                    topic = topic ?: entry.topic,
-                                                ),
-                                            )
-                                        }
+                                        val next = amended.copy(
+                                            callMinutes = minutes,
+                                            feeling = feeling,
+                                            flower = flower,
+                                            topic = topic ?: amended.topic,
+                                        )
+                                        amended = next
+                                        scope.launch { store.append(next) }
                                     },
                                     onPulse = { pulse ->
-                                        scope.launch {
-                                            store.append(entry.copy(feedbackPulse = pulse))
-                                        }
+                                        val next = amended.copy(feedbackPulse = pulse)
+                                        amended = next
+                                        scope.launch { store.append(next) }
                                     },
                                     onDone = {
                                         reflecting = null
