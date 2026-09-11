@@ -1,6 +1,10 @@
 package app.harbor.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -108,7 +112,22 @@ fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
         }
     }
 
-    Box(modifier.background(MaterialTheme.colorScheme.background)) {
+    val settings by store.settings.collectAsState()
+    val sky = Sky.gradient(settings.weather)
+
+    // The sky turns rather than jumping, so changing the weather reads as
+    // time passing rather than a setting being applied.
+    val turn by animateFloatAsState(
+        targetValue = 0f,
+        animationSpec = tween(980),
+        label = "sky-turn",
+    )
+
+    Box(
+        modifier
+            .clip(RoundedCornerShape(30.dp))
+            .background(Brush.verticalGradient(listOf(sky.first, sky.second))),
+    ) {
         if (plots.isEmpty()) {
             Column(
                 Modifier.fillMaxSize().padding(24.dp),
@@ -146,6 +165,13 @@ fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                     }
                 },
         ) {
+            // Behind everything: the wheel of weathers, and the faint ring
+            // they ride on.
+            with(Sky) {
+                drawRing()
+                drawWheel(settings.weather, turn)
+            }
+
             translate(camera.x.toFloat(), camera.y.toFloat()) {
                 scale(camera.k.toFloat(), pivot = Offset.Zero) {
                     // Painter's order: plots further back are drawn first, so
@@ -172,6 +198,9 @@ fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                     .toFloat() + 8f
                 drawText(textLayoutResult = label, topLeft = Offset(x, y))
             }
+
+            val veil = Sky.veil(settings.weather)
+            if (veil != Color.Transparent) drawRect(veil)
         }
     }
 }
