@@ -40,6 +40,10 @@ See [`backend/README.md`](backend/README.md). You need the Supabase CLI and a
 - [`docs/04-how-the-repos-fit.md`](docs/04-how-the-repos-fit.md) — why there
   are two repositories and how work moves between them. Read this first if
   you are joining
+- [`docs/05-changing-the-ui.md`](docs/05-changing-the-ui.md) — where every
+  screen of the prototype ended up, the palette and component vocabulary, and
+  what looks like a bug but is a decision. Start here if you are restyling or
+  reskinning
 - [`docs/slack-tide-handoff.html`](docs/slack-tide-handoff.html) — the original
   pipeline spec. Open it in a browser.
 
