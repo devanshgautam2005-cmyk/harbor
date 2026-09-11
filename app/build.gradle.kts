@@ -13,7 +13,11 @@ android {
         applicationId = "app.harbor"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
+        // Bumped for every build that reaches a phone. Android refuses an
+        // APK whose versionCode is below the installed one, so a participant
+        // who gets builds out of order is told no rather than quietly
+        // downgraded onto a version that may read their data differently.
+        versionCode = 2
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
