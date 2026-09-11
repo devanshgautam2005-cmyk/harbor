@@ -157,6 +157,9 @@ data class Thresholds(
 
 /** Everything the user can change about how Harbor behaves. */
 data class UserSettings(
+    /** What Harbor calls the user. Greeted by it on the home screen. */
+    val name: String = "",
+
     val thresholds: Thresholds = Thresholds.SUGGESTED,
 
     /**

@@ -212,24 +212,6 @@ private fun Stepper(label: String, value: String, onDown: () -> Unit, onUp: () -
     }
 }
 
-private val Weather.label: String
-    get() = when (this) {
-        Weather.CLEAR -> "Clear"
-        Weather.BRIGHT -> "Bright"
-        Weather.CLOUDY -> "Cloudy"
-        Weather.RAIN -> "Rain"
-        Weather.STORM -> "Storm"
-    }
-
-private val Weather.caption: String
-    get() = when (this) {
-        Weather.CLEAR -> "Room to breathe. Nothing pressing."
-        Weather.BRIGHT -> "Good and busy. The kind you chose."
-        Weather.CLOUDY -> "A little grey around the edges."
-        Weather.RAIN -> "Heavy going. Steady, but heavy."
-        Weather.STORM -> "Too much at once. This passes."
-    }
-
 private val CueSound.label: String
     get() = when (this) {
         CueSound.CHIME -> "Chime"

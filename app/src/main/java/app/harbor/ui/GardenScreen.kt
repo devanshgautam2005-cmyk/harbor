@@ -57,8 +57,18 @@ import app.harbor.ui.theme.SurfaceSky
  * All geometry comes from [Garden], which is pure and tested against the
  * prototype's own JavaScript. This file only draws.
  */
+/**
+ * The garden as a page of its own.
+ *
+ * Home embeds the same canvas at a fixed height, exactly as the prototype
+ * does — the garden is the centre of this app, not a place you visit.
+ */
 @Composable
-fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
+fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) =
+    GardenCanvas(store, modifier.fillMaxSize())
+
+@Composable
+fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
     val contacts by store.contacts.collectAsState()
     var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
 
@@ -96,10 +106,10 @@ fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
         }
     }
 
-    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(modifier.background(MaterialTheme.colorScheme.background)) {
         if (plots.isEmpty()) {
             Column(
-                Modifier.fillMaxSize().padding(32.dp),
+                Modifier.fillMaxSize().padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {

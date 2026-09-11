@@ -1,52 +1,63 @@
 package app.harbor.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.runtime.rememberCoroutineScope
 import app.harbor.domain.CallStats
+import app.harbor.domain.Contact
 import app.harbor.domain.DailyQuestion
-import kotlinx.coroutines.launch
-import java.time.LocalDate
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
-import app.harbor.domain.Weather
-import app.harbor.sensing.Sensing
-import androidx.compose.ui.platform.LocalContext
+import app.harbor.ui.theme.Avatar
+import app.harbor.ui.theme.AvatarSize
+import app.harbor.ui.theme.Eyebrow
+import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.SectionHeading
+import app.harbor.ui.theme.SmallCopy
+import app.harbor.ui.theme.Surface
+import app.harbor.ui.theme.pageContent
+import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.ZoneId
+import java.time.LocalDate
 
 /**
- * Where the app opens.
+ * Home, hand-translated from `components/harbor/home.tsx`.
  *
- * Deliberately quiet. Harbor's whole argument is that it should not be
- * something you check — the cue comes to you. A home screen that demanded
- * attention would be arguing against the product.
- *
- * So it answers three questions and stops: is Harbor listening, when did you
- * last reach someone, and what has grown.
+ * The order is the prototype's and it is the argument: greeting, then the
+ * garden, then how life feels, then your people. The garden sits above the
+ * fold because it is the point of the app rather than a page you navigate to
+ * — opening Harbor should show you what calling people has grown, not a
+ * console for an app.
  */
 @Composable
 fun HomeScreen(
@@ -58,137 +69,168 @@ fun HomeScreen(
     onReflect: (LedgerEntry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val settings by store.settings.collectAsState()
     val contacts by store.contacts.collectAsState()
     var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
 
     LaunchedEffect(Unit) { entries = store.recentEntries() }
 
-    val who = contacts.firstOrNull()
-    val listening = Sensing.isActive(context, store)
-
-    val lastConnection = entries
-        .filter { it.resolution.isConnection }
-        .maxByOrNull { it.occurredAt }
-
-    val flowersGrown = entries.count { it.flower != null }
+    val grown = entries.count { it.resolution == Resolution.CALLED && it.flower != null }
 
     Column(
         modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text("harbor", style = MaterialTheme.typography.labelLarge)
-        Spacer(Modifier.size(4.dp))
-        Text(settings.weather.greeting, style = MaterialTheme.typography.headlineMedium)
-
-        // A call Harbor watched you start but never heard about. Offered here
-        // because nobody reopens an app the moment a call ends.
-        CallStats.pendingReflection(entries, Instant.now())?.let { waiting ->
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("How did that go?", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "You called ${who?.label ?: "someone"} earlier. It only " +
-                            "takes a moment, and it is what grows the flower.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedButton(onClick = { onReflect(waiting) }) { Text("Tell me") }
-                }
-            }
-        }
-
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    if (listening) "Harbor is listening for a quiet moment."
-                    else "Cues are off.",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    when {
-                        !listening ->
-                            "Nothing is being sensed. Turn cues on whenever you feel ready."
-                        who == null ->
-                            "There is nobody to call yet, so a cue has nothing to offer."
-                        else ->
-                            "After a walk of ${settings.thresholds.walkingMinutes} minutes or " +
-                                "more, at most ${settings.thresholds.dailyCap} times a day."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedButton(onClick = onOpenCues) {
-                    Text(if (listening) "Cues and privacy" else "Turn on gentle cues")
-                }
-            }
-        }
-
-        if (who != null) {
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(who.label, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        lastConnection?.let { last ->
-                            val days = java.time.Duration
-                                .between(
-                                    last.occurredAt.atZone(ZoneId.systemDefault()).toLocalDate()
-                                        .atStartOfDay(ZoneId.systemDefault()),
-                                    Instant.now().atZone(ZoneId.systemDefault()).toLocalDate()
-                                        .atStartOfDay(ZoneId.systemDefault()),
-                                ).toDays()
-                            when (days) {
-                                0L -> "You reached them today."
-                                1L -> "Yesterday."
-                                else -> "$days days ago."
-                            }
-                        } ?: "You have not reached them through Harbor yet.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    CallStats.usualMinutes(entries, who.id)?.let { usual ->
-                        Text(
-                            "Your calls usually run about ${CallStats.formatDuration(usual)}.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            }
-        }
-
-        OutlinedButton(onClick = onOpenNotes, modifier = Modifier.fillMaxWidth()) {
-            Text("Leave a line")
-        }
-
-        DailyQuestionCard(store)
-
-        Button(onClick = onOpenGarden, modifier = Modifier.fillMaxWidth()) {
+        // .home-greeting
+        Column(Modifier.padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 14.dp)) {
+            Eyebrow("A little closer, every day")
+            Spacer(Modifier.size(4.dp))
             Text(
-                when (flowersGrown) {
-                    0 -> "See your garden"
-                    1 -> "See your garden · 1 flower"
-                    else -> "See your garden · $flowersGrown flowers"
-                },
+                if (settings.name.isBlank()) "Hey there." else "Hey, ${settings.name}.",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
+                ),
+            )
+            Spacer(Modifier.size(6.dp))
+            SmallCopy(
+                if (grown > 0) "$grown calls have grown here."
+                else "Your first call plants the first flower.",
             )
         }
 
-        OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
-            Text("Your pace")
+        // .garden-holder — 404px of garden, on the home screen
+        Box(
+            Modifier
+                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
+                .height(404.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .clickable(onClick = onOpenGarden),
+        ) {
+            GardenCanvas(store, Modifier.fillMaxSize())
+        }
+
+        Flow(Modifier.pageContent()) {
+            WeatherBar(store)
+
+            // A call Harbor watched you start and never heard about.
+            CallStats.pendingReflection(entries, Instant.now())?.let { waiting ->
+                Surface {
+                    SectionHeading("How did that go?")
+                    SmallCopy(
+                        "You called " +
+                            (contacts.firstOrNull { it.id == waiting.contactId }?.label
+                                ?: "someone") +
+                            " earlier. It only takes a moment, and it is what grows " +
+                            "the flower.",
+                    )
+                    TextLink("Tell me") { onReflect(waiting) }
+                }
+            }
+
+            SectionHeading("Your people")
+            if (contacts.isEmpty()) {
+                SmallCopy("Nobody yet. Add someone, and their patch appears above.")
+                TextLink("Choose someone", onOpenCues)
+            }
+            contacts.chunked(2).forEach { row ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    row.forEach { contact ->
+                        PersonTile(
+                            contact = contact,
+                            calls = entries.count {
+                                it.resolution == Resolution.CALLED &&
+                                    it.contactId == contact.id &&
+                                    it.flower != null
+                            },
+                            usual = CallStats.usualMinutes(entries, contact.id),
+                            onClick = onOpenCues,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+
+            DailyQuestionCard(store)
+
+            TextLink("Leave a line", onOpenNotes)
+            TextLink("Find a quiet moment", onOpenCues)
+            TextLink("Your pace", onOpenSettings)
         }
     }
+}
+
+/** `.chat-tile` — a person, their patch, and how it has been going. */
+@Composable
+private fun PersonTile(
+    contact: Contact,
+    calls: Int,
+    usual: Int?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+    ) {
+        Avatar(contact.label, contact.tone, size = AvatarSize.MD)
+        Spacer(Modifier.size(8.dp))
+        Text(
+            contact.label,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+        )
+        Spacer(Modifier.size(5.dp))
+        SmallCopy(
+            usual?.let { "Calls run about ${CallStats.formatDuration(it)}." }
+                ?: "Say hello whenever.",
+            size = 13,
+        )
+        Spacer(Modifier.size(10.dp))
+        SmallCopy(
+            when (calls) {
+                0 -> "No calls yet"
+                1 -> "1 flower in their patch"
+                else -> "$calls flowers in their patch"
+            },
+            size = 12,
+        )
+    }
+}
+
+/** `.text-link` — a quiet way onward, never a button competing for attention. */
+@Composable
+internal fun TextLink(text: String, onClick: () -> Unit) {
+    Text(
+        text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    )
 }
 
 /**
  * One small question a day.
  *
- * Reshaped, not ported. The prototype shows your family's answers beside
- * yours; there is no family side in this build (ADR-007), so inventing their
- * replies would be the one thing the prototype is careful never to do.
- *
- * What survives is a daily prompt worth sitting with, and something small to
- * bring to a call. Honest, and noticeably less than the prototype's version —
- * this is the screen ADR-007 costs the most.
+ * Reshaped, not ported: the prototype shows your family's answers beside
+ * yours, and there is no family side in this build (ADR-007). Inventing their
+ * replies is the one thing the prototype itself never does.
  */
 @Composable
 private fun DailyQuestionCard(store: HarborRepository) {
@@ -199,47 +241,30 @@ private fun DailyQuestionCard(store: HarborRepository) {
     val answered = answers[today]
     var draft by remember { mutableStateOf("") }
 
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Today's little question", style = MaterialTheme.typography.labelMedium)
-            Text(question, style = MaterialTheme.typography.titleMedium)
+    Surface {
+        Eyebrow("Today's little question")
+        Text(question, style = MaterialTheme.typography.titleLarge)
 
-            if (answered != null) {
-                Text(answered, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    "No streak to keep. Answer today, skip tomorrow — either is fine.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            } else {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it.take(200) },
-                    placeholder = { Text("Whatever comes to mind…") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedButton(
-                    onClick = {
-                        val text = draft.trim()
-                        if (text.isNotEmpty()) scope.launch { store.setDailyAnswer(today, text) }
-                    },
-                    enabled = draft.isNotBlank(),
-                ) { Text("Keep my answer") }
-            }
+        if (answered != null) {
+            SmallCopy(answered)
+            SmallCopy(
+                "No streak to keep. Answer today, skip tomorrow — either is fine.",
+                size = 13,
+            )
+        } else {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it.take(200) },
+                placeholder = { Text("Whatever comes to mind…") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedButton(
+                onClick = {
+                    val text = draft.trim()
+                    if (text.isNotEmpty()) scope.launch { store.setDailyAnswer(today, text) }
+                },
+                enabled = draft.isNotBlank(),
+            ) { Text("Keep my answer") }
         }
     }
 }
-
-/**
- * The weather sets the greeting rather than the time of day.
- *
- * How someone's week is going is a better predictor of whether a call is
- * welcome than whether it happens to be morning.
- */
-private val Weather.greeting: String
-    get() = when (this) {
-        Weather.CLEAR -> "A clear stretch."
-        Weather.BRIGHT -> "Busy, in the good way."
-        Weather.CLOUDY -> "A little grey."
-        Weather.RAIN -> "Heavy going lately."
-        Weather.STORM -> "A lot at once."
-    }

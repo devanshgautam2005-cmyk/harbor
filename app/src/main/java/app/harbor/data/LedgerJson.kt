@@ -56,6 +56,7 @@ internal object LedgerJson {
         .put("cues_enabled", s.cuesEnabled)
         .put("sound", s.sound.wire)
         .put("weather", s.weather.wire)
+        .put("name", s.name)
         .put("reduced_motion", s.reducedMotion)
 
     fun settings(o: JSONObject): UserSettings = UserSettings(
@@ -65,6 +66,7 @@ internal object LedgerJson {
             ?.let { CueSound.entries.fromWire(it) } ?: CueSound.CHIME,
         weather = o.optStringOrNull("weather")
             ?.let { Weather.entries.fromWire(it) } ?: Weather.CLEAR,
+        name = o.optStringOrNull("name").orEmpty(),
         reducedMotion = o.optBoolean("reduced_motion", false),
     )
 
