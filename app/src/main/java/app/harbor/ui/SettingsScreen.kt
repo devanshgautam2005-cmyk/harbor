@@ -1,6 +1,10 @@
 package app.harbor.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,34 +13,47 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
+import app.harbor.ui.theme.Eyebrow
+import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.Notice
+import app.harbor.ui.theme.PageIntro
+import app.harbor.ui.theme.SectionHeading
+import app.harbor.ui.theme.SmallCopy
+import app.harbor.ui.theme.Surface
+import app.harbor.ui.theme.pageContent
 import app.harbor.domain.CueSound
 import app.harbor.domain.Thresholds
 import app.harbor.domain.UserSettings
-import app.harbor.domain.Weather
+import androidx.compose.material3.OutlinedTextField
 import kotlinx.coroutines.launch
 
 /**
  * Everything the user is allowed to change, which is deliberately everything
  * that decides when Harbor speaks.
  *
- * The numbers here are the ones the study measures drift against. They ship as
- * a suggestion and are never locked — that is a guardrail from the design
- * audit, not a preference.
+ * The numbers here ship as a suggestion and are never locked. That is a
+ * guardrail from the design audit, not a preference — and they are what the
+ * study measures drift against.
  */
 @Composable
 fun SettingsScreen(
@@ -54,41 +71,55 @@ fun SettingsScreen(
     Column(
         modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text("Your pace", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "Suggestions, not rules. Move them until Harbor fits your week.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Box(Modifier.padding(horizontal = 28.dp)) {
+            PageIntro(
+                eyebrow = "Always on your terms",
+                title = "Your pace.",
+                subtitle = "Suggestions, not rules. Move them until Harbor fits your week.",
+            )
+        }
 
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Flow(Modifier.pageContent()) {
+            Surface {
+                SectionHeading("What you call yourself")
+                OutlinedTextField(
+                    value = settings.name,
+                    onValueChange = { save(settings.copy(name = it.take(40))) },
+                    placeholder = { Text("Your name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SmallCopy("Only used to say hello. It never leaves this phone.")
+            }
+
+            Surface {
+                SectionHeading("When a cue can come")
                 Stepper(
                     label = "Walk before a cue",
-                    value = "${settings.thresholds.walkingMinutes} min",
+                    value = settings.thresholds.walkingMinutes.toString() + " min",
                     onDown = {
                         thresholds(
                             settings.thresholds.copy(
-                                walkingMinutes = (settings.thresholds.walkingMinutes - 1)
-                                    .coerceAtLeast(1),
+                                walkingMinutes =
+                                    (settings.thresholds.walkingMinutes - 1).coerceAtLeast(1),
                             ),
                         )
                     },
                     onUp = {
                         thresholds(
                             settings.thresholds.copy(
-                                walkingMinutes = (settings.thresholds.walkingMinutes + 1)
-                                    .coerceAtMost(120),
+                                walkingMinutes =
+                                    (settings.thresholds.walkingMinutes + 1).coerceAtMost(120),
                             ),
                         )
                     },
                 )
                 Stepper(
                     label = "Most cues a day",
-                    value = "${settings.thresholds.dailyCap}",
+                    value = settings.thresholds.dailyCap.toString(),
                     onDown = {
                         thresholds(
                             settings.thresholds.copy(
@@ -106,115 +137,150 @@ fun SettingsScreen(
                 )
                 Stepper(
                     label = "Quiet between cues",
-                    value = "${settings.thresholds.cooldownMinutes} min",
+                    value = settings.thresholds.cooldownMinutes.toString() + " min",
                     onDown = {
                         thresholds(
                             settings.thresholds.copy(
-                                cooldownMinutes = (settings.thresholds.cooldownMinutes - 30)
-                                    .coerceAtLeast(1),
+                                cooldownMinutes =
+                                    (settings.thresholds.cooldownMinutes - 30).coerceAtLeast(1),
                             ),
                         )
                     },
                     onUp = {
                         thresholds(
                             settings.thresholds.copy(
-                                cooldownMinutes = (settings.thresholds.cooldownMinutes + 30)
-                                    .coerceAtMost(1440),
+                                cooldownMinutes =
+                                    (settings.thresholds.cooldownMinutes + 30)
+                                        .coerceAtMost(1440),
                             ),
                         )
                     },
                 )
+                SmallCopy("Suggested values, always editable.")
             }
-        }
 
-        OutlinedButton(onClick = onEditSchedule, modifier = Modifier.fillMaxWidth()) {
-            Text("When you're busy")
-        }
-
-        // --- weather ------------------------------------------------------
-        Text("How is life right now?", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Weather, not a rating. It happens to you, and it passes.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Weather.entries.chunked(3).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { option ->
-                    OutlinedButton(
-                        onClick = { save(settings.copy(weather = option)) },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            if (option == settings.weather) "· ${option.label}" else option.label,
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+            Surface {
+                SectionHeading("Your gentle sound")
+                SmallCopy("Someone you have chosen a ringtone for overrides this.")
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CueSound.entries.forEach { option ->
+                        Pill(
+                            text = option.label,
+                            selected = option == settings.sound,
+                            modifier = Modifier.weight(1f),
+                        ) { save(settings.copy(sound = option)) }
                     }
                 }
             }
-        }
-        Text(settings.weather.caption, style = MaterialTheme.typography.bodySmall)
 
-        // --- sound --------------------------------------------------------
-        Text("Default sound", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "A person you have chosen a ringtone for overrides this.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            CueSound.entries.forEach { option ->
-                OutlinedButton(
-                    onClick = { save(settings.copy(sound = option)) },
-                    modifier = Modifier.weight(1f),
+            Surface {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        if (option == settings.sound) "· ${option.label}" else option.label,
-                        style = MaterialTheme.typography.labelSmall,
+                    Column(Modifier.weight(1f)) {
+                        SectionHeading("A little less movement")
+                        SmallCopy("Reduce animation.")
+                    }
+                    Switch(
+                        checked = settings.reducedMotion,
+                        onCheckedChange = { save(settings.copy(reducedMotion = it)) },
                     )
                 }
             }
-        }
 
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("A little less movement", style = MaterialTheme.typography.titleSmall)
-                Text("Reduce animation.", style = MaterialTheme.typography.bodySmall)
-            }
-            Switch(
-                checked = settings.reducedMotion,
-                onCheckedChange = { save(settings.copy(reducedMotion = it)) },
+            TextLink("When you are busy", onEditSchedule)
+            TextLink("Back", onDone)
+        }
+    }
+}
+
+/** `.duration-row` — a label, and a round stepper either side of the value. */
+@Composable
+internal fun Stepper(label: String, value: String, onDown: () -> Unit, onUp: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.weight(1f),
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StepButton("-", onDown)
+            Text(
+                value,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 10.dp).size(width = 76.dp, height = 20.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
             )
+            StepButton("+", onUp)
         }
-
-        Spacer(Modifier.size(8.dp))
-        TextButton(onClick = onDone) { Text("Back") }
     }
 }
 
 @Composable
-private fun Stepper(label: String, value: String, onDown: () -> Unit, onUp: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = onDown) { Text("−") }
-            Spacer(Modifier.size(10.dp))
-            Text(value, style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.size(10.dp))
-            OutlinedButton(onClick = onUp) { Text("+") }
-        }
-    }
+private fun StepButton(glyph: String, onClick: () -> Unit) = Box(
+    Modifier
+        .size(38.dp)
+        .clip(CircleShape)
+        .background(MaterialTheme.colorScheme.secondaryContainer)
+        .clickable(onClick = onClick),
+    contentAlignment = Alignment.Center,
+) {
+    Text(
+        glyph,
+        style = MaterialTheme.typography.titleMedium.copy(
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+        ),
+    )
+}
+
+/** A chip that fills in when chosen, as `.cue-topic` does. */
+@Composable
+internal fun Pill(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) = Box(
+    modifier
+        .clip(RoundedCornerShape(99.dp))
+        .background(
+            if (selected) MaterialTheme.colorScheme.primary
+            else androidx.compose.ui.graphics.Color.Transparent,
+        )
+        .border(
+            1.dp,
+            if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outlineVariant,
+            RoundedCornerShape(99.dp),
+        )
+        .clickable(onClick = onClick)
+        .padding(horizontal = 14.dp, vertical = 10.dp),
+    contentAlignment = Alignment.Center,
+) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary
+            else MaterialTheme.colorScheme.onSurface,
+        ),
+    )
 }
 
 private val CueSound.label: String
     get() = when (this) {
-        CueSound.CHIME -> "Chime"
-        CueSound.SOFT -> "Soft"
-        CueSound.SILENT -> "Silent"
+        CueSound.CHIME -> "Little chime"
+        CueSound.SOFT -> "Soft note"
+        CueSound.SILENT -> "Silence"
     }

@@ -1,23 +1,19 @@
 package app.harbor.ui
 
 import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,7 +29,14 @@ import app.harbor.data.HarborRepository
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
-import app.harbor.domain.Thresholds
+import app.harbor.ui.theme.Eyebrow
+import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.Notice
+import app.harbor.ui.theme.PageIntro
+import app.harbor.ui.theme.SectionHeading
+import app.harbor.ui.theme.SmallCopy
+import app.harbor.ui.theme.Surface
+import app.harbor.ui.theme.pageContent
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -42,15 +45,13 @@ import java.util.UUID
 /**
  * A line to send, when a call is more than you have in you.
  *
- * Reshaped rather than ported, per ADR-007. The prototype's Notes strip is
- * two-sided: notes you leave and notes your people leave back. There is no
- * parent side in this build, so the incoming half cannot exist without being
- * a fiction.
+ * Reshaped rather than ported (ADR-007). The prototype's strip is two-sided —
+ * lines you leave and lines your people leave back — and the incoming half
+ * cannot exist here without being a fiction.
  *
- * What is left is still worth having, and is arguably more honest: Harbor
- * helps you write the line and then hands it to whatever you actually use to
- * send things. It does not pretend to deliver it, and it does not pretend
- * anyone replied.
+ * What is left is arguably more honest: Harbor helps you write the line and
+ * hands it to whatever you actually use to send things. It does not pretend
+ * to deliver it, and it does not pretend anyone replied.
  */
 @Composable
 fun NotesScreen(
@@ -99,87 +100,75 @@ fun NotesScreen(
     Column(
         modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()),
     ) {
-        Text("A line, then.", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "One line is plenty. No call, no explanation, and nobody owes you " +
-                "a reply for it.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-
-        OutlinedTextField(
-            value = line,
-            onValueChange = { line = it.take(120) },
-            label = { Text(who?.let { "To ${it.label}" } ?: "Your line") },
-            placeholder = { Text("thinking of you, that's all") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = {
-                    val text = line.trim()
-                    record()
-                    // Harbor does not send anything itself. It hands the line
-                    // to whatever the user already uses, which is where their
-                    // person actually is.
-                    if (text.isNotEmpty()) {
-                        context.startActivity(
-                            Intent.createChooser(
-                                Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, text)
-                                },
-                                "Send your line",
-                            ),
-                        )
-                    }
-                },
-                enabled = line.isNotBlank() && who != null,
-            ) { Text("Send it") }
-
-            OutlinedButton(
-                onClick = ::record,
-                enabled = line.isNotBlank() && who != null,
-            ) { Text("Just keep it") }
-        }
-
-        if (who == null) {
-            Text(
-                "Add someone first — a line needs somebody to be for.",
-                style = MaterialTheme.typography.bodySmall,
+        Box(Modifier.padding(horizontal = 28.dp)) {
+            PageIntro(
+                eyebrow = "Small enough that nobody owes a reply",
+                title = "A line, then.",
+                subtitle = "One line is plenty. No call, no explanation.",
             )
         }
 
-        val sent = entries.filter { it.resolution == Resolution.MESSAGE }
-            .sortedByDescending { it.occurredAt }
-        if (sent.isNotEmpty()) {
-            Spacer(Modifier.size(8.dp))
-            Text("Lines you've left", style = MaterialTheme.typography.titleMedium)
-            sent.take(10).forEach { entry ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(
-                            entry.occurredAt.atZone(ZoneId.systemDefault()).toLocalDate()
-                                .toString(),
-                            style = MaterialTheme.typography.labelSmall,
+        Flow(Modifier.pageContent()) {
+            Surface {
+                OutlinedTextField(
+                    value = line,
+                    onValueChange = { line = it.take(120) },
+                    label = { Text(who?.let { "To " + it.label } ?: "Your line") },
+                    placeholder = { Text("thinking of you, that is all") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill(text = "Send it", selected = true) {
+                        val text = line.trim()
+                        if (text.isNotEmpty() && who != null) {
+                            record()
+                            // Harbor sends nothing itself. It hands the line to
+                            // whatever the user already uses, which is where
+                            // their person actually is.
+                            context.startActivity(
+                                Intent.createChooser(
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, text)
+                                    },
+                                    "Send your line",
+                                ),
+                            )
+                        }
+                    }
+                    Pill(text = "Just keep it", selected = false) { record() }
+                }
+                if (who == null) {
+                    SmallCopy("Add someone first — a line needs somebody to be for.")
+                }
+            }
+
+            Notice(
+                "Harbor keeps that you left a line and when. The words themselves " +
+                    "are yours and are not stored.",
+            )
+
+            val sent = entries
+                .filter { it.resolution == Resolution.MESSAGE }
+                .sortedByDescending { it.occurredAt }
+
+            if (sent.isNotEmpty()) {
+                SectionHeading("Lines you have left")
+                sent.take(10).forEach { entry ->
+                    Surface {
+                        Eyebrow(
+                            entry.occurredAt.atZone(ZoneId.systemDefault())
+                                .toLocalDate().toString(),
                         )
-                        // The text itself is deliberately not stored. A note is
-                        // a thing you said to someone, not a record Harbor
-                        // keeps — the ledger holds that it happened and when.
-                        Text(
-                            "You left a line.",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        SmallCopy("You left a line.")
                     }
                 }
             }
-        }
 
-        Spacer(Modifier.size(8.dp))
-        TextButton(onClick = onDone) { Text("Back") }
+            TextLink("Back", onDone)
+        }
     }
 }
