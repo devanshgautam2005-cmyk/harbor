@@ -19,11 +19,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.harbor.cue.CallFlow
 import app.harbor.data.HarborStore
+import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.domain.CallStats
 import app.harbor.ui.ContactScreen
 import app.harbor.ui.CuesSetupScreen
+import app.harbor.ui.FlowerLanding
 import app.harbor.ui.GardenScreen
 import app.harbor.ui.HarborShell
 import app.harbor.ui.HarborTab
@@ -69,7 +71,7 @@ class MainActivity : ComponentActivity() {
         Cues(null, "Cues"),
         Contact(null, "Your person"),
         Garden(null, "Your garden"),
-        Notes(null, "A line"),
+        Notes(null, "A petal"),
         Person(null, null),
         Reflect(null, null),
     }
@@ -84,6 +86,11 @@ class MainActivity : ComponentActivity() {
             HarborTheme {
                 var screen by remember { mutableStateOf(Screen.Home) }
                 var reflecting by remember { mutableStateOf<LedgerEntry?>(null) }
+
+                // The flower on its way into the field, drawn over whatever
+                // is underneath. Null the rest of the time.
+                var landing by remember { mutableStateOf<FlowerKind?>(null) }
+                var landed by remember { mutableStateOf<java.util.UUID?>(null) }
                 var showing by remember { mutableStateOf<java.util.UUID?>(null) }
                 val scope = rememberCoroutineScope()
                 val home = { screen = Screen.Home }
@@ -132,6 +139,31 @@ class MainActivity : ComponentActivity() {
                         offered = waiting.id
                         reflecting = waiting
                         screen = Screen.Reflect
+                    }
+                }
+
+                /**
+                 * The same landing, for a flower planted in the cue's own
+                 * activity.
+                 *
+                 * CueActivity runs the reflection itself and then finishes,
+                 * which drops the user back here with the flower already in
+                 * the ground and nothing having been seen to happen. Rather
+                 * than a second channel between the two, this notices a
+                 * freshly planted row on the way back in. `landed` makes it
+                 * once per flower.
+                 */
+                LaunchedEffect(resumes, onboarded) {
+                    if (onboarded != true) return@LaunchedEffect
+                    val fresh = store.recentEntries()
+                        .filter { it.flower != null }
+                        .maxByOrNull { it.occurredAt } ?: return@LaunchedEffect
+                    val age = java.time.Duration.between(fresh.occurredAt, Instant.now())
+                    if (fresh.id != landed && !age.isNegative &&
+                        age < java.time.Duration.ofMinutes(3)
+                    ) {
+                        landed = fresh.id
+                        landing = fresh.flower
                     }
                 }
 
@@ -278,12 +310,31 @@ class MainActivity : ComponentActivity() {
                                         screen = Screen.Home
                                     },
                                     onDone = {
+                                        // Home rather than the garden, and the
+                                        // flower goes with them: the bloom
+                                        // travels from the picker into the
+                                        // field it was added to, so the reward
+                                        // is something you watch happen rather
+                                        // than something you go and verify.
+                                        landing = amended.flower
+                                        landed = amended.id
                                         reflecting = null
-                                        screen = Screen.Garden
+                                        screen = Screen.Home
                                     },
                                 )
                             } ?: run { screen = Screen.Home }
                         }
+                    }
+
+                    // Over the top of everything, including the shell's nav
+                    // pill: the flower is passing in front of the app, not
+                    // inside one of its screens.
+                    landing?.let { kind ->
+                        FlowerLanding(
+                            kind = kind,
+                            modifier = inset,
+                            reducedMotion = store.settings.value.reducedMotion,
+                        ) { landing = null }
                     }
                 }
             }

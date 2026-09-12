@@ -100,7 +100,7 @@ private fun DrawScope.drawPetal(length: Float, earned: Boolean, current: Boolean
  * sits. Drawn up the negative Y axis so a petal at rotation zero points at the
  * top of the screen.
  */
-private fun petalPath(length: Float): Path {
+internal fun petalPath(length: Float): Path {
     val w = length * 0.50f
     return Path().apply {
         moveTo(0f, 0f)

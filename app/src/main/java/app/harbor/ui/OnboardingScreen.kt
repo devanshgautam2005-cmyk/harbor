@@ -536,12 +536,35 @@ private fun AskPermission(store: HarborRepository, onNext: () -> Unit) {
                 "On this phone. Your movement is never sent to us and never " +
                     "shared with your family — not as a summary, not ever.",
             )
+            // These three used to be a sentence describing numbers set
+            // somewhere else, on a screen nobody had been to: onboarding
+            // turned cues on and left their shape to a second setup flow under
+            // Account. They are the cue's configuration, so this is where they
+            // belong — and a claim about what Harbor will not do is worth a
+            // great deal more when it is the control that decides it.
             SectionHeading("What you keep control of")
+            Stepper(
+                label = "Walk before a cue",
+                value = settings.thresholds.walkingMinutes.toString() + " min",
+                onDown = { walking(store, scope, settings, -1) },
+                onUp = { walking(store, scope, settings, +1) },
+            )
+            Stepper(
+                label = "Most cues a day",
+                value = settings.thresholds.dailyCap.toString(),
+                onDown = { daily(store, scope, settings, -1) },
+                onUp = { daily(store, scope, settings, +1) },
+            )
+            Stepper(
+                label = "Quiet between cues",
+                value = settings.thresholds.cooldownMinutes.toString() + " min",
+                onDown = { cooldown(store, scope, settings, -30) },
+                onUp = { cooldown(store, scope, settings, +30) },
+            )
             SmallCopy(
-                "At most ${settings.thresholds.dailyCap} a day, with at least " +
-                    "${settings.thresholds.cooldownMinutes} minutes between them. " +
-                    "Every one can be dismissed, and dismissing costs nothing. " +
-                    "You can turn it off whenever you like.",
+                "Suggestions, not rules — move them now or later. Every cue can " +
+                    "be dismissed, dismissing costs nothing, and you can turn " +
+                    "these off whenever you like.",
             )
         }
         Spacer(Modifier.height(26.dp))
@@ -586,6 +609,56 @@ private fun AskPermission(store: HarborRepository, onNext: () -> Unit) {
             }
         }
     }
+}
+
+// The three numbers that decide when a cue may arrive, nudged in place.
+//
+// Each clamps to the range `Thresholds` enforces, so a stepper can never build
+// a value its own `require` would reject.
+
+private fun walking(
+    store: HarborRepository,
+    scope: kotlinx.coroutines.CoroutineScope,
+    settings: app.harbor.domain.UserSettings,
+    by: Int,
+) = scope.launch {
+    store.setSettings(
+        settings.copy(
+            thresholds = settings.thresholds.copy(
+                walkingMinutes = (settings.thresholds.walkingMinutes + by).coerceIn(1, 120),
+            ),
+        ),
+    )
+}
+
+private fun daily(
+    store: HarborRepository,
+    scope: kotlinx.coroutines.CoroutineScope,
+    settings: app.harbor.domain.UserSettings,
+    by: Int,
+) = scope.launch {
+    store.setSettings(
+        settings.copy(
+            thresholds = settings.thresholds.copy(
+                dailyCap = (settings.thresholds.dailyCap + by).coerceIn(1, 10),
+            ),
+        ),
+    )
+}
+
+private fun cooldown(
+    store: HarborRepository,
+    scope: kotlinx.coroutines.CoroutineScope,
+    settings: app.harbor.domain.UserSettings,
+    by: Int,
+) = scope.launch {
+    store.setSettings(
+        settings.copy(
+            thresholds = settings.thresholds.copy(
+                cooldownMinutes = (settings.thresholds.cooldownMinutes + by).coerceIn(1, 1440),
+            ),
+        ),
+    )
 }
 
 /**

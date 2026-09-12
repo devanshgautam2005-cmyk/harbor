@@ -1,6 +1,5 @@
 package app.harbor.ui
 
-import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,9 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -52,7 +48,6 @@ import app.harbor.domain.Contact
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
-import androidx.core.net.toUri
 import app.harbor.ui.theme.CardEdge
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
@@ -66,11 +61,17 @@ import java.time.Instant
 /**
  * Home, hand-translated from `components/harbor/home.tsx`.
  *
- * The order is the prototype's and it is the argument: greeting, then the
- * garden, then how life feels, then your people. The garden sits above the
- * fold because it is the point of the app rather than a page you navigate to
- * — opening Harbor should show you what calling people has grown, not a
- * console for an app.
+ * The garden sits high because it is the point of the app rather than a page
+ * you navigate to — opening Harbor should show you what calling people has
+ * grown, not a console for an app.
+ *
+ * But the prototype's order put how-life-feels between the garden and your
+ * people, and on a real phone that pushed the call button — the single thing
+ * this whole product exists to make easy — below the fold. So your people now
+ * come straight after the garden, the greeting is one line shorter, the field
+ * is shorter, and the weather follows rather than interrupts. Nothing was
+ * removed; the one thing you might open Harbor to do is simply above the fold
+ * now, which it was not.
  */
 @Composable
 fun HomeScreen(
@@ -99,19 +100,20 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         // .home-greeting
-        Column(Modifier.padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 14.dp)) {
-            Eyebrow("A little closer, every day")
-            Spacer(Modifier.size(6.dp))
+        // Two lines, not three. "A little closer, every day" was a tagline
+        // above a greeting above a count, and the third of those is the only
+        // one that says anything the reader did not already know.
+        Column(Modifier.padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 10.dp)) {
             Text(
                 if (settings.name.isBlank()) "Hey there." else "Hey, ${settings.name}.",
-                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 30.sp),
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp),
             )
-            Spacer(Modifier.size(9.dp))
+            Spacer(Modifier.size(7.dp))
             // Caps, not a sentence. In the specimen the line under a greeting
             // is a catalogue caption rather than a second voice.
             Eyebrow(
                 if (grown > 0) "$grown calls have grown here"
-                else "Start growing today",
+                else "A little closer, every day",
             )
         }
 
@@ -121,7 +123,9 @@ fun HomeScreen(
             Modifier
                 .padding(horizontal = 16.dp)
                 .fillMaxWidth()
-                .height(404.dp)
+                // 404dp put the call button off the bottom of the screen on
+                // its own. The field is still the largest thing on the page.
+                .height(304.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .clickable(onClick = onOpenGarden),
         ) {
@@ -129,8 +133,6 @@ fun HomeScreen(
         }
 
         Flow(Modifier.pageContent()) {
-            WeatherBar(store)
-
             // A call Harbor watched you start and never heard about.
             CallStats.pendingReflection(entries, Instant.now())?.let { waiting ->
                 Surface {
@@ -183,10 +185,15 @@ fun HomeScreen(
                 }
             }
 
+            // How life feels, after the call button rather than in front of
+            // it. Setting your mood is a thing you might do; calling your mum
+            // is the thing the app is for.
+            WeatherBar(store)
+
             // One word about today lives inside the weather card now, and
             // finding a moment and setting your pace live under Account. Home
             // is the garden, your people, and a quick way to say something.
-            QuickShare(onLine = onOpenNotes, onPicture = onOpenNotes)
+            SendAPetal(onOpenNotes)
         }
     }
 }
@@ -274,104 +281,45 @@ internal fun TextLink(text: String, onClick: () -> Unit) {
 /**
  * Saying something without opening anything.
  *
- * Leaving a line was a text link in a stack of text links, which made a thing
- * you might do daily look like a settings row. Two marks, the way a quick
- * share works everywhere else -- the point is that it reads as an action
- * before it reads as words.
+ * This used to be two tiles — "Leave a line" behind a speech bubble and "Send
+ * a picture" behind a camera. Two borrowed icons for two things the app is
+ * not, in front of what is really one act: the smallest thing you can send
+ * somebody. One name and one mark now, and the mark is Harbor's own. Which of
+ * the two you actually send is chosen on the screen it opens, where it is a
+ * choice rather than a fork in the road.
  */
 @Composable
-private fun QuickShare(onLine: () -> Unit, onPicture: () -> Unit) {
+private fun SendAPetal(onClick: () -> Unit) {
+    val ink = MaterialTheme.colorScheme.onSurface
     Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        QuickShareAction("Leave a line", QuickMark.Bubble, Modifier.weight(1f), onLine)
-        QuickShareAction("Send a picture", QuickMark.Picture, Modifier.weight(1f), onPicture)
-    }
-}
-
-private enum class QuickMark { Bubble, Picture }
-
-@Composable
-private fun QuickShareAction(
-    label: String,
-    mark: QuickMark,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier
+        Modifier
+            .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, CardEdge, RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 11.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        horizontalArrangement = Arrangement.spacedBy(11.dp),
     ) {
-        val ink = MaterialTheme.colorScheme.onSurface
         Box(
             Modifier
-                .size(27.dp)
+                .size(30.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
         ) {
-            Canvas(Modifier.size(15.dp)) {
-                when (mark) {
-                    QuickMark.Bubble -> drawBubble(this, ink)
-                    QuickMark.Picture -> drawPicture(this, ink)
-                }
-            }
+            PetalMark(Modifier.size(17.dp))
         }
-        Text(
-            label,
-            maxLines = 1,
-            style = MaterialTheme.typography.titleLarge.copy(fontSize = 14.sp),
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Send a petal",
+                maxLines = 1,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 15.sp),
+            )
+            SmallCopy("A line or a picture. Nothing owed back.", size = 12)
+        }
     }
-}
-
-private fun drawBubble(scope: DrawScope, ink: Color) = with(scope) {
-    val s = size.minDimension
-    val line = Stroke(width = s * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round)
-    drawPath(
-        Path().apply {
-            moveTo(s * 0.5f, s * 0.12f)
-            cubicTo(s * 0.92f, s * 0.12f, s * 0.92f, s * 0.68f, s * 0.5f, s * 0.68f)
-            lineTo(s * 0.3f, s * 0.68f)
-            lineTo(s * 0.16f, s * 0.88f)
-            lineTo(s * 0.18f, s * 0.66f)
-            cubicTo(s * 0.02f, s * 0.54f, s * 0.1f, s * 0.12f, s * 0.5f, s * 0.12f)
-            close()
-        },
-        color = ink,
-        style = line,
-    )
-}
-
-private fun drawPicture(scope: DrawScope, ink: Color) = with(scope) {
-    val s = size.minDimension
-    val line = Stroke(width = s * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round)
-    drawRoundRect(
-        color = ink,
-        topLeft = Offset(s * 0.12f, s * 0.18f),
-        size = Size(s * 0.76f, s * 0.64f),
-        cornerRadius = CornerRadius(s * 0.12f, s * 0.12f),
-        style = line,
-    )
-    drawCircle(ink, radius = s * 0.07f, center = Offset(s * 0.34f, s * 0.38f))
-    drawPath(
-        Path().apply {
-            moveTo(s * 0.18f, s * 0.74f)
-            lineTo(s * 0.42f, s * 0.5f)
-            lineTo(s * 0.62f, s * 0.68f)
-            lineTo(s * 0.72f, s * 0.58f)
-            lineTo(s * 0.84f, s * 0.72f)
-        },
-        color = ink,
-        style = line,
-    )
 }
 
 private fun drawHandset(scope: DrawScope, ink: Color) = with(scope) {

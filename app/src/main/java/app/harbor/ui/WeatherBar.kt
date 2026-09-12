@@ -72,12 +72,22 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
 
+    // The one-word question is not on the page until the mood has been set.
+    //
+    // It used to hold its own row whether or not anyone was going to answer
+    // it, and this card sits above the thing people open Harbor to do. Naming
+    // how the day feels is the follow-on thought to setting the weather, so it
+    // arrives when that thought does - as an extension of this card, never a
+    // popup. Already answered today counts as having asked.
+    var moodSet by remember { mutableStateOf(false) }
+
     var trackWidth by remember { mutableStateOf(0) }
     val density = LocalDensity.current
     val inset = with(density) { 22.dp.toPx() }
 
     fun choose(next: Int) {
         val clamped = next.coerceIn(0, last)
+        moodSet = true
         if (steps[clamped] != settings.weather) {
             scope.launch { store.setSettings(settings.copy(weather = steps[clamped])) }
         }
@@ -154,20 +164,9 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
             }
         }
 
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            steps.forEach { step ->
-                Text(
-                    step.label,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-            }
-        }
+        // The five step labels used to run under the rail, repeating the word
+        // already set in large type directly above it. The rail's shape says
+        // where you are on the scale; the labels only cost a row.
 
         // One word about today, folded into the sky rather than asked again.
         //
@@ -175,7 +174,7 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
         // page asked how life was and then asked how today felt -- the same
         // question twice, a thumb-scroll apart. Setting the weather and
         // naming the day are one thought, so they are one card.
-        Box(
+        if (moodSet || answered != null) Box(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))

@@ -65,8 +65,15 @@ fun NotesScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val contacts by store.contacts.collectAsState()
+    val settings by store.settings.collectAsState()
     var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
     var line by remember { mutableStateOf("") }
+
+    // Set the moment something goes out, and cleared when the petal has
+    // finished leaving. Harbor hands the line to another app and gets no
+    // acknowledgement back, so without this the screen empties its own field
+    // and says nothing at all about what just happened.
+    var sent by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { entries = store.recentEntries() }
 
@@ -82,6 +89,7 @@ fun NotesScreen(
     ) { picked ->
         if (picked != null && who != null) {
             recordSnapshot(store, scope, who.id) { entries = it }
+            sent = "Your picture is on its way."
             context.startActivity(
                 Intent.createChooser(
                     Intent(Intent.ACTION_SEND).apply {
@@ -135,46 +143,58 @@ fun NotesScreen(
         Box(Modifier.padding(horizontal = 28.dp)) {
             PageIntro(
                 eyebrow = "Small enough that nobody owes a reply",
-                title = "A line, then.",
-                subtitle = "One line is plenty. No call, no explanation.",
+                title = "Send a petal.",
+                subtitle = "A line or a picture. One is plenty, and nothing is owed back.",
             )
         }
 
         Flow(Modifier.pageContent()) {
             Surface {
-                OutlinedTextField(
-                    value = line,
-                    onValueChange = { line = it.take(120) },
-                    label = { Text(who?.let { "To " + it.label } ?: "Your line") },
-                    placeholder = { Text("thinking of you, that is all") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill(text = "Send it", selected = true) {
-                        val text = line.trim()
-                        if (text.isNotEmpty() && who != null) {
+                // While the petal is leaving, it is the only thing on the card.
+                val leaving = sent
+                if (leaving != null) {
+                    PetalAway(label = leaving, reducedMotion = settings.reducedMotion) {
+                        sent = null
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = line,
+                        onValueChange = { line = it.take(120) },
+                        label = { Text(who?.let { "To " + it.label } ?: "Your line") },
+                        placeholder = { Text("thinking of you, that is all") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Pill(text = "Send it", selected = true) {
+                            val text = line.trim()
+                            if (text.isNotEmpty() && who != null) {
+                                record()
+                                // Harbor sends nothing itself. It hands the line to
+                                // whatever the user already uses, which is where
+                                // their person actually is.
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, text)
+                                        },
+                                        "Send your line",
+                                    ),
+                                )
+                                sent = "Your line is on its way."
+                            }
+                        }
+                        Pill(text = "Just keep it", selected = false) {
                             record()
-                            // Harbor sends nothing itself. It hands the line to
-                            // whatever the user already uses, which is where
-                            // their person actually is.
-                            context.startActivity(
-                                Intent.createChooser(
-                                    Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, text)
-                                    },
-                                    "Send your line",
-                                ),
-                            )
+                            sent = "Kept, just for you."
                         }
                     }
-                    Pill(text = "Just keep it", selected = false) { record() }
-                }
-                Pill(text = "Send a picture instead", selected = false) {
-                    if (who != null) pickPicture.launch("image/*")
-                }
-                if (who == null) {
-                    SmallCopy("Add someone first — a line needs somebody to be for.")
+                    Pill(text = "Send a picture instead", selected = false) {
+                        if (who != null) pickPicture.launch("image/*")
+                    }
+                    if (who == null) {
+                        SmallCopy("Add someone first — a petal needs somebody to be for.")
+                    }
                 }
             }
 
