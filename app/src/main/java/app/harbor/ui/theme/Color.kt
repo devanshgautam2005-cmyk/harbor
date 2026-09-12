@@ -66,8 +66,19 @@ val Gold = Color(0xFFE7B23F)
 /** The one green the interface uses: a switch that is on. */
 val Leaf = Color(0xFF6E9443)
 
-/** The deep green of a stem, for anything that needs green and weight. */
+// --- the greens of the garden -------------------------------------------
+//
+// Only ever illustration: a stem, a leaf, a bloom. The interface itself uses
+// green in exactly one place, the switch above, and nowhere else.
+
+/** The deep green of a stem. */
+val Stem = Color(0xFF2E4B2A)
+
+/** A leaf in shadow. */
 val Forest = Color(0xFF3E6B33)
+
+/** A leaf in light. */
+val LeafLight = Color(0xFF4A7A3C)
 
 /** Brown rather than red: this app has nothing angry to say. */
 val Bark = Color(0xFF8A6A4F)

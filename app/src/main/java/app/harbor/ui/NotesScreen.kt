@@ -32,11 +32,11 @@ import app.harbor.data.HarborRepository
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
-import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.PageIntro
-import app.harbor.ui.theme.SectionHeading
+import app.harbor.ui.theme.QuietRow
+import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
 import app.harbor.ui.theme.pageContent
@@ -189,22 +189,17 @@ fun NotesScreen(
                 .sortedByDescending { it.occurredAt }
 
             if (sent.isNotEmpty()) {
-                SectionHeading("Lines you have left")
+                SectionHeader("Lines you have left", "kept on this phone")
                 sent.take(10).forEach { entry ->
-                    Surface {
-                        Eyebrow(
-                            entry.occurredAt.atZone(ZoneId.systemDefault())
-                                .toLocalDate().toString(),
-                        )
-                        // A line left before Harbor kept the words, or a
-                        // picture, has nothing to show but the fact of it.
-                        entry.note?.takeIf { it.isNotBlank() }?.let {
-                            Text(
-                                "\u201c$it\u201d",
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        } ?: SmallCopy("You sent something.")
-                    }
+                    // A line left before Harbor kept the words, or a picture,
+                    // has nothing to show but the fact of it.
+                    QuietRow(
+                        text = entry.note?.takeIf { it.isNotBlank() }
+                            ?.let { "\u201c$it\u201d" }
+                            ?: "You sent something.",
+                        meta = entry.occurredAt.atZone(ZoneId.systemDefault())
+                            .toLocalDate().toString(),
+                    )
                 }
             }
 

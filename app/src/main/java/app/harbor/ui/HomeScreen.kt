@@ -46,13 +46,13 @@ import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.CallStats
 import app.harbor.domain.Contact
+import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import androidx.core.net.toUri
-import app.harbor.ui.theme.Avatar
-import app.harbor.ui.theme.AvatarSize
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
@@ -96,19 +96,17 @@ fun HomeScreen(
         // .home-greeting
         Column(Modifier.padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 14.dp)) {
             Eyebrow("A little closer, every day")
-            Spacer(Modifier.size(4.dp))
+            Spacer(Modifier.size(6.dp))
             Text(
                 if (settings.name.isBlank()) "Hey there." else "Hey, ${settings.name}.",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp,
-                ),
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 30.sp),
             )
-            Spacer(Modifier.size(6.dp))
-            SmallCopy(
-                if (grown > 0) "$grown calls have grown here."
-                else "Start growing today.",
+            Spacer(Modifier.size(9.dp))
+            // Caps, not a sentence. In the specimen the line under a greeting
+            // is a catalogue caption rather than a second voice.
+            Eyebrow(
+                if (grown > 0) "$grown calls have grown here"
+                else "Start growing today",
             )
         }
 
@@ -143,7 +141,7 @@ fun HomeScreen(
                 }
             }
 
-            SectionHeading("Your people")
+            SectionHeader("Your people", "one patch each")
             if (contacts.isEmpty()) {
                 SmallCopy("Nobody yet. Add someone, and their patch appears above.")
                 TextLink("Choose someone", onOpenCues)
@@ -162,6 +160,10 @@ fun HomeScreen(
                                     it.flower != null
                             },
                             usual = CallStats.usualMinutes(entries, contact.id),
+                            flower = entries
+                                .filter { it.contactId == contact.id && it.flower != null }
+                                .maxByOrNull { it.occurredAt }
+                                ?.flower,
                             onClick = { onOpenPerson(contact.id) },
                             onCall = contact.phoneE164?.let { number ->
                                 {
@@ -185,76 +187,65 @@ fun HomeScreen(
     }
 }
 
-/** `.chat-tile` — a person, their patch, and how it has been going. */
+/** A person as a specimen: their patch under glass, and a way to call them. */
 @Composable
 private fun PersonTile(
     contact: Contact,
     calls: Int,
     usual: Int?,
+    flower: FlowerKind?,
     onClick: () -> Unit,
     onCall: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-    ) {
-        Avatar(contact.label, contact.tone, size = AvatarSize.MD)
-        Spacer(Modifier.size(8.dp))
-        Text(
-            contact.label,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-        )
-        Spacer(Modifier.size(5.dp))
-        SmallCopy(
-            usual?.let { "Calls run about ${CallStats.formatDuration(it)}." }
-                ?: "Say hello whenever.",
-            size = 13,
-        )
-        Spacer(Modifier.size(10.dp))
-        SmallCopy(
-            when (calls) {
-                0 -> "No calls yet"
-                1 -> "1 flower in their patch"
-                else -> "$calls flowers in their patch"
+    Column(modifier.clickable(onClick = onClick)) {
+        Specimen(
+            name = contact.label,
+            caption = when (calls) {
+                0 -> "nothing yet"
+                1 -> "one flower"
+                else -> "$calls flowers"
             },
-            size = 12,
+            tone = contact.tone,
+            flower = flower,
         )
 
         // The whole point of the app, said out loud.
         //
         // Calling used to be a text link one screen in, which made the
         // commonest thing someone opens Harbor to do the least visible thing
-        // on the page. Tapping the tile still opens them; this dials.
+        // on the page. Tapping the specimen still opens them; this dials.
         if (onCall != null) {
             val onInk = MaterialTheme.colorScheme.onPrimary
-            Spacer(Modifier.size(12.dp))
+            Spacer(Modifier.size(8.dp))
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(999.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.primary)
                     .clickable(onClick = onCall)
-                    .padding(vertical = 11.dp),
+                    .padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Canvas(Modifier.size(15.dp)) {
+                Canvas(Modifier.size(13.dp)) {
                     drawHandset(this, onInk)
                 }
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.size(7.dp))
                 Text(
                     "Call " + contact.label,
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 13.sp,
                         color = onInk,
                     ),
                 )
             }
+        }
+
+        usual?.let {
+            Spacer(Modifier.size(7.dp))
+            Eyebrow("usually ${CallStats.formatDuration(it)}")
         }
     }
 }
@@ -270,7 +261,7 @@ internal fun TextLink(text: String, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         style = MaterialTheme.typography.labelLarge.copy(
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )
@@ -332,7 +323,7 @@ private fun QuickShareAction(
             label,
             style = MaterialTheme.typography.labelLarge.copy(
                 fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
             ),
         )
     }

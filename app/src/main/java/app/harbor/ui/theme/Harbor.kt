@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -257,8 +258,8 @@ fun initialsOf(name: String): String =
         .joinToString("")
         .ifEmpty { "·" }
 
-/** The four tones are tuned to sit under [Ink], so there is one ink, not two. */
-private val Tone.fill: Color
+/** The four tones, tuned to sit under [Ink] so there is one ink and not two. */
+internal val Tone.fill: Color
     get() = when (this) {
         Tone.GREEN -> SurfaceGreen
         Tone.GOLD -> SurfaceGold
@@ -334,3 +335,64 @@ fun QuietAction(
         ),
     )
 }
+
+/**
+ * A heading with its note, set on the same line.
+ *
+ * The specimen almost never leaves a heading alone: "Your people" carries
+ * "one patch each" out at the right margin, in the same tracked caps as every
+ * other caption. It is a small thing that does a lot of the work of making a
+ * screen read as a printed page rather than a settings list.
+ */
+@Composable
+fun SectionHeader(title: String, meta: String, modifier: Modifier = Modifier) = Row(
+    modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.Bottom,
+) {
+    SectionHeading(title)
+    Eyebrow(meta)
+}
+
+/**
+ * The quietest row in the design: one line of something, and where it came from.
+ *
+ * Frosted like a card but a fraction of the height, so a list of ten of them
+ * still reads as a page rather than a stack of boxes. This is what the
+ * specimen uses for the notes on home and for a conversation, and it is the
+ * reason those screens look like a catalogue index instead of a feed.
+ */
+@Composable
+fun QuietRow(text: String, meta: String, modifier: Modifier = Modifier) = Row(
+    modifier
+        .fillMaxWidth()
+        .clip(ActionShape)
+        .background(MaterialTheme.colorScheme.surface)
+        .border(1.dp, CardEdge, ActionShape)
+        .padding(horizontal = 14.dp, vertical = 11.dp),
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
+    verticalAlignment = Alignment.CenterVertically,
+) {
+    Text(
+        text,
+        modifier = Modifier.weight(1f),
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    Text(
+        meta.uppercase(),
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = 9.sp,
+            letterSpacing = 1.3.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    )
+}
+
+/** A rule inside a card, between one row and the next. */
+@Composable
+fun RowDivider(modifier: Modifier = Modifier) = Box(
+    modifier
+        .fillMaxWidth()
+        .height(1.dp)
+        .background(MaterialTheme.colorScheme.outlineVariant),
+)
