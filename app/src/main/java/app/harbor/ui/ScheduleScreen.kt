@@ -1,5 +1,6 @@
 package app.harbor.ui
 
+import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,6 +41,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import app.harbor.data.HarborRepository
 import app.harbor.domain.BusyWindow
 import app.harbor.domain.FlowerKind
@@ -95,7 +98,13 @@ fun ScheduleScreen(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val saved by store.busyWindows.collectAsState()
+    val contacts by store.contacts.collectAsState()
+
+    // The window card dials, so it needs somebody to dial. The first person
+    // with a number is the one Harbor would have cued anyway.
+    val callable = contacts.firstOrNull { it.phoneE164 != null }
 
     // Held locally only while a gesture is in flight. Writing every frame of a
     // drag through to storage would be a prefs write per pointer event.
@@ -146,6 +155,17 @@ fun ScheduleScreen(
                     headline = timeLabel(window.start) + " – " + timeLabel(window.end),
                     caption = window.minutes.toString() + " unhurried minutes, free today",
                     flower = FlowerKind.POPPY,
+                    action = callable?.let { "Call " + it.label },
+                    onAction = callable?.phoneE164?.let { number ->
+                        {
+                            // ACTION_DIAL, never CALL_PHONE: Harbor hands the
+                            // number to the dialer and the person presses the
+                            // green button themselves (ADR-002).
+                            context.startActivity(
+                                Intent(Intent.ACTION_DIAL, "tel:$number".toUri()),
+                            )
+                        }
+                    },
                 )
             }
 

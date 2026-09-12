@@ -3,6 +3,7 @@ package app.harbor.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -186,6 +187,9 @@ private fun DrawScope.drawLeaf(x: Float, y: Float, dir: Float, len: Float, colou
     )
 }
 
+/** The card's one action, as the sheet draws it: an ink pill. */
+private val ActionPill = RoundedCornerShape(99.dp)
+
 /** The window card's corner. Same 10dp every card in the sheet uses. */
 private val WindowShape = RoundedCornerShape(10.dp)
 
@@ -212,6 +216,8 @@ fun LittleWindow(
     caption: String,
     flower: FlowerKind,
     modifier: Modifier = Modifier,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
 ) {
     Box(
         modifier
@@ -243,6 +249,31 @@ fun LittleWindow(
             )
             Spacer(Modifier.size(5.dp))
             SmallCopy(caption, size = 12)
+
+            // The sheet ends this card with a pill reading "Make a little
+            // plan". Harbor has no planning flow for that to open, so the
+            // pill dials instead -- and therefore says so. A button that
+            // hands you to the dialer must not describe itself as anything
+            // gentler than that.
+            if (action != null && onAction != null) {
+                Spacer(Modifier.size(14.dp))
+                Box(
+                    Modifier
+                        .clip(ActionPill)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onAction)
+                        .padding(horizontal = 15.dp, vertical = 9.dp),
+                ) {
+                    Text(
+                        action,
+                        maxLines = 1,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                    )
+                }
+            }
         }
     }
 }
