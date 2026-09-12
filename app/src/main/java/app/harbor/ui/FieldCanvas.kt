@@ -464,21 +464,33 @@ private fun drawFlower(
 ) {
     val spec = Flowers.spec(kind)
     val petals = spec.petals
-    val spin = tone * 6.283185f
+    val spin = tone * 57.29578f
+
+    // The sheet's geometry, seen from above: every petal is anchored at the
+    // flower's centre and reaches a full radius at the tip, rather than being
+    // pushed out along its own spoke. That anchoring is what makes the petals
+    // overlap near the throat, and the overlap is the whole of the depth.
+    //
+    // Laid at 70% rather than composited with multiply. Multiply is what the
+    // single-flower renderer uses and is far too costly here, where a wide
+    // view can carry hundreds of blooms; the same colour at 70% over itself
+    // darkens in much the same way, for the price of an ordinary fill.
+    val rx = r * 0.38f
+    val ry = r * 0.60f
+    val lift = r * 0.40f
     kit.fill.color = (if (paint % 2 == 1) spec.petal else spec.petalDeep).toInt()
-    kit.fill.alpha = 255
+    kit.fill.alpha = 178
     for (i in 0 until petals) {
-        val a = (i.toFloat() / petals) * 6.283185f + spin
-        val cx = x + kotlin.math.cos(a) * r * 0.5f
-        val cy = y + kotlin.math.sin(a) * r * 0.5f
         canvas.save()
-        canvas.rotate(a * 57.29578f, cx, cy)
-        kit.rect.set(cx - r * 0.44f, cy - r * 0.3f, cx + r * 0.44f, cy + r * 0.3f)
+        canvas.rotate(i * 360f / petals + spin, x, y)
+        kit.rect.set(x - rx, y - lift - ry, x + rx, y - lift + ry)
         canvas.drawOval(kit.rect, kit.fill)
         canvas.restore()
     }
+
     kit.fill.color = spec.heart.toInt()
-    canvas.drawCircle(x, y, r * 0.3f, kit.fill)
+    kit.fill.alpha = 204
+    canvas.drawCircle(x, y, r * 0.22f, kit.fill)
 }
 
 /** Whose patch is whose, with colliding labels nudged apart. */

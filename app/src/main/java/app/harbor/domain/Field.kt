@@ -65,8 +65,16 @@ object Field {
     // Colours are bucketed so the whole field draws in about a dozen fills
     // rather than one per cell. The index a cell carries is its bucket.
 
-    val VEG = listOf(0xFFB7CC63, 0xFF9EBC50, 0xFF86A742, 0xFF6C9035, 0xFF53752A)
-    val WATER = listOf(0xFF9ED3EC, 0xFF72BBE0)
+    // Sage rather than grass.
+    //
+    // These used to be saturated yellow-greens, which made the whole field a
+    // wall of colour and left a bloom nothing to be brighter than. The
+    // specimen sheet holds colour back everywhere except the flower, and the
+    // field is the largest surface in the app to apply that to: the ground is
+    // quiet so that a patch of somebody's flowers reads from across the
+    // valley.
+    val VEG = listOf(0xFFB8C4A4, 0xFFA3B18C, 0xFF8D9C75, 0xFF77875E, 0xFF5F6E4A)
+    val WATER = listOf(0xFFC3D3D9, 0xFFA8BEC8)
 
     /**
      * Sparse ground, drawn faintly.
@@ -77,7 +85,7 @@ object Field {
      * mock with four fixed people; in Harbor the ground would change colour
      * when a contact is added. This is the constant that was meant.
      */
-    const val BARE = 0xFFB4B5AB
+    const val BARE = 0xFFCBC7C0
 
     /** Where per-patch colours start in the palette. Two each: deep, then petal. */
     const val PATCH_PAINT_FROM = 8
