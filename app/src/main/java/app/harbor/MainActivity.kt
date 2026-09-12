@@ -276,13 +276,13 @@ class MainActivity : ComponentActivity() {
                                         ?: "them",
                                     measuredMinutes = entry.callMinutes ?: 10,
                                     initialTopic = entry.topic,
-                                    onPlant = { minutes, feeling, flower, topic ->
+                                    reducedMotion = store.settings.value.reducedMotion,
+                                    onPlant = { minutes, flower, topic ->
                                         // Amends the existing row: append is
                                         // keyed on the id, so this replaces
                                         // rather than duplicates.
                                         val next = amended.copy(
                                             callMinutes = minutes,
-                                            feeling = feeling,
                                             flower = flower,
                                             topic = topic ?: amended.topic,
                                         )

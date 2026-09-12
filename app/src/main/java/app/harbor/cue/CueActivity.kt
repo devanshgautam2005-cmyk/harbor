@@ -178,11 +178,11 @@ class CueActivity : ComponentActivity() {
                             who = contact?.label ?: "them",
                             measuredMinutes = measuredMinutes,
                             initialTopic = chosenTopic,
-                            onPlant = { minutes, feeling, flower, topic ->
+                            reducedMotion = store.settings.value.reducedMotion,
+                            onPlant = { minutes, flower, topic ->
                                 record(
                                     resolution = Resolution.CALLED,
                                     callMinutes = minutes,
-                                    feeling = feeling,
                                     flower = flower,
                                     topic = topic,
                                 )

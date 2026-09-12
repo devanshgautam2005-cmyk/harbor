@@ -107,12 +107,18 @@ enum class Feeling(val flower: FlowerKind) {
 /**
  * What a call becomes.
  *
- * Eight kinds, chosen by [Feeling] and by how long the call ran. The garden is
- * the reward surface — there is no score, no streak, and nothing that can be
- * lost; a flower that grew stays grown.
+ * Fourteen kinds, and the user picks from all of them. The garden is the
+ * reward surface — there is no score, no streak, and nothing that can be lost;
+ * a flower that grew stays grown.
  */
 enum class FlowerKind {
     DAISY, MARIGOLD, COSMOS, POPPY, TULIP, BLUEBELL, ASTER, SUNFLOWER,
+
+    // Added when the picker became something you scroll through rather than a
+    // grid of four. Eight was the right number for a grid and too few for a
+    // shelf; these widen the range of colour rather than adding more of what
+    // was already there.
+    LAVENDER, ZINNIA, CAMELLIA, PERIWINKLE, BUTTERCUP, ANEMONE,
 }
 
 /**

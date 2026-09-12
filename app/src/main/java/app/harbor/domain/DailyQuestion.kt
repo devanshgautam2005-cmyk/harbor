@@ -3,44 +3,37 @@ package app.harbor.domain
 import java.time.LocalDate
 
 /**
- * One small question a day.
+ * The one small thing Harbor asks you each day.
  *
- * The same question for the whole day, chosen from the date rather than at
- * random, so it does not change under someone who half-answered it and came
- * back. No streak, nothing to keep up — answering today and skipping tomorrow
- * are equally fine, which is the same principle as everything else here.
+ * **Describe your day in one word.** The same prompt every day, and that is
+ * the point: it is not a quiz, it is a place to put a word down. Answering
+ * today and skipping tomorrow are equally fine — no streak, nothing to keep
+ * up, which is the same principle as everything else here.
  *
- * Ported from `gameForDay` in the prototype, hash and all, so the question of
- * the day matches between the two.
+ * ## Why the rotation went
+ *
+ * This used to pick one of twelve questions from a hash of the date, ported
+ * from the prototype's `gameForDay`. Half of them could not be answered in the
+ * box they were asked in: "If today had a theme song, what would it be?" over
+ * a single-word field, with the placeholder *one word*, is a question the
+ * screen will not take an answer to. And a prompt that changes daily makes a
+ * week of answers unreadable — twelve different questions with one word each
+ * is a pile of words rather than a record of anything.
+ *
+ * One prompt, asked the same way every day, gives a week that can be read down
+ * the page. That is worth more than variety here.
  */
 object DailyQuestion {
 
-    val QUESTIONS: List<String> = listOf(
-        "Tea, coffee, or neither today?",
-        "Window seat or aisle?",
-        "One good thing about today, however small?",
-        "Sweet or savory breakfast?",
-        "Beach or mountains?",
-        "If today had a theme song, what would it be?",
-        "Early bird or night owl, honestly?",
-        "What smell reminds you of home right now?",
-        "Rain or sunshine today?",
-        "One word for how today felt?",
-        "Cat person, dog person, or neither?",
-        "One small thing you are looking forward to?",
-    )
+    const val PROMPT = "Describe your day in one word"
+
+    /** Still a list, so a caller can check that an answer belongs to a prompt. */
+    val QUESTIONS: List<String> = listOf(PROMPT)
 
     /**
-     * @param day the local date, as the prototype formats it: `YYYY-MM-DD`.
+     * @param day accepted so callers can key their state on the date, and so
+     *   this can go back to varying without touching every call site.
      */
-    fun forDay(day: LocalDate): String {
-        val text = day.toString()
-        var h = 0u
-        for (c in text) {
-            // Matches the prototype's `(h * 31 + code) >>> 0`, including the
-            // wrap at 32 bits.
-            h = (h.toInt() * 31 + c.code).toUInt()
-        }
-        return QUESTIONS[(h % QUESTIONS.size.toUInt()).toInt()]
-    }
+    @Suppress("UNUSED_PARAMETER")
+    fun forDay(day: LocalDate): String = PROMPT
 }

@@ -52,24 +52,38 @@ object Flowers {
             0xFFC9A9F5, 0xFF9366DE, 0xFFFEBD3A, 7, FlowerSpec.Shape.POINT),
         FlowerSpec(FlowerKind.SUNFLOWER, "Sunflower", "The long, good kind.",
             0xFFFEDC7A, 0xFFE8A81F, 0xFF6B4A22, 8, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.LAVENDER, "Lavender", "Calm, and it lasted.",
+            0xFFD6CBF2, 0xFF8E7BC8, 0xFF574A86, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.ZINNIA, "Zinnia", "Bright, and a bit daft.",
+            0xFFFFA9B8, 0xFFE2506F, 0xFFFEBD3A, 8, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.CAMELLIA, "Camellia", "Careful, and worth it.",
+            0xFFFFD9DE, 0xFFE99AA9, 0xFFC4566C, 7, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.PERIWINKLE, "Periwinkle", "Easy. Nothing needed saying.",
+            0xFFBFE3F0, 0xFF63AFD4, 0xFF2F6E92, 5, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.BUTTERCUP, "Buttercup", "Small, and it cheered you up.",
+            0xFFFFEBA0, 0xFFF2C441, 0xFFB9862A, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.ANEMONE, "Anemone", "A lot at once, and it held.",
+            0xFFE8C6E8, 0xFFA65CA8, 0xFF3B2440, 6, FlowerSpec.Shape.POINT),
     )
 
     fun spec(kind: FlowerKind?): FlowerSpec =
         LIBRARY.firstOrNull { it.kind == kind } ?: LIBRARY.first()
 
     /**
-     * What to offer after a call: the flower that matches how it felt, then a
-     * few others.
+     * How many flowers one call grows: one for every minute of it.
      *
-     * The feeling's own flower comes first because it is the honest default,
-     * but the rest are there so nobody feels sorted into a box by a question
-     * they answered in two seconds.
+     * It used to be one flower per call, which is tidy and made the field
+     * almost impossible to fill — a week of good calls put seven dots on a
+     * meadow built to hold thousands, and the reward surface read as empty no
+     * matter how well the week had gone. A minute is the honest unit anyway:
+     * what grows a garden is time spent talking, not the number of times you
+     * pressed dial.
+     *
+     * A call with no duration recorded still counts for one, because it
+     * happened. The ceiling matches `Thresholds`' own bound on call length, so
+     * a mis-tapped three-hour call cannot flood somebody's patch.
      */
-    fun suggestions(feeling: Feeling, count: Int = 4): List<FlowerKind> {
-        val primary = feeling.flower
-        return (listOf(primary) + LIBRARY.map { it.kind }.filter { it != primary })
-            .take(count)
-    }
+    fun flowerCount(minutes: Int?): Int = (minutes ?: 1).coerceIn(1, 180)
 
     /**
      * How wide the bloom opens, from how long the call ran.

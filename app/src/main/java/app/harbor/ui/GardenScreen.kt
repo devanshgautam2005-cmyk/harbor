@@ -121,9 +121,12 @@ fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
                 .padding(horizontal = 22.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
+            // One row per call, but the count is of flowers, which is what
+            // the field above is showing.
+            val bloomed = grown.sumOf { Flowers.flowerCount(it.callMinutes) }
             SectionHeader(
                 "Every flower",
-                if (grown.isEmpty()) "nothing yet" else "${grown.size} so far",
+                if (grown.isEmpty()) "nothing yet" else "$bloomed so far",
             )
             if (grown.isEmpty()) {
                 SmallCopy(
@@ -150,17 +153,16 @@ fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
  * never been told what a cosmos stands for.
  */
 private fun inWords(entry: LedgerEntry, who: String?): String {
-    val flower = entry.flower?.let { Flowers.spec(it).name } ?: "Something"
-    val feeling = when (entry.feeling) {
-        app.harbor.domain.Feeling.LIGHT -> "a call that lifted something"
-        app.harbor.domain.Feeling.WARM -> "a warm call"
-        app.harbor.domain.Feeling.STEADY -> "an ordinary, good call"
-        app.harbor.domain.Feeling.TENDER -> "a call that took something"
-        null -> "a call"
-    }
+    val spec = entry.flower?.let { Flowers.spec(it) }
+    val name = spec?.name ?: "Something"
+    // The flower's own note, not a feeling. Nothing asks how a call felt any
+    // more — picking the flower is that answer — and the note is what the
+    // person was choosing when they picked it.
+    val meaning = spec?.note?.removeSuffix(".")?.replaceFirstChar { it.lowercase() }
+        ?: "a call"
     val date = entry.occurredAt.atZone(java.time.ZoneId.systemDefault())
         .format(java.time.format.DateTimeFormatter.ofPattern("d MMM"))
-    return "$flower — $feeling" + (who?.let { " with $it" } ?: "") + ", $date"
+    return "$name — $meaning" + (who?.let { ", with $it" } ?: "") + ". $date"
 }
 
 @Composable
@@ -273,7 +275,14 @@ fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                         drawPlot(
                             plot = plot,
                             contact = contact,
-                            flowers = flowersByContact[contact.id].orEmpty().mapNotNull { it.flower },
+                            // One flower a minute here as well, so the plot
+                            // view and the field agree about how much grew.
+                            flowers = flowersByContact[contact.id].orEmpty()
+                                .flatMap { entry ->
+                                    val kind = entry.flower
+                                    if (kind == null) emptyList()
+                                    else List(Flowers.flowerCount(entry.callMinutes)) { kind }
+                                },
                             detailed = camera.k >= Garden.DETAIL_ZOOM,
                         )
                     }

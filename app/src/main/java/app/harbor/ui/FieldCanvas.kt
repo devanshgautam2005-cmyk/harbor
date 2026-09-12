@@ -111,7 +111,8 @@ fun FieldCanvas(
             Field.Person(
                 contactId = contact.id,
                 label = contact.label,
-                calls = theirs.size,
+                // One flower a minute, not one a call. See Flowers.flowerCount.
+                calls = theirs.sumOf { Flowers.flowerCount(it.callMinutes) },
                 // A patch is planted with whatever has been chosen for it
                 // most often, so its colour is something the user picked
                 // rather than something assigned.

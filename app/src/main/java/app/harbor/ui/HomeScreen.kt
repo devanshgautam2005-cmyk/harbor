@@ -47,6 +47,7 @@ import app.harbor.data.HarborRepository
 import app.harbor.domain.CallStats
 import app.harbor.domain.Contact
 import app.harbor.domain.FlowerKind
+import app.harbor.domain.Flowers
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.ui.theme.CardEdge
@@ -91,7 +92,9 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) { entries = store.recentEntries() }
 
-    val grown = entries.count { it.resolution == Resolution.CALLED && it.flower != null }
+    val grown = entries
+        .filter { it.resolution == Resolution.CALLED && it.flower != null }
+        .sumOf { Flowers.flowerCount(it.callMinutes) }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         // How tall the field can be, given how tall the phone actually is.
@@ -125,7 +128,7 @@ fun HomeScreen(
                 // Caps, not a sentence. In the specimen the line under a greeting
                 // is a catalogue caption rather than a second voice.
                 Eyebrow(
-                    if (grown > 0) "$grown calls have grown here"
+                    if (grown > 0) "$grown flowers have grown here"
                     else "A little closer, every day",
                 )
             }
@@ -184,11 +187,15 @@ fun HomeScreen(
                         row.forEach { contact ->
                             PersonTile(
                                 contact = contact,
-                                calls = entries.count {
-                                    it.resolution == Resolution.CALLED &&
-                                        it.contactId == contact.id &&
-                                        it.flower != null
-                                },
+                                // Flowers, not calls: one a minute, the same
+                                // arithmetic the field grows by.
+                                calls = entries
+                                    .filter {
+                                        it.resolution == Resolution.CALLED &&
+                                            it.contactId == contact.id &&
+                                            it.flower != null
+                                    }
+                                    .sumOf { Flowers.flowerCount(it.callMinutes) },
                                 usual = CallStats.usualMinutes(entries, contact.id),
                                 flower = entries
                                     .filter { it.contactId == contact.id && it.flower != null }
