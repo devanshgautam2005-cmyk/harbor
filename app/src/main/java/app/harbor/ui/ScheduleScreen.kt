@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.BusyWindow
+import app.harbor.domain.FlowerKind
+import app.harbor.domain.Windows
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.SectionHeader
@@ -50,6 +52,7 @@ import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.pageContent
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
 import java.util.Locale
@@ -133,6 +136,18 @@ fun ScheduleScreen(
                 "Only the times · no subjects, no locations · " +
                     "nothing leaves this phone",
             )
+
+            // The sheet leads its schedule with this card, and it is the
+            // best thing on the screen. Its copy says "your window" and never
+            // "together": Harbor has no way to know anyone else's evening and
+            // must never look as though it does. See domain/Windows.
+            Windows.next(blocks, LocalDate.now().dayOfWeek, LocalTime.now())?.let { window ->
+                LittleWindow(
+                    headline = timeLabel(window.start) + " – " + timeLabel(window.end),
+                    caption = window.minutes.toString() + " unhurried minutes, free today",
+                    flower = FlowerKind.POPPY,
+                )
+            }
 
             SectionHeader("Your week", "press and drag to block time")
 

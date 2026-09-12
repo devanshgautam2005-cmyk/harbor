@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -31,9 +34,11 @@ import app.harbor.domain.FlowerKind
 import app.harbor.domain.Flowers
 import app.harbor.domain.Tone
 import app.harbor.ui.theme.CardEdge
+import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Forest
 import app.harbor.ui.theme.Hairline
 import app.harbor.ui.theme.LeafLight
+import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Stem
 import app.harbor.ui.theme.fill
 
@@ -134,7 +139,7 @@ fun Specimen(
  * shape is a function of the flower's spec, so adding a flower to the library
  * stays a data change.
  */
-private fun DrawScope.drawSpecimen(kind: FlowerKind) {
+internal fun DrawScope.drawSpecimen(kind: FlowerKind) {
     val cx = size.width / 2f
     val foot = size.height * 0.97f
     val bloomY = size.height * 0.34f
@@ -179,4 +184,65 @@ private fun DrawScope.drawLeaf(x: Float, y: Float, dir: Float, len: Float, colou
         },
         color = colour,
     )
+}
+
+/** The window card's corner. Same 10dp every card in the sheet uses. */
+private val WindowShape = RoundedCornerShape(10.dp)
+
+/**
+ * A stretch of free time, set large, with a bloom leaning in from the corner.
+ *
+ * This is the best card in the specimen sheet and the reason the schedule
+ * screen has anything to look at. The flower runs off the bottom-right edge
+ * and is clipped by the card, which is what stops it reading as an icon.
+ *
+ * ## The copy is doing careful work
+ *
+ * The sheet calls this "a little window, together" and shows two people's
+ * evenings overlapping. Harbor cannot say that. The parent installs nothing
+ * and is never contacted (ADR-007), so there is no second calendar anywhere in
+ * this app, and a card that implied one would be claiming a capability the
+ * product has deliberately refused. What Harbor knows is *your* free time,
+ * from blocks you typed in yourself — so the headline is yours alone, and the
+ * caller passes copy that stays on that side of the line. See [app.harbor.domain.Windows].
+ */
+@Composable
+fun LittleWindow(
+    headline: String,
+    caption: String,
+    flower: FlowerKind,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clip(WindowShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, CardEdge, WindowShape),
+    ) {
+        Canvas(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .size(132.dp)
+                .offset(x = 20.dp, y = 18.dp)
+                .alpha(0.9f),
+        ) {
+            drawSpecimen(flower)
+        }
+
+        Column(
+            Modifier
+                .fillMaxWidth(0.74f)
+                .padding(start = 18.dp, top = 20.dp, end = 12.dp, bottom = 18.dp),
+        ) {
+            Eyebrow("A little window")
+            Spacer(Modifier.size(10.dp))
+            Text(
+                headline,
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 27.sp),
+            )
+            Spacer(Modifier.size(5.dp))
+            SmallCopy(caption, size = 12)
+        }
+    }
 }
