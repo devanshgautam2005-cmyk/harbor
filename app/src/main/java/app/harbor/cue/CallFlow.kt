@@ -104,11 +104,16 @@ fun CallFlow(
     val pager = rememberPagerState(initialPage = 0) { shelf.size }
     val chosen by remember { derivedStateOf { shelf[pager.currentPage] } }
 
-    // The ground takes a wash of whatever is in front of it. Not the petal
-    // colour itself — a full-strength marigold behind a marigold leaves the
-    // flower nothing to stand against — a long way back towards the paper.
+    // The ground takes a wash of whatever is in front of it.
+    //
+    // Mixed from the petal's *deep* tone rather than its light one. Washing
+    // the paper with the light tone put a daisy — which is very nearly white
+    // to begin with — on a ground the same colour as itself, and the flower
+    // all but vanished. The deep tone is darker than any petal it belongs to,
+    // so every bloom has something to sit against and the change of colour is
+    // easier to see, not harder.
     val ground by animateColorAsState(
-        targetValue = lerp(Paper, Color(Flowers.spec(chosen).petal), 0.34f),
+        targetValue = lerp(Paper, Color(Flowers.spec(chosen).petalDeep), 0.38f),
         animationSpec = tween(420),
         label = "flower-ground",
     )
