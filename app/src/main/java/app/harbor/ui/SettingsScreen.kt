@@ -34,12 +34,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
-import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Hairline
 import app.harbor.ui.theme.Leaf
-import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.PageIntro
+import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
@@ -88,7 +87,7 @@ fun SettingsScreen(
 
         Flow(Modifier.pageContent()) {
             Surface {
-                SectionHeading("What you call yourself")
+                SectionHeader("What you call yourself", "never leaves this phone")
                 OutlinedTextField(
                     value = settings.name,
                     onValueChange = { save(settings.copy(name = it.take(40))) },
@@ -100,7 +99,7 @@ fun SettingsScreen(
             }
 
             Surface {
-                SectionHeading("When a cue can come")
+                SectionHeader("When a cue can come", "suggestions, not rules")
                 Stepper(
                     label = "Walk before a cue",
                     value = settings.thresholds.walkingMinutes.toString() + " min",
@@ -164,7 +163,7 @@ fun SettingsScreen(
             }
 
             Surface {
-                SectionHeading("Your gentle sound")
+                SectionHeader("Your gentle sound", "unless someone has their own")
                 SmallCopy("Someone you have chosen a ringtone for overrides this.")
                 Row(
                     Modifier.fillMaxWidth(),
@@ -240,7 +239,7 @@ internal fun Stepper(label: String, value: String, onDown: () -> Unit, onUp: () 
                 value,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 10.dp).size(width = 76.dp, height = 20.dp),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
             )
             StepButton("+", onUp)
         }
@@ -258,9 +257,9 @@ private fun StepButton(glyph: String, onClick: () -> Unit) = Box(
 ) {
     Text(
         glyph,
-        style = MaterialTheme.typography.titleMedium.copy(
+        style = MaterialTheme.typography.titleLarge.copy(
+            fontSize = 17.sp,
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
         ),
     )
 }

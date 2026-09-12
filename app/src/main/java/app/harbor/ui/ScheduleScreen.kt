@@ -38,13 +38,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.BusyWindow
 import app.harbor.ui.theme.Flow
-import app.harbor.ui.theme.Notice
+import app.harbor.ui.theme.Eyebrow
+import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.pageContent
@@ -126,10 +126,15 @@ fun ScheduleScreen(
         }
 
         Flow(Modifier.pageContent(), gap = 14) {
-            Notice(
-                "Only the times. No subjects, no locations, and nothing leaves " +
-                    "this phone.",
+            // The sheet sets this promise as a caption rather than a notice:
+            // the same words, in the voice the rest of the page labels things
+            // in. Nothing is dropped from what it says.
+            Eyebrow(
+                "Only the times · no subjects, no locations · " +
+                    "nothing leaves this phone",
             )
+
+            SectionHeader("Your week", "press and drag to block time")
 
             WeekGrid(
                 blocks = blocks,
@@ -218,7 +223,6 @@ private fun WeekGrid(
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
                 )
@@ -230,7 +234,7 @@ private fun WeekGrid(
             Modifier
                 .fillMaxWidth()
                 .height(HOUR_HEIGHT * hours)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surface),
         ) {
             val columnWidth = (maxWidth - GUTTER) / days.size
