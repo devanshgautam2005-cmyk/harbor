@@ -4,7 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
@@ -17,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.dp
@@ -99,19 +99,21 @@ internal fun PetalAway(
         onFinished()
     }
 
-    Box(
-        modifier.fillMaxWidth().height(96.dp),
-        contentAlignment = Alignment.Center,
+    // The petal has its own band above the words rather than sharing one with
+    // them: crossing the label on the way up read as a glitch, not a send.
+    Column(
+        modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         val t = flight.value
         if (!reducedMotion) {
-            Canvas(Modifier.fillMaxWidth().height(96.dp)) {
+            Canvas(Modifier.fillMaxWidth().height(88.dp)) {
                 val length = 34.dp.toPx()
                 // Up and to the right, with a little sway across the rise —
                 // the way something light actually leaves.
                 val x = size.width * 0.5f + size.width * 0.26f * t +
                     sin(t * 7f) * length * 0.22f
-                val y = size.height * 0.78f - size.height * 0.62f * t
+                val y = size.height * 0.88f - size.height * 0.74f * t
                 translate(left = x, top = y) {
                     rotate(degrees = -18f + 220f * t, pivot = Offset.Zero) {
                         drawPath(
@@ -127,6 +129,7 @@ internal fun PetalAway(
                 }
             }
         }
+        if (reducedMotion) Spacer(Modifier.height(24.dp))
         Text(
             label,
             style = MaterialTheme.typography.titleLarge.copy(
@@ -134,15 +137,6 @@ internal fun PetalAway(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         )
-    }
-}
-
-/** The petal as a plain glyph inside an existing canvas. */
-internal fun DrawScope.drawPetalGlyph(ink: Color) {
-    val length = size.minDimension * 0.84f
-    translate(left = size.width / 2f, top = size.height * 0.88f) {
-        rotate(degrees = -18f, pivot = Offset.Zero) {
-            drawPath(path = petalPath(length), color = ink)
-        }
+        Spacer(Modifier.height(16.dp))
     }
 }
