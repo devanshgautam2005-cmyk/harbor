@@ -50,6 +50,10 @@ See [`backend/README.md`](backend/README.md). You need the Supabase CLI and a
 - [`docs/07-reskin-prompt.md`](docs/07-reskin-prompt.md) — a prompt to hand a
   coding agent with reference images when you want the app restyled, carrying
   the constraints a reskin would otherwise break
+- [`docs/08-before-the-study.md`](docs/08-before-the-study.md) — readiness:
+  what has never run on real hardware, where the data would be measured
+  wrongly, and the order to fix it in. Read before anyone outside the team
+  installs this
 - [`docs/slack-tide-handoff.html`](docs/slack-tide-handoff.html) — the original
   pipeline spec. Open it in a browser.
 
