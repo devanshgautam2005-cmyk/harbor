@@ -1,0 +1,208 @@
+package app.harbor.domain
+
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.UUID
+
+/**
+ * The week's data, in a file the participant hands over.
+ *
+ * Harbor has no network permission and uploads nothing (ADR-004). At the end
+ * of the study the data is on the phone and nowhere else, so there has to be a
+ * way to get it off deliberately — this is it. The participant saves a file
+ * and gives it to us. Nothing happens in the background, and nothing leaves
+ * without somebody choosing to send it.
+ *
+ * ## What is left out, and why
+ *
+ * This is a *study* export, not a backup. The study asks three questions
+ * (`docs/03-week-one-study.md`) and none of them need to know what anybody
+ * said or who they said it to. So the file carries the shape of what happened
+ * and not its content:
+ *
+ *  - **No names, numbers, photos or ringtones.** A contact appears as an
+ *    opaque id with its kind and colour — enough to tell "the same person
+ *    again" from "somebody else", which is all the analysis needs.
+ *  - **No words.** Not the text of a line, not a daily answer, not the label
+ *    on a busy block, not the participant's own name. A block called
+ *    "Therapy" is exactly the kind of thing that must not be in a file that
+ *    leaves a phone.
+ *  - **No raw movement.** It was never stored in the first place; only that a
+ *    cue fired, and from what.
+ *
+ * The file says so itself, in an `omitted` field, so the person handing it
+ * over and the person receiving it can both see what was withheld rather than
+ * take it on trust.
+ *
+ * ## Why this writes its own JSON
+ *
+ * `org.json` is an Android stub on the JVM, which would make every assertion
+ * about what is and is not in this file untestable. The redaction policy is
+ * the part most worth testing, so the encoder is a few lines of pure Kotlin
+ * and the policy is checked exactly.
+ */
+object StudyExport {
+
+    /** Bump when the shape changes, so an old file is still readable. */
+    const val FORMAT = 1
+
+    /** Everything the export is built from. */
+    data class Bundle(
+        val participant: UUID,
+        val exportedAt: Instant,
+        val appVersion: String,
+        val settings: UserSettings,
+        val contacts: List<Contact>,
+        val busy: List<BusyWindow>,
+        val cues: List<Cue>,
+        val entries: List<LedgerEntry>,
+    )
+
+    /** What to show someone before they hand the file over. */
+    data class Summary(
+        val cues: Int,
+        val calls: Int,
+        val messages: Int,
+        val dismissed: Int,
+        val days: Int,
+    )
+
+    /** Stated in the file, and on the screen that offers it. */
+    val OMITTED = listOf(
+        "names, phone numbers, photos and ringtones",
+        "the words of any line you left",
+        "your answers to the daily question",
+        "what you called your busy blocks",
+        "your own name",
+        "anything about where you were or how you moved",
+    )
+
+    fun summarise(bundle: Bundle): Summary = Summary(
+        cues = bundle.cues.size,
+        calls = bundle.entries.count { it.resolution == Resolution.CALLED },
+        messages = bundle.entries.count { it.resolution == Resolution.MESSAGE },
+        dismissed = bundle.entries.count { it.resolution == Resolution.DISMISSED },
+        days = bundle.entries.map { it.entryDate }.toSet().size,
+    )
+
+    /**
+     * A filename that sorts and identifies without naming anybody.
+     *
+     * The short participant id is what lets a folder of these be told apart
+     * when twelve people send one in the same week.
+     */
+    fun filename(bundle: Bundle): String {
+        val day = DateTimeFormatter.ISO_LOCAL_DATE
+            .format(bundle.exportedAt.atZone(ZoneId.systemDefault()).toLocalDate())
+        return "harbor-$day-${bundle.participant.toString().take(8)}.json"
+    }
+
+    fun json(bundle: Bundle): String = obj(
+        "format" to num(FORMAT),
+        "app_version" to str(bundle.appVersion),
+        "participant" to str(bundle.participant.toString()),
+        "exported_at" to str(bundle.exportedAt.toString()),
+
+        "settings" to obj(
+            "cues_enabled" to bool(bundle.settings.cuesEnabled),
+            "sound" to str(bundle.settings.sound.wire),
+            "weather" to str(bundle.settings.weather.wire),
+            "thresholds" to thresholds(bundle.settings.thresholds),
+        ),
+
+        // Id, kind and colour only.
+        "contacts" to arr(bundle.contacts) {
+            obj(
+                "id" to str(it.id.toString()),
+                "kind" to str(it.kind.wire),
+                "tone" to str(it.tone.wire),
+            )
+        },
+
+        // Times, never labels.
+        "busy_windows" to arr(bundle.busy) {
+            obj(
+                "day" to str(it.day.name),
+                "start" to str(it.start.toString()),
+                "end" to str(it.end.toString()),
+            )
+        },
+
+        "cues" to arr(bundle.cues) {
+            obj(
+                "id" to str(it.id.toString()),
+                "fired_date" to str(it.firedDate.toString()),
+                "trigger_source" to str(it.triggerSource.wire),
+                "fired_at" to str(it.firedAt.toString()),
+            )
+        },
+
+        "entries" to arr(bundle.entries) {
+            obj(
+                "id" to str(it.id.toString()),
+                "entry_date" to str(it.entryDate.toString()),
+                "cue_id" to str(it.cueId?.toString()),
+                "contact_id" to str(it.contactId?.toString()),
+                "trigger_source" to str(it.triggerSource.wire),
+                "threshold_snapshot" to thresholds(it.thresholdSnapshot),
+                "resolution" to str(it.resolution.wire),
+                "proposed_time" to str(it.proposedTime?.toString()),
+                "reminder_done" to bool(it.reminderDone),
+                "feedback_pulse" to str(it.feedbackPulse?.wire),
+                "call_minutes" to num(it.callMinutes),
+                "feeling" to str(it.feeling?.wire),
+                "flower" to str(it.flower?.wire),
+                "topic" to str(it.topic),
+                // `note` is deliberately absent. See the class comment.
+                "occurred_at" to str(it.occurredAt.toString()),
+            )
+        },
+
+        "omitted" to arr(OMITTED) { str(it) },
+    )
+
+    // --- a very small JSON writer -----------------------------------------
+    //
+    // Values arrive already encoded, so an object is a join and an array is a
+    // join. No state, nothing to get out of step.
+
+    private fun obj(vararg fields: Pair<String, String>): String =
+        fields.joinToString(",", "{", "}") { (k, v) -> quote(k) + ":" + v }
+
+    private fun <T> arr(items: Iterable<T>, encode: (T) -> String): String =
+        items.joinToString(",", "[", "]", transform = encode)
+
+    private fun str(value: String?): String = if (value == null) "null" else quote(value)
+
+    private fun num(value: Int?): String = value?.toString() ?: "null"
+
+    private fun bool(value: Boolean): String = if (value) "true" else "false"
+
+    private fun thresholds(t: Thresholds): String = obj(
+        "walking_minutes" to num(t.walkingMinutes),
+        "session_minutes" to num(t.sessionMinutes),
+        "daily_cap" to num(t.dailyCap),
+        "cooldown_minutes" to num(t.cooldownMinutes),
+    )
+
+    private fun quote(value: String): String {
+        val out = StringBuilder(value.length + 2)
+        out.append('"')
+        for (c in value) {
+            when {
+                c == '"' -> out.append("\\\"")
+                c == '\\' -> out.append("\\\\")
+                c == '\n' -> out.append("\\n")
+                c == '\r' -> out.append("\\r")
+                c == '\t' -> out.append("\\t")
+                c < ' ' -> out.append("\\u").append("%04x".format(c.code))
+                else -> out.append(c)
+            }
+        }
+        return out.append('"').toString()
+    }
+
+    /** Matches the wire names the Postgres enums use. */
+    private val Enum<*>.wire: String get() = name.lowercase()
+}

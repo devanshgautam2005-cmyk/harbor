@@ -81,6 +81,25 @@ interface HarborRepository {
     /** Marks a proposed-later plan as dealt with, so it stops suppressing. */
     suspend fun markReminderDone(id: UUID)
 
+    /**
+     * Every cue still held, for the study export.
+     *
+     * Distinct from [unsyncedCues]: the export is not a sync, and a
+     * participant who exports twice should get the same rows both times
+     * rather than an empty file the second time.
+     */
+    suspend fun allCues(): List<Cue>
+
+    /**
+     * A stable, meaningless id for this install.
+     *
+     * Generated on first use and kept. It is what lets a folder of exports be
+     * told apart without any of them carrying a name; it is not derived from
+     * anything about the device or the person, so it identifies the file and
+     * nothing else.
+     */
+    suspend fun participantId(): UUID
+
     /** Cues and entries not yet accepted by the server, oldest first. */
     suspend fun unsyncedCues(): List<Cue>
 

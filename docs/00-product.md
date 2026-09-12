@@ -80,9 +80,19 @@ measures, and every other screen can be demoed by hand if the week runs short.
     additions. Beacon is nearly free — it derives from moments already
     stored. Quick Share needs a table and media storage; the game needs a
     small day-keyed one. Neither is built.
-11. **Supabase sync.** Upsert on the row's own id, which the device generated.
-    Last, because the study can run without it if it slips — a local export
-    would do.
+11. ~~**A way to get the data off the phone.**~~ — done, as a local export.
+    `domain/StudyExport` writes the week to a JSON file through the system
+    save dialog; the card lives under Account. It carries the shape of what
+    happened and not its content — no names, numbers, photos, ringtones, the
+    words of a line, daily answers, or busy-block labels — and states inside
+    the file what it withheld. The week can now be run and collected with no
+    network permission at all.
+
+12. **Supabase sync.** Upsert on the row's own id, which the device generated.
+    Still unbuilt, and no longer on the critical path: the export covers a
+    cohort you can meet. Sync is what a second, larger study would need, and
+    it changes the privacy story — it needs `INTERNET`, a key on the device,
+    and consent copy that says so.
 
 ## Explicitly not in v0.1
 

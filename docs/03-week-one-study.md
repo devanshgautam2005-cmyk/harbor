@@ -21,6 +21,22 @@ Three questions, in priority order. If the build slips, protect question 1.
 `backend/supabase/migrations/0002_study_export.sql` defines the views that
 answer exactly these three and nothing else.
 
+## How the data actually reaches us
+
+**The app uploads nothing.** It holds no `INTERNET` permission. At the end of
+the week each participant opens Account, taps *Save a copy*, and hands over a
+JSON file — that is the only route, and it takes a deliberate act.
+
+Plan for that in the debrief: it is a thing to do *with* them while you are
+sitting together, not an instruction to send afterwards, or you will lose the
+tail of the cohort. One file per phone, named by day and a short opaque
+participant id so a folder of them can be told apart.
+
+The file deliberately carries no names, numbers, photos, ringtones, the words
+of any line, daily answers, or what anybody called a busy block. If the
+analysis turns out to need something that is not in there, that is an ethics
+conversation before it is a code change.
+
 ## Shape
 
 - One week, Android only, a cohort we can talk to in person.

@@ -206,6 +206,22 @@ class HarborStore(context: Context) : HarborRepository {
         }
     }
 
+    // --- the study export -------------------------------------------------
+
+    override suspend fun allCues(): List<Cue> =
+        withContext(Dispatchers.IO) { readCues().sortedBy { it.firedAt } }
+
+    override suspend fun participantId(): UUID = withContext(Dispatchers.IO) {
+        val held = prefs.getString(KEY_PARTICIPANT, null)
+        if (held != null) {
+            runCatching { UUID.fromString(held) }.getOrNull()
+        } else {
+            null
+        } ?: UUID.randomUUID().also { fresh ->
+            write { putString(KEY_PARTICIPANT, fresh.toString()) }
+        }
+    }
+
     // --- sync bookkeeping -------------------------------------------------
 
     override suspend fun unsyncedCues(): List<Cue> = withContext(Dispatchers.IO) {
@@ -261,6 +277,7 @@ class HarborStore(context: Context) : HarborRepository {
         const val KEY_ANSWERS = "daily_answers"
         const val KEY_LEDGER = "ledger"
         const val KEY_CUES = "cues"
+        const val KEY_PARTICIPANT = "participant_id"
         const val KEY_SYNCED_CUES = "synced_cue_ids"
         const val KEY_SYNCED_ENTRIES = "synced_entry_ids"
 
