@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Harbor" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Harbor" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- What the window is before the first frame. See colors.xml. -->
+        <item name="android:windowBackground">@color/harbor_ground</item>
+    </style>
 </resources>

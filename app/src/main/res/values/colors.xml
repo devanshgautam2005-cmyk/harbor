@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+    <!--
+      The ground, matching Paper in ui/theme/Color.kt.
+
+      This exists so the window has Harbor's colour before Compose draws a
+      single pixel. Without it the app opens on the platform's white and then
+      snaps to the ground colour. If Paper changes, change it here too --
+      there is no way to share a value between Kotlin and a resource file.
+    -->
+    <color name="harbor_ground">#EDECEA</color>
+
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

@@ -3,42 +3,82 @@ package app.harbor.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Harbor's palette, ported from `app/globals.css` in the prototype.
+ * Harbor's palette, taken from "Harbor Specimen - All Screens".
  *
- * Paper and garden: a warm cream ground, deep green ink, gold for the few
- * things worth pointing at. That file is the authority — a colour invented
- * here is a colour the web will not have.
+ * The design is a botanical catalogue: a flat warm-grey ground, frosted white
+ * plinth cards, near-black Newsreader for anything the app says, and letter-
+ * spaced captions for everything secondary. Colour is held right back, so the
+ * only saturated things on a page are a flower and the occasional gold mark.
+ *
+ * Two things about this palette are easy to get wrong, and both were wrong in
+ * the first pass of this reskin:
+ *
+ *  - **The action colour is ink, not green.** Every filled button in the
+ *    specimen is `#22211F` with ground-coloured text. Green appears only
+ *    inside flower artwork and on a switch that is on. A green button looks
+ *    plausible and is not what the design does.
+ *  - **Cards are lighter than the ground, not darker.** They are white at
+ *    around 70% with a *white* rim, so a card reads as frosted glass laid on
+ *    the page. The dark hairline belongs to outline chips, not to cards.
+ *
+ * The garden field does not read from here. Its terrain lives in
+ * [app.harbor.domain.Field] (`VEG`, `WATER`, `BARE`) and its weather in
+ * `FieldSky`, both hardcoded, so nothing in this file can repaint the field.
  */
 
 /** The ground everything sits on. */
-val Paper = Color(0xFFFBF1DE)
+val Paper = Color(0xFFEDECEA)
 
-/** Ink. Deep enough to read, green enough to belong to the rest. */
-val DeepGreen = Color(0xFF2F4A37)
+/**
+ * A card.
+ *
+ * The specimen paints `rgba(255,255,255,.68)` over the ground; this is that,
+ * already composited. It is kept opaque on purpose — a card that is genuinely
+ * translucent stops being legible the moment it is laid over the garden, and
+ * over the ground the two are indistinguishable.
+ */
+val Cream = Color(0xFFFAFAF9)
 
-/** Buttons, and anything asking to be pressed. */
-val Forest = Color(0xFF33553D)
+/** A surface that should recede rather than advance. */
+val Sand = Color(0xFFF3F2F0)
 
-/** Cards and raised surfaces — a shade lighter than the ground. */
-val Cream = Color(0xFFFFFCF3)
+/** Ink, and the fill of every action the app is actually asking for. */
+val Ink = Color(0xFF22211F)
 
-/** Quiet fills: chips, secondary containers. */
-val PaleGreen = Color(0xFFDFEAD6)
+/** Captions and labels — ink at about half strength, over the ground. */
+val Muted = Color(0xFF82817F)
 
-/** Sand, for a surface that should recede rather than advance. */
-val Sand = Color(0xFFF2E7CD)
+/**
+ * The frosted rim.
+ *
+ * White at 90%, sitting between a near-white card and the grey ground. It is
+ * *lighter* than both the card edge and the page, which is what makes a card
+ * read as glass rather than as a box. Cards use this; chips use [Hairline].
+ */
+val CardEdge = Color(0xE6FFFFFF)
 
-/** Sage. Captions, labels, outlines — present but never loud. */
-val Sage = Color(0xFF78816D)
+/** The drawn line: outline chips, dividers, anything that must read as a rule. */
+val Hairline = Color(0xFFD5D4D2)
 
 /** Gold. The accent, and deliberately rare. */
-val Gold = Color(0xFFF0BD3E)
+val Gold = Color(0xFFE7B23F)
+
+/** The one green the interface uses: a switch that is on. */
+val Leaf = Color(0xFF6E9443)
+
+/** The deep green of a stem, for anything that needs green and weight. */
+val Forest = Color(0xFF3E6B33)
 
 /** Brown rather than red: this app has nothing angry to say. */
-val Bark = Color(0xFF78513D)
+val Bark = Color(0xFF8A6A4F)
 
-// --- garden tones, matching the prototype's surface-* variables ---------
+// --- contact tones ------------------------------------------------------
+//
+// In the specimen a person's tone is their hue at 35-45% over the card, which
+// keeps every one of them light enough to sit under [Ink]. These are those,
+// composited, so there is one ink and never a second rule about contrast.
 
-val SurfaceGreen = Color(0xFFC9DFC0)
-val SurfaceOrange = Color(0xFFF0A35F)
-val SurfaceSky = Color(0xFFC9D8E9)
+val SurfaceGreen = Color(0xFFC9D6B9)
+val SurfaceGold = Color(0xFFF1D9A5)
+val SurfaceOrange = Color(0xFFE7C4B6)
+val SurfaceSky = Color(0xFFBECCF8)

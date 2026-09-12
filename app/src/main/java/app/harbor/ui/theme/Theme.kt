@@ -8,39 +8,46 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 
 /**
- * Harbor's theme, ported from the prototype rather than generated.
+ * Harbor's theme, mapped onto the specimen palette in [Color].
  *
- * Two deliberate departures from what the Studio wizard produced:
+ * Three deliberate departures from what the Studio wizard produced:
  *
  *  - **No dynamic colour.** It repaints the app from the user's wallpaper,
- *    which is exactly wrong here: the palette is the product. Harbor is paper
- *    and garden on every phone, or it is not Harbor.
- *  - **No dark theme.** The prototype is light only, and a dark Harbor would
- *    be a different design rather than the same one after dusk. When someone
- *    designs it, it goes here.
+ *    which is exactly wrong here: the palette is the product. Harbor is a
+ *    specimen sheet on every phone, or it is not Harbor.
+ *  - **No dark theme.** The specimen is light only. There is a dark screen in
+ *    it — the cue at night — but that is one screen inverting itself, not a
+ *    second palette, and a dark Harbor would be a different design rather
+ *    than the same one after dusk.
+ *  - **Printed, not inflated.** The specimen's cards and buttons sit at 8-10px.
+ *    The old ladder topped out at 28dp and made every card read as a bubble.
+ *
+ * `primary` is ink because every filled action in the specimen is ink. That
+ * looks odd in a colour scheme and is correct: the accent in this design is
+ * the absence of colour everywhere else.
  */
 private val HarborColors = lightColorScheme(
-    primary = Forest,
+    primary = Ink,
     onPrimary = Paper,
-    primaryContainer = PaleGreen,
-    onPrimaryContainer = DeepGreen,
+    primaryContainer = Sand,
+    onPrimaryContainer = Ink,
 
-    secondary = Sage,
-    onSecondary = Cream,
-    secondaryContainer = PaleGreen,
-    onSecondaryContainer = DeepGreen,
+    secondary = Muted,
+    onSecondary = Paper,
+    secondaryContainer = Sand,
+    onSecondaryContainer = Ink,
 
     tertiary = Gold,
-    onTertiary = DeepGreen,
-    tertiaryContainer = Sand,
-    onTertiaryContainer = DeepGreen,
+    onTertiary = Ink,
+    tertiaryContainer = SurfaceGold,
+    onTertiaryContainer = Ink,
 
     background = Paper,
-    onBackground = DeepGreen,
+    onBackground = Ink,
     surface = Cream,
-    onSurface = DeepGreen,
+    onSurface = Ink,
     surfaceVariant = Sand,
-    onSurfaceVariant = Sage,
+    onSurfaceVariant = Muted,
     // The whole container ladder, not part of it.
     //
     // lightColorScheme() fills anything left unset from the Material baseline
@@ -58,12 +65,12 @@ private val HarborColors = lightColorScheme(
 
     // Used when something dark sits on the page -- snackbars, mostly. Baseline
     // leaves these a neutral charcoal that belongs to a different app.
-    inverseSurface = DeepGreen,
+    inverseSurface = Ink,
     inverseOnSurface = Paper,
-    inversePrimary = PaleGreen,
+    inversePrimary = SurfaceGreen,
 
-    outline = Sage,
-    outlineVariant = PaleGreen,
+    outline = Muted,
+    outlineVariant = Hairline,
 
     // Brown, not red. Nothing here is an alarm.
     error = Bark,
@@ -72,13 +79,13 @@ private val HarborColors = lightColorScheme(
     onErrorContainer = Bark,
 )
 
-/** `--radius: 1.35rem`. Everything in Harbor is softly rounded. */
+/** The specimen's radii: 8px for a button, 10px for a card, and little else. */
 private val HarborShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(6.dp),
+    medium = RoundedCornerShape(8.dp),
+    large = RoundedCornerShape(10.dp),
+    extraLarge = RoundedCornerShape(14.dp),
 )
 
 @Composable

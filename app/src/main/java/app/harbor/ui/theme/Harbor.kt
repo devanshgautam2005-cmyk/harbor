@@ -21,40 +21,66 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.domain.Tone
 
 /**
- * Harbor's building blocks, hand-translated from the class rules in the
- * prototype's `app/globals.css`.
+ * Harbor's building blocks, in the language of "Harbor Specimen - All Screens".
  *
- * Compose has no stylesheet, so a design expressed as CSS classes has to
- * become composables or it becomes a hundred copies of the same padding
- * number. Each of these names its source rule; if the CSS changes, this is the
- * file that changes with it.
+ * Compose has no stylesheet, so a design has to become composables or it
+ * becomes a hundred copies of the same padding number. Everything here is
+ * layout and colour only; no behaviour lives in this file.
  *
- * Everything here is layout and colour only. No behaviour lives in this file.
+ * ## What the reskin actually changed
+ *
+ * The old set was filled-and-rounded: cream cards at 24dp with no edge, bold
+ * serif headings, a green pill button. Four moves account for nearly all of
+ * the difference:
+ *
+ *  1. **Cards are frosted glass.** Near-white, laid on a grey ground, rimmed
+ *     in [CardEdge] -- a line *lighter* than both. See [Surface].
+ *  2. **The action is ink.** Every filled button in the specimen is near-black
+ *     with ground-coloured text, and its label is serif.
+ *  3. **Nothing is bold.** Headings and buttons are regular-weight serif;
+ *     emphasis comes from size and air.
+ *  4. **Radii collapsed.** 8dp for an action, 10dp for a card. The pill
+ *     survives in exactly one place -- a chip -- because the specimen keeps it
+ *     there.
+ *
+ * No screen's structure, order or controls changed. This is the same app in
+ * different clothes.
  */
 
-/** `.flow` — the vertical rhythm every page is built on. */
+/** A card. The specimen draws them at 10px. */
+private val CardShape = RoundedCornerShape(10.dp)
+
+/** An action. The specimen draws them at 8px. */
+private val ActionShape = RoundedCornerShape(8.dp)
+
+/** A chip, and the only pill left in the design. */
+private val ChipShape = RoundedCornerShape(99.dp)
+
+/** The vertical rhythm every page is built on. */
 @Composable
 fun Flow(
     modifier: Modifier = Modifier,
-    gap: Int = 20,
+    gap: Int = 14,
     content: @Composable ColumnScope.() -> Unit,
 ) = Column(modifier, verticalArrangement = Arrangement.spacedBy(gap.dp), content = content)
 
-/** `.page-content` — 24px 28px. */
-fun Modifier.pageContent(): Modifier = padding(horizontal = 28.dp, vertical = 24.dp)
+/** The page's own margin. */
+fun Modifier.pageContent(): Modifier = padding(horizontal = 24.dp, vertical = 20.dp)
 
 /**
- * `.surface` — a raised card: cream, generously rounded, quietly lifted.
+ * A card: frosted glass laid on the page.
  *
- * The shadow is deliberately almost invisible. In the prototype it is
- * `0 8px 22px -18px` of the foreground colour at 45% — a suggestion of lift
- * rather than a drop shadow.
+ * In the specimen this is white at about 70% over the ground, rimmed with
+ * white at 90%. The rim is the whole trick — it is lighter than the card *and*
+ * lighter than the ground, so the edge reads as a catch of light rather than
+ * as a border, and the card appears to float without any shadow at all.
+ *
+ * The fill is composited rather than genuinely translucent. See [Cream].
  */
 @Composable
 fun Surface(
@@ -63,13 +89,21 @@ fun Surface(
 ) = Flow(
     modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(24.dp))
+        .clip(CardShape)
         .background(MaterialTheme.colorScheme.surface)
-        .padding(22.dp),
+        .border(1.dp, CardEdge, CardShape)
+        .padding(18.dp),
     content = content,
 )
 
-/** `.soft-surface` — pale green, for the gentler of two adjacent things. */
+/**
+ * The gentler of two adjacent cards.
+ *
+ * This used to be pale green. It is neutral now on purpose: its one use holds
+ * a contact's avatar, and the avatar already carries that person's tone.
+ * Tinting the card as well gave the page two competing colours and left the
+ * avatar with nothing to stand out against.
+ */
 @Composable
 fun SoftSurface(
     modifier: Modifier = Modifier,
@@ -77,13 +111,14 @@ fun SoftSurface(
 ) = Flow(
     modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(24.dp))
-        .background(SurfaceGreen)
-        .padding(22.dp),
+        .clip(CardShape)
+        .background(MaterialTheme.colorScheme.surfaceVariant)
+        .border(1.dp, CardEdge, CardShape)
+        .padding(18.dp),
     content = content,
 )
 
-/** `.gold-surface` — gold mixed into the card colour. Used sparingly. */
+/** Gold mixed into the card colour. The accent card, used sparingly. */
 @Composable
 fun GoldSurface(
     modifier: Modifier = Modifier,
@@ -91,64 +126,60 @@ fun GoldSurface(
 ) = Flow(
     modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(24.dp))
-        // color-mix(accent 55%, card), resolved by hand.
-        .background(Color(0xFFF6D68C))
-        .padding(22.dp),
+        .clip(CardShape)
+        .background(SurfaceGold)
+        .border(1.dp, CardEdge, CardShape)
+        .padding(18.dp),
     content = content,
 )
 
-/** `.page-intro` — the serif title and its one line of explanation. */
+/** The serif title of a page, over its letterspaced label. */
 @Composable
 fun PageIntro(title: String, subtitle: String? = null, eyebrow: String? = null) {
-    Column(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 20.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 18.dp)) {
         eyebrow?.let {
             Eyebrow(it)
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(10.dp))
         }
         Text(
             title,
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 32.sp,
-                letterSpacing = (-0.5).sp,
-            ),
+            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 34.sp),
         )
         subtitle?.let {
             Spacer(Modifier.size(8.dp))
-            SmallCopy(it, size = 15)
+            SmallCopy(it, size = 14)
         }
     }
 }
 
-/** `.section-heading h2` — serif, 22px, tight. */
+/** A section's serif heading. Regular weight -- the size is the emphasis. */
 @Composable
 fun SectionHeading(text: String, modifier: Modifier = Modifier) = Text(
     text,
     modifier = modifier,
-    style = MaterialTheme.typography.titleLarge.copy(
-        fontWeight = FontWeight.Bold,
-        fontSize = 22.sp,
-        letterSpacing = (-0.2).sp,
-    ),
+    style = MaterialTheme.typography.titleLarge.copy(fontSize = 19.sp),
 )
 
-/** `.eyebrow` — small, spaced, upper, muted. Labels a thing without shouting. */
+/**
+ * The specimen's caption: small, spaced wide, muted.
+ *
+ * The tracking is what makes this read as a catalogue label rather than a UI
+ * string, so it is wider than a label would normally want.
+ */
 @Composable
 fun Eyebrow(text: String, modifier: Modifier = Modifier) = Text(
     text.uppercase(),
     modifier = modifier,
     style = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 13.sp,
-        letterSpacing = 1.8.sp,
-        fontWeight = FontWeight.SemiBold,
+        fontSize = 10.sp,
+        letterSpacing = 2.0.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     ),
 )
 
-/** `.small-copy` — the muted voice Harbor explains itself in. */
+/** The muted voice Harbor explains itself in. */
 @Composable
-fun SmallCopy(text: String, modifier: Modifier = Modifier, size: Int = 14) = Text(
+fun SmallCopy(text: String, modifier: Modifier = Modifier, size: Int = 13) = Text(
     text,
     modifier = modifier,
     style = MaterialTheme.typography.bodyMedium.copy(
@@ -159,21 +190,21 @@ fun SmallCopy(text: String, modifier: Modifier = Modifier, size: Int = 14) = Tex
 )
 
 /**
- * `.notice` — a quiet reassurance with a mark beside it.
+ * A quiet reassurance with a mark beside it.
  *
- * Almost always the privacy line. Muted rather than warned: this app never
- * has anything alarming to say, and styling it like a warning would make the
+ * Almost always the privacy line. Muted rather than warned: this app never has
+ * anything alarming to say, and styling it like a warning would make the
  * promise read as a caveat.
  */
 @Composable
 fun Notice(text: String, modifier: Modifier = Modifier) = Row(
     modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(9.dp),
+    horizontalArrangement = Arrangement.spacedBy(10.dp),
 ) {
     Box(
         Modifier
-            .padding(top = 5.dp)
-            .size(9.dp)
+            .padding(top = 6.dp)
+            .size(5.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.onSurfaceVariant),
     )
@@ -181,11 +212,12 @@ fun Notice(text: String, modifier: Modifier = Modifier) = Row(
 }
 
 /**
- * `.avatar` — initials on a tone, or nothing to show yet.
+ * Initials on a tone, or nothing to show yet.
  *
- * Sized from the prototype's avatar-xs through avatar-xl. The 3px ring in
- * card colour is what lets an avatar sit on a coloured surface without
- * looking stuck to it.
+ * The ring in card colour is what lets an avatar sit on a coloured surface
+ * without looking stuck to it. With the chrome drained, this is now one of the
+ * few places colour appears outside the garden, which is the point -- and the
+ * initial is serif, because in the specimen a person's name always is.
  */
 @Composable
 fun Avatar(
@@ -199,7 +231,7 @@ fun Avatar(
             .size(size.dp.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surface)
-            .padding(3.dp)
+            .padding(2.dp)
             .clip(CircleShape)
             .background(tone.fill),
         contentAlignment = Alignment.Center,
@@ -207,9 +239,8 @@ fun Avatar(
         Text(
             initialsOf(label),
             style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
                 fontSize = size.text.sp,
-                color = tone.ink,
+                color = Ink,
             ),
         )
     }
@@ -226,27 +257,25 @@ fun initialsOf(name: String): String =
         .joinToString("")
         .ifEmpty { "·" }
 
+/** The four tones are tuned to sit under [Ink], so there is one ink, not two. */
 private val Tone.fill: Color
     get() = when (this) {
         Tone.GREEN -> SurfaceGreen
-        Tone.GOLD -> Color(0xFFF6D68C)
+        Tone.GOLD -> SurfaceGold
         Tone.ORANGE -> SurfaceOrange
         Tone.SKY -> SurfaceSky
     }
 
-private val Tone.ink: Color
-    get() = when (this) {
-        Tone.GREEN, Tone.SKY -> Forest
-        Tone.GOLD, Tone.ORANGE -> DeepGreen
-    }
-
 /**
- * `.btn-primary` — the one thing a screen is actually asking for.
+ * The one thing a screen is actually asking for.
  *
  * Written here rather than reached for as a Material Button because a filled
  * Button brings Material's own shape, elevation and ripple, and those are the
- * three things this design most wants to not have. Forest on paper, flat,
- * softly rounded, full width by default.
+ * three things this design most wants to not have.
+ *
+ * Ink, not green. Every filled action in the specimen is near-black with
+ * ground-coloured text and a serif label -- a green button looks plausible and
+ * is not what the design does.
  */
 @Composable
 fun PrimaryAction(
@@ -257,20 +286,19 @@ fun PrimaryAction(
 ) = Box(
     modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(999.dp))
+        .clip(ActionShape)
         .background(
             if (enabled) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.outlineVariant,
+            else MaterialTheme.colorScheme.surfaceVariant,
         )
         .clickable(enabled = enabled, onClick = onClick)
-        .padding(vertical = 16.dp),
+        .padding(vertical = 15.dp),
     contentAlignment = Alignment.Center,
 ) {
     Text(
         text,
-        style = MaterialTheme.typography.labelLarge.copy(
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
+        style = MaterialTheme.typography.titleLarge.copy(
+            fontSize = 17.sp,
             color = if (enabled) MaterialTheme.colorScheme.onPrimary
             else MaterialTheme.colorScheme.onSurfaceVariant,
         ),
@@ -278,10 +306,10 @@ fun PrimaryAction(
 }
 
 /**
- * `.btn-quiet` — an action that must not compete with the primary one.
+ * An action that must not compete with the primary one.
  *
- * An outline and nothing else. Used where two actions sit together and only
- * one of them is the answer.
+ * The specimen's outline chip: a pill, a thin dark rule, a serif label and
+ * nothing else. This is the one place the pill survives the reskin.
  */
 @Composable
 fun QuietAction(
@@ -291,17 +319,16 @@ fun QuietAction(
     onClick: () -> Unit,
 ) = Box(
     modifier
-        .clip(RoundedCornerShape(999.dp))
-        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(999.dp))
+        .clip(ChipShape)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, ChipShape)
         .clickable(enabled = enabled, onClick = onClick)
-        .padding(horizontal = 20.dp, vertical = 13.dp),
+        .padding(horizontal = 16.dp, vertical = 10.dp),
     contentAlignment = Alignment.Center,
 ) {
     Text(
         text,
-        style = MaterialTheme.typography.labelLarge.copy(
+        style = MaterialTheme.typography.titleLarge.copy(
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
             color = if (enabled) MaterialTheme.colorScheme.onSurface
             else MaterialTheme.colorScheme.onSurfaceVariant,
         ),

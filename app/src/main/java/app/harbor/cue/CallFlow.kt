@@ -2,13 +2,13 @@ package app.harbor.cue
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import app.harbor.domain.FeedbackPulse
+import app.harbor.ui.theme.Paper
 import app.harbor.ui.theme.PrimaryAction
 import app.harbor.ui.theme.QuietAction
+import app.harbor.ui.theme.SurfaceGold
 import app.harbor.ui.theme.SurfaceGreen
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,10 +77,8 @@ fun CallFlow(
     Column(
         Modifier
             .fillMaxSize()
-            // .call-screen -- sand settling into paper
-            .background(
-                Brush.verticalGradient(listOf(Color(0xFFF3E9D2), Color(0xFFFBF1DE))),
-            )
+            // .call-screen — the same ground as every other screen.
+            .background(Paper)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 26.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -105,7 +103,7 @@ fun CallFlow(
                                     .weight(1f)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(
-                                        if (selected) Color(0xFFF6D68C)
+                                        if (selected) SurfaceGold
                                         else MaterialTheme.colorScheme.surface,
                                     )
                                     .border(

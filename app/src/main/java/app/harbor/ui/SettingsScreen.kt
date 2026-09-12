@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.Hairline
+import app.harbor.ui.theme.Leaf
 import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.SectionHeading
@@ -187,9 +190,21 @@ fun SettingsScreen(
                         SectionHeading("A little less movement")
                         SmallCopy("Reduce animation.")
                     }
+                    // Green is the one colour the specimen lets the interface
+                    // itself use, and this is the only place it uses it: a
+                    // switch that is on. Left to Material it would come out
+                    // ink, because ink is `primary` in this palette.
                     Switch(
                         checked = settings.reducedMotion,
                         onCheckedChange = { save(settings.copy(reducedMotion = it)) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = androidx.compose.ui.graphics.Color.White,
+                            checkedTrackColor = Leaf,
+                            checkedBorderColor = Leaf,
+                            uncheckedThumbColor = androidx.compose.ui.graphics.Color.White,
+                            uncheckedTrackColor = Hairline,
+                            uncheckedBorderColor = Hairline,
+                        ),
                     )
                 }
             }
@@ -278,7 +293,7 @@ internal fun Pill(
         text,
         style = MaterialTheme.typography.labelLarge.copy(
             fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             color = if (selected) MaterialTheme.colorScheme.onPrimary
             else MaterialTheme.colorScheme.onSurface,
         ),

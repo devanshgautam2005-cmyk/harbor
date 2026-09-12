@@ -37,7 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -55,6 +54,7 @@ import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
+import app.harbor.ui.theme.Paper
 import app.harbor.ui.theme.SmallCopy
 import java.time.Duration
 import java.time.Instant
@@ -96,14 +96,8 @@ internal fun CueSurface(
     Column(
         Modifier
             .fillMaxSize()
-            // .cue-screen — a sky that warms from green through paper to sand
-            .background(
-                Brush.linearGradient(
-                    0f to Color(0xFFE7F0DF),
-                    0.52f to Color(0xFFFBF1DE),
-                    1f to Color(0xFFF5E7C9),
-                ),
-            )
+            // .cue-screen — the ground, flat. The specimen never gradients it.
+            .background(Paper)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 26.dp, vertical = 22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
