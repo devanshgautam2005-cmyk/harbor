@@ -204,7 +204,14 @@ private fun FlowField(
     }
 }
 
-/** Bottom-right, and dimmed until the question has an answer. */
+/**
+ * Bottom-right, and dimmed until the question has an answer.
+ *
+ * The label is a plain Text rather than [Question], which is the whole reason
+ * this used to run the full width of the screen: Question carries a
+ * fillMaxWidth of its own, so the pill around it stretched to the margins and
+ * a small button bottom-right came out as a bar. The frames have a pill.
+ */
 @Composable
 private fun FlowNext(enabled: Boolean, label: String = "Next", onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -213,9 +220,15 @@ private fun FlowNext(enabled: Boolean, label: String = "Next", onClick: () -> Un
                 .clip(RoundedCornerShape(29.dp))
                 .background(if (enabled) FieldFill else PillIdle)
                 .clickable(enabled = enabled, onClick = onClick)
-                .padding(horizontal = 22.dp, vertical = 6.dp),
+                .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
-            Question(label, size = 18)
+            Text(
+                label,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = 18.sp,
+                    color = if (enabled) FlowInk else PillInk,
+                ),
+            )
         }
     }
 }
