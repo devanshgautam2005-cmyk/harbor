@@ -182,4 +182,8 @@ private val Resolution.said: String
         Resolution.PLAYED -> "You played the daily question."
         Resolution.PROPOSED_LATER -> "You made room to talk later."
         Resolution.DISMISSED -> "You kept the quiet."
+        // Never "you failed to reach them". They went to call, which is the
+        // part this app is trying to encourage, and whether anyone picked up
+        // is not something to be scored on.
+        Resolution.NOT_REACHED -> "You tried. It did not happen."
     }
