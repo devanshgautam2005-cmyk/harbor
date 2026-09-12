@@ -11,6 +11,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import app.harbor.cue.CallFlow
 import app.harbor.data.HarborStore
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.CallStats
 import app.harbor.ui.ContactScreen
 import app.harbor.ui.CuesSetupScreen
 import app.harbor.ui.GardenScreen
@@ -31,6 +33,7 @@ import app.harbor.ui.ScheduleScreen
 import app.harbor.ui.SettingsScreen
 import app.harbor.ui.theme.HarborTheme
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 /**
  * The app shell and its destinations.
@@ -41,6 +44,21 @@ import kotlinx.coroutines.launch
  * because nothing here is more than one level deep.
  */
 class MainActivity : ComponentActivity() {
+
+    /**
+     * Bumped every time this activity comes back to the front.
+     *
+     * The composition watches it so that returning from the dialer is
+     * something the UI can react to. A plain counter rather than a lifecycle
+     * observer: it needs no extra dependency and there is no ambiguity about
+     * which of the several `LocalLifecycleOwner`s is in scope.
+     */
+    private var resumes by mutableIntStateOf(0)
+
+    override fun onResume() {
+        super.onResume()
+        resumes++
+    }
 
     private enum class Screen(val tab: HarborTab?, val title: String?) {
         Home(HarborTab.Home, null),
@@ -73,6 +91,40 @@ class MainActivity : ComponentActivity() {
                 // up would be the worst possible first impression of it.
                 var onboarded by remember { mutableStateOf<Boolean?>(null) }
                 LaunchedEffect(Unit) { onboarded = store.hasOnboarded() }
+
+                // Shown once per call, so backing out of the reflection does
+                // not fling you straight back into it on the next resume.
+                var offered by remember { mutableStateOf<java.util.UUID?>(null) }
+
+                /**
+                 * Coming back from the dialer *is* the end of the call, near
+                 * enough — it is the only signal available without reading the
+                 * call log, which would cost a permission this app will not
+                 * spend (ADR-002). So the flower flow opens on return rather
+                 * than waiting behind a card on home: the reward should arrive
+                 * while the call is still in the room.
+                 *
+                 * CueActivity does the same on its own resume, but it lives in
+                 * a task excluded from recents, so returning to Harbor any
+                 * other way lands here instead. This is the path that actually
+                 * fires most of the time.
+                 */
+                LaunchedEffect(resumes, onboarded) {
+                    if (onboarded != true) return@LaunchedEffect
+                    val waiting = CallStats.pendingReflection(
+                        store.recentEntries(),
+                        Instant.now(),
+                    ) ?: return@LaunchedEffect
+                    // Not while they are mid-way through something of their
+                    // own. Anywhere else, the flower takes the screen.
+                    val busy = screen == Screen.Reflect || screen == Screen.Contact ||
+                        screen == Screen.Notes || screen == Screen.Schedule
+                    if (waiting.id != offered && !busy) {
+                        offered = waiting.id
+                        reflecting = waiting
+                        screen = Screen.Reflect
+                    }
+                }
 
                 BackHandler(enabled = onboarded == true && screen != Screen.Home) { home() }
 
