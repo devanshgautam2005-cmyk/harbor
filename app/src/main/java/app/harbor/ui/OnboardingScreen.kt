@@ -178,8 +178,8 @@ private fun FlowPage(
 private fun FlowField(
     value: String,
     placeholder: String,
-    onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit,
 ) {
     Box(
         modifier
