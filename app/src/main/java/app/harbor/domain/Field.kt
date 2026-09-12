@@ -55,7 +55,13 @@ object Field {
     private const val ELEVATION = 170.0
 
     /** Drawn radius at which a planted dot becomes a flower. */
-    const val FLOWER_AT = 5.5
+    // Lowered from 5.5. A planted cell under this draws as a plain circle,
+    // and at the zoom people actually open the garden at, that meant a patch
+    // of somebody's flowers was a patch of dots -- the one place in the app
+    // where the flowers were promised and not delivered. Below about four
+    // pixels a petal is thinner than a pixel and there is genuinely nothing
+    // to show, so this is as far down as it is worth going.
+    const val FLOWER_AT = 4.2
 
     /** Cell radius in pixels is this times its size, times the projected scale. */
     const val DOT_SCALE = 3.3

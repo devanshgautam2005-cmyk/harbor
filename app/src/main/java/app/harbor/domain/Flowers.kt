@@ -8,9 +8,16 @@ import kotlin.math.sqrt
 /**
  * The flower library, and how a call becomes one.
  *
- * Ported from `lib/harbor/model.ts` in the prototype, which is the authority
- * on these values. The colours and petal counts are design decisions, not
- * arbitrary constants — keep them in step with that file.
+ * The colours and petal counts are measured off the Harbor specimen sheet,
+ * which is the authority on them now. They used to come from the prototype's
+ * `lib/harbor/model.ts` and were considerably more muted, with nine to
+ * fourteen petals each — which drew a dense little rosette rather than a
+ * flower. The sheet's blooms are luminous and carry four to eight broad
+ * petals, and at that count the gradient and the overlap of one petal on the
+ * next are actually visible, which is where the whole look lives.
+ *
+ * Changing a value here changes every flower in the app at once: the bloom
+ * after a call, a person's specimen, the picker, and the field.
  */
 data class FlowerSpec(
     val kind: FlowerKind,
@@ -30,21 +37,21 @@ object Flowers {
 
     val LIBRARY: List<FlowerSpec> = listOf(
         FlowerSpec(FlowerKind.DAISY, "Daisy", "An ordinary, easy call.",
-            0xFFFBFCF6, 0xFFE7EBDA, 0xFFF0BD3E, 9, FlowerSpec.Shape.ROUND),
+            0xFFFEF2DC, 0xFFF3DCA8, 0xFFFEBD3A, 6, FlowerSpec.Shape.ROUND),
         FlowerSpec(FlowerKind.MARIGOLD, "Marigold", "Warm, a little loud, full of news.",
-            0xFFF5B14A, 0xFFDE8F2E, 0xFF8B5A1C, 11, FlowerSpec.Shape.ROUND),
+            0xFFFECA4D, 0xFFE3922B, 0xFF8B5A1C, 7, FlowerSpec.Shape.ROUND),
         FlowerSpec(FlowerKind.COSMOS, "Cosmos", "Light and drifting. No agenda.",
-            0xFFF1C3D4, 0xFFDB9BB4, 0xFFF0BD3E, 7, FlowerSpec.Shape.ROUND),
+            0xFFFEC9BC, 0xFFFD8E8C, 0xFFFEBD3A, 6, FlowerSpec.Shape.ROUND),
         FlowerSpec(FlowerKind.POPPY, "Poppy", "Something honest got said.",
-            0xFFE2705A, 0xFFC4523E, 0xFF3B2A22, 5, FlowerSpec.Shape.CUP),
+            0xFFFE8A6B, 0xFFDE4B3C, 0xFF3B2A22, 5, FlowerSpec.Shape.CUP),
         FlowerSpec(FlowerKind.TULIP, "Tulip", "Short, and enough.",
-            0xFFE0879F, 0xFFC4667F, 0xFFC4667F, 3, FlowerSpec.Shape.CUP),
+            0xFFE182AD, 0xFF8E3B96, 0xFF5F1687, 4, FlowerSpec.Shape.CUP),
         FlowerSpec(FlowerKind.BLUEBELL, "Bluebell", "Quiet. Mostly listening.",
-            0xFF8FA6D6, 0xFF6D85BC, 0xFF5A6FA5, 5, FlowerSpec.Shape.POINT),
+            0xFFA8C0FB, 0xFF5B86F5, 0xFF3F63C4, 5, FlowerSpec.Shape.POINT),
         FlowerSpec(FlowerKind.ASTER, "Aster", "Tangled, then untangled.",
-            0xFFB79CD8, 0xFF9A7CC0, 0xFFF0BD3E, 13, FlowerSpec.Shape.POINT),
+            0xFFC9A9F5, 0xFF9366DE, 0xFFFEBD3A, 7, FlowerSpec.Shape.POINT),
         FlowerSpec(FlowerKind.SUNFLOWER, "Sunflower", "The long, good kind.",
-            0xFFF0C93E, 0xFFD6A81F, 0xFF6B4A22, 14, FlowerSpec.Shape.POINT),
+            0xFFFEDC7A, 0xFFE8A81F, 0xFF6B4A22, 8, FlowerSpec.Shape.POINT),
     )
 
     fun spec(kind: FlowerKind?): FlowerSpec =
