@@ -101,11 +101,16 @@ private fun DrawScope.drawPetal(length: Float, earned: Boolean, current: Boolean
  * top of the screen.
  */
 private fun petalPath(length: Float): Path {
-    val w = length * 0.55f
+    val w = length * 0.50f
     return Path().apply {
         moveTo(0f, 0f)
-        cubicTo(-w, -length * 0.34f, -w, -length * 0.86f, 0f, -length)
-        cubicTo(w, -length * 0.86f, w, -length * 0.34f, 0f, 0f)
+        // The first control point is pulled well in, so the petal leaves the
+        // centre as a point rather than a wedge. That narrow base is what
+        // separates one petal from the next and opens the small star at the
+        // throat; carrying the full width all the way down merged all five
+        // into a single blob.
+        cubicTo(-w * 0.26f, -length * 0.30f, -w, -length * 0.74f, 0f, -length)
+        cubicTo(w, -length * 0.74f, w * 0.26f, -length * 0.30f, 0f, 0f)
         close()
     }
 }
