@@ -33,16 +33,20 @@ The study's first question is *does the walking-stop trigger land at moments
 people call good*. With this hole, a null result cannot be interpreted — and a
 null result is the likeliest outcome on aggressive Android skins.
 
-**Done.** `SensingStore.lastTransitionAt` is stamped every time
-`TransitionReceiver` runs, whatever the transition. Then:
+**Fixed.** `TransitionReceiver` now stamps `lastTransitionAt` on every batch,
+whatever the transition — the question is whether the pipe is alive, not what
+came down it. The cues screen shows it ("last noticed you moving 20 minutes
+ago"), and says so plainly when it has been silent longer than a night. The
+export carries it as `last_transition_at`, so silence in the data can be told
+apart from silence in the world.
 
-- show it in the app ("last noticed you moving: 20 minutes ago"), so the
-  participant can see it is alive and tell you when it is not;
-- put it in the study export, so silence in the data can be told apart from
-  silence in the world.
+`Liveness` holds the judgement about when silence is worth mentioning: twelve
+hours, because a night is legitimately quiet — becoming still at bedtime is one
+transition and there is nothing to report until morning.
 
-It is a handful of lines, and without it a week of fieldwork may produce
-nothing you can defend.
+What this does **not** do is make sensing work. It makes a failure visible,
+which is the difference between a null result you can publish and one you
+cannot.
 
 ---
 
@@ -84,10 +88,16 @@ The study's second question is the distribution across called / reacted /
 proposed-later / dismissed. This inflates `called` by exactly the number of
 people who changed their mind, which is not a small number.
 
-**Done.** There is now an escape on the first reflection step — *we did not get to talk* —
-that rewrites the row to `dismissed` or a new resolution. `docs/03` already
-promises to write this up as "reported a call" rather than a measured one;
-that phrasing only stays honest if there is a way to report *no*.
+**Fixed.** The first reflection step now offers *we did not get to talk*, which
+rewrites the row to `Resolution.NOT_REACHED` and ends the flow — nothing to
+plant, nothing to ask about. It is kept separate from `dismissed` on purpose:
+dismissing is declining the cue, this is accepting it and coming away with
+nothing, and the second question is exactly the distribution those two sit in.
+`0007_not_reached.sql` adds the value to the Postgres enum to match.
+
+`docs/03` promises to write this up as "reported a call" rather than a measured
+one. That phrasing only stays honest because there is now a way to report
+*no*.
 
 **No crash reporting and no telemetry, by design.** If Harbor crashes on a
 participant's phone on day two, nobody finds out until the debrief, and the
