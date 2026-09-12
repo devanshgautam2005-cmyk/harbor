@@ -122,7 +122,7 @@ fun HomeScreen(
                 .clip(RoundedCornerShape(24.dp))
                 .clickable(onClick = onOpenGarden),
         ) {
-            FieldCanvas(store, Modifier.fillMaxSize())
+            FieldCanvas(store, Modifier.fillMaxSize(), interactive = false)
         }
 
         Flow(Modifier.pageContent()) {

@@ -82,7 +82,20 @@ import kotlin.math.hypot
  * paints are held across frames and rewound, so a frame allocates nothing.
  */
 @Composable
-fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
+fun FieldCanvas(
+    store: HarborRepository,
+    modifier: Modifier = Modifier,
+    /**
+     * Whether this field takes gestures.
+     *
+     * False on home, where it is a preview inside a scrolling page. A child
+     * that consumes pan and pinch wins over the scroll around it, so an
+     * interactive field there means the page cannot be scrolled past without
+     * dragging the world about — and on a real phone it opened at 9x having
+     * eaten input nobody meant for it. Tapping the preview opens the real one.
+     */
+    interactive: Boolean = true,
+) {
     val contacts by store.contacts.collectAsState()
     val settings by store.settings.collectAsState()
     var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
@@ -172,7 +185,8 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
             Modifier
                 .fillMaxSize()
                 .onSizeChanged { frame = it }
-                .pointerInput(base) {
+                .pointerInput(base, interactive) {
+                    if (!interactive) return@pointerInput
                     detectTransformGestures { _, pan, zoom, _ ->
                         if (base <= 0) return@detectTransformGestures
                         touched = true
@@ -188,7 +202,8 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                         )
                     }
                 }
-                .pointerInput(patches, base) {
+                .pointerInput(patches, base, interactive) {
+                    if (!interactive) return@pointerInput
                     detectTapGestures { at ->
                         if (base <= 0 || frame.height == 0) return@detectTapGestures
                         val lens = Field.buildLens(cam, base, frame.height.toDouble())
@@ -218,7 +233,8 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
             drawField(cells, patches, palette, cam, base, kit, tagInk)
         }
 
-        FieldControls(
+        if (interactive) {
+            FieldControls(
             onIn = {
                 touched = true
                 goal = goal.copy(zoom = Field.clampZoom(goal.zoom * 1.45, base))
@@ -233,10 +249,11 @@ fun FieldCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                 touched = false
                 goal = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
             },
-            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
-        )
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+            )
+        }
 
-        if (base > 0) {
+        if (interactive && base > 0) {
             FieldReadout(
                 relative = cam.zoom / base,
                 tilt = Field.tiltFor(cam.zoom, base),
