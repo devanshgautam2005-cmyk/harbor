@@ -1,11 +1,11 @@
 package app.harbor.data
 
-import app.harbor.domain.BusyWindow
 import app.harbor.domain.Contact
 import app.harbor.domain.Cue
 import app.harbor.domain.CuePolicy
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.UserSettings
+import app.harbor.domain.WeekBlock
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
 import java.util.UUID
@@ -32,20 +32,21 @@ interface HarborRepository {
     val contacts: StateFlow<List<Contact>>
 
     /**
-     * The user's own weekly commitments — classes, labs, shifts.
+     * The user's week as they drew it: classes, labs and shifts, and the
+     * stretches they marked as a good time to be reached.
      *
      * Self-entered. There is no campus integration and no calendar read
      * behind this (ADR-011): the source stays the user, which costs no
      * permission and no credentials.
      */
-    val busyWindows: StateFlow<List<BusyWindow>>
+    val weekBlocks: StateFlow<List<WeekBlock>>
 
     suspend fun setSettings(settings: UserSettings)
 
     /** Answers to the daily question, by local day. */
     val dailyAnswers: StateFlow<Map<LocalDate, String>>
 
-    suspend fun setBusyWindows(windows: List<BusyWindow>)
+    suspend fun setWeekBlocks(blocks: List<WeekBlock>)
 
     suspend fun setDailyAnswer(day: LocalDate, answer: String)
 

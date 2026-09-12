@@ -118,7 +118,7 @@ fun OnboardingScreen(
             7 -> AlmostComplete(store, ::next)
             8 -> GoodJob(::next)
             9 -> OneLastThing(onSetUp = ::next, onSkip = ::finish)
-            10 -> ScheduleScreen(store, onDone = ::finish)
+            10 -> WeekSetupScreen(store, onFinish = ::finish, onSkip = ::finish)
             else -> finish()
         }
     }

@@ -1,6 +1,6 @@
 package app.harbor.data
 
-import app.harbor.domain.BusyWindow
+import app.harbor.domain.BlockKind
 import app.harbor.domain.Contact
 import app.harbor.domain.ContactKind
 import app.harbor.domain.Cue
@@ -15,6 +15,7 @@ import app.harbor.domain.Tone
 import app.harbor.domain.TriggerSource
 import app.harbor.domain.UserSettings
 import app.harbor.domain.Weather
+import app.harbor.domain.WeekBlock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.DayOfWeek
@@ -98,26 +99,37 @@ internal object LedgerJson {
     fun contacts(list: List<Contact>): JSONArray =
         JSONArray().apply { list.forEach { put(contact(it)) } }
 
-    // --- busy windows -----------------------------------------------------
+    // --- the week ---------------------------------------------------------
 
-    fun busy(w: BusyWindow): JSONObject = JSONObject()
+    fun block(w: WeekBlock): JSONObject = JSONObject()
         .put("day", w.day.name)
         .put("start", w.start.toString())
         .put("end", w.end.toString())
+        .put("kind", w.kind.name.lowercase())
         .put("label", w.label)
 
-    fun busy(o: JSONObject): BusyWindow = BusyWindow(
+    /**
+     * Missing `kind` means busy.
+     *
+     * Not a nicety: every phone that already has Harbor on it wrote its
+     * timetable before the field existed, and a default of busy is the reading
+     * under which those rows still mean what the person meant when they
+     * entered them.
+     */
+    fun block(o: JSONObject): WeekBlock = WeekBlock(
         day = DayOfWeek.valueOf(o.getString("day")),
         start = LocalTime.parse(o.getString("start")),
         end = LocalTime.parse(o.getString("end")),
+        kind = o.optStringOrNull("kind")
+            ?.let { BlockKind.entries.fromWire(it) } ?: BlockKind.BUSY,
         label = o.optStringOrNull("label"),
     )
 
-    fun busyWindows(array: JSONArray): List<BusyWindow> =
-        (0 until array.length()).map { busy(array.getJSONObject(it)) }
+    fun blocks(array: JSONArray): List<WeekBlock> =
+        (0 until array.length()).map { block(array.getJSONObject(it)) }
 
-    fun busyWindows(list: List<BusyWindow>): JSONArray =
-        JSONArray().apply { list.forEach { put(busy(it)) } }
+    fun blocks(list: List<WeekBlock>): JSONArray =
+        JSONArray().apply { list.forEach { put(block(it)) } }
 
     // --- cue --------------------------------------------------------------
 

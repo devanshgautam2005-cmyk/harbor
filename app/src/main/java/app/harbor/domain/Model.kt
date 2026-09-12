@@ -201,7 +201,22 @@ data class UserSettings(
 )
 
 /**
- * A recurring block when the user is not reachable — a class, a lab, a shift.
+ * What a block on the week says about that stretch of time.
+ *
+ * Two kinds, and they do very different work. [BUSY] is a rule: it stops a cue
+ * firing. [FREE] is a preference: it says a call would be welcome then, and it
+ * gates nothing at all.
+ *
+ * That asymmetry is deliberate and load-bearing. If marking time free also
+ * meant marking everything else busy, someone who planted two flowers would
+ * have quietly switched the whole app off and would have no way of knowing.
+ * The default stays "not busy", exactly as it was before anyone could say
+ * "free" at all.
+ */
+enum class BlockKind { BUSY, FREE }
+
+/**
+ * A recurring stretch of the week the user has said something about.
  *
  * Weekly rather than dated, because that is the shape a timetable actually
  * has. A one-off engagement is not worth modelling: the cue is capped and
@@ -212,18 +227,34 @@ data class UserSettings(
  * in, read from the device calendar, or one day pulled from a campus system —
  * the policy does not care, and keeping it that way is what stops a data
  * source from becoming an architectural commitment.
+ *
+ * This used to be `BusyWindow`, with only the one meaning. It grew a [kind]
+ * when the schedule screen learned to place free time as well as busy time,
+ * and the old name stopped being true. Two separate lists would have been the
+ * other way to do it, and would have been worse: no moment can be both busy
+ * and free, and one list is what makes "placing this clears whatever was under
+ * it" a single operation rather than a reconciliation between two.
  */
-data class BusyWindow(
+data class WeekBlock(
     val day: DayOfWeek,
     val start: LocalTime,
     val end: LocalTime,
+    val kind: BlockKind = BlockKind.BUSY,
     /** "Marketing 101", or null. Never leaves the device. */
     val label: String? = null,
 ) {
     init {
-        require(start < end) { "a busy window must end after it starts" }
+        require(start < end) { "a block must end after it starts" }
     }
 
+    /**
+     * Whether [at] falls inside this block. Geometry only: it says nothing
+     * about whether this is a block that suppresses anything.
+     *
+     * Ask `Windows.busyAt` for that. Kept separate on purpose, because a free
+     * block covers time too, and a `covers` that quietly meant "is busy" is
+     * the one mistake in this change that could turn the app off.
+     */
     fun covers(at: ZonedDateTime): Boolean =
         at.dayOfWeek == day && at.toLocalTime() >= start && at.toLocalTime() < end
 }

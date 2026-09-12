@@ -48,8 +48,20 @@ class StudyExportTest {
                 photoRef = "SECRET_PHOTO",
             ),
         ),
-        busy = listOf(
-            BusyWindow(DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(11, 0), "SECRET_CLASS"),
+        blocks = listOf(
+            WeekBlock(
+                DayOfWeek.MONDAY,
+                LocalTime.of(9, 0),
+                LocalTime.of(11, 0),
+                BlockKind.BUSY,
+                "SECRET_CLASS",
+            ),
+            WeekBlock(
+                DayOfWeek.SUNDAY,
+                LocalTime.of(19, 0),
+                LocalTime.of(21, 0),
+                BlockKind.FREE,
+            ),
         ),
         cues = listOf(Cue(cueId, LocalDate.of(2026, 9, 11), TriggerSource.WALKING_STOP, at)),
         entries = listOf(
@@ -103,6 +115,16 @@ class StudyExportTest {
         val json = StudyExport.json(bundle())
         assertTrue(json.contains("MONDAY"))
         assertTrue(json.contains("09:00"))
+    }
+
+    @Test
+    fun `which kind a block was goes too, because that is the study's question`() {
+        // A cue that landed in a stretch the participant had marked good is
+        // the closest thing week one gets to ground truth, and the times
+        // alone cannot say which stretches those were.
+        val json = StudyExport.json(bundle())
+        assertTrue(json.contains("\"kind\":\"busy\""))
+        assertTrue(json.contains("\"kind\":\"free\""))
     }
 
     @Test
@@ -169,7 +191,7 @@ class StudyExportTest {
 
     @Test
     fun `an empty week still produces a valid file`() {
-        val empty = bundle().copy(contacts = emptyList(), busy = emptyList(), cues = emptyList(), entries = emptyList())
+        val empty = bundle().copy(contacts = emptyList(), blocks = emptyList(), cues = emptyList(), entries = emptyList())
         val json = StudyExport.json(empty)
         assertValid(json)
         assertTrue(json.contains("\"entries\":[]"))

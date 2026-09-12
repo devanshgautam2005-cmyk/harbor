@@ -384,8 +384,14 @@ exactly the wrong moment to act on it.
 
 ### The rule is source-agnostic on purpose
 
-`CuePolicy.DayState` carries a single `busyNow: Boolean`, and `BusyWindow` is
+`CuePolicy.DayState` carries a single `busyNow: Boolean`, and `WeekBlock` is
 a plain weekly time range. The policy has no idea where those times came from.
+
+A `WeekBlock` gained a `kind` on 2026-09-12, when the schedule screen learned
+to place free time as well as busy time. Only `BlockKind.BUSY` reaches this
+rule: a block marked free changes what the schedule screen *offers* and
+suppresses nothing. If marking time free also marked everything else busy,
+somebody who planted two flowers would have silently turned their cues off.
 
 That is deliberate. The obvious integration — DigiCampus, the campus system in
 use here — publishes no API that could be found, and several unrelated

@@ -45,7 +45,7 @@ import java.util.UUID
 object StudyExport {
 
     /** Bump when the shape changes, so an old file is still readable. */
-    const val FORMAT = 1
+    const val FORMAT = 2
 
     /** Everything the export is built from. */
     data class Bundle(
@@ -54,7 +54,7 @@ object StudyExport {
         val appVersion: String,
         val settings: UserSettings,
         val contacts: List<Contact>,
-        val busy: List<BusyWindow>,
+        val blocks: List<WeekBlock>,
         val cues: List<Cue>,
         val entries: List<LedgerEntry>,
         /**
@@ -82,7 +82,7 @@ object StudyExport {
         "names, phone numbers, photos and ringtones",
         "the words of any line you left",
         "your answers to the daily question",
-        "what you called your busy blocks",
+        "what you called any block on your week",
         "your own name",
         "anything about where you were or how you moved",
     )
@@ -130,12 +130,18 @@ object StudyExport {
             )
         },
 
-        // Times, never labels.
-        "busy_windows" to arr(bundle.busy) {
+        // Times and which kind, never labels.
+        //
+        // The kind is worth having and costs nothing: a cue that landed in a
+        // stretch the participant had marked as a good time is the closest
+        // thing this study gets to ground truth on question 1, and it cannot
+        // be reconstructed from the times alone.
+        "week_blocks" to arr(bundle.blocks) {
             obj(
                 "day" to str(it.day.name),
                 "start" to str(it.start.toString()),
                 "end" to str(it.end.toString()),
+                "kind" to str(it.kind.name.lowercase()),
             )
         },
 

@@ -1,5 +1,6 @@
 package app.harbor.domain
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -8,11 +9,11 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-class BusyWindowTest {
+class WeekBlockTest {
 
     private val zone: ZoneId = ZoneId.of("Asia/Kolkata")
 
-    private val lecture = BusyWindow(
+    private val lecture = WeekBlock(
         day = DayOfWeek.TUESDAY,
         start = LocalTime.of(9, 0),
         end = LocalTime.of(10, 30),
@@ -46,8 +47,27 @@ class BusyWindowTest {
         assertFalse(lecture.covers(at(DayOfWeek.TUESDAY, 8, 59)))
     }
 
+    @Test
+    fun covers_is_geometry_and_says_nothing_about_being_busy() {
+        // The whole safety of the two-kind model rests on this: a flower
+        // covers time, and covering time is not the same as silencing the app.
+        val flower = lecture.copy(kind = BlockKind.FREE)
+        assertTrue(flower.covers(at(DayOfWeek.TUESDAY, 9, 30)))
+        assertFalse(Windows.busyAt(listOf(flower), at(DayOfWeek.TUESDAY, 9, 30)))
+        assertTrue(Windows.busyAt(listOf(lecture), at(DayOfWeek.TUESDAY, 9, 30)))
+    }
+
+    @Test
+    fun a_block_is_busy_unless_it_says_otherwise() {
+        assertEquals(BlockKind.BUSY, WeekBlock(
+            DayOfWeek.MONDAY,
+            LocalTime.of(9, 0),
+            LocalTime.of(10, 0),
+        ).kind)
+    }
+
     @Test(expected = IllegalArgumentException::class)
-    fun a_window_that_ends_before_it_starts_is_rejected() {
-        BusyWindow(DayOfWeek.MONDAY, LocalTime.of(11, 0), LocalTime.of(10, 0))
+    fun a_block_that_ends_before_it_starts_is_rejected() {
+        WeekBlock(DayOfWeek.MONDAY, LocalTime.of(11, 0), LocalTime.of(10, 0))
     }
 }
