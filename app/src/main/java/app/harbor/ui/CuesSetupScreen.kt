@@ -44,6 +44,7 @@ import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.SoftSurface
 import app.harbor.ui.theme.Surface
 import app.harbor.ui.theme.pageContent
+import app.harbor.domain.Contact
 import app.harbor.domain.Cue
 import app.harbor.domain.TriggerSource
 import java.time.Instant
@@ -184,26 +185,7 @@ fun CuesSetupScreen(
                     // gate, on the grounds that someone standing there asking
                     // for the prompt should get it.
                     QuietAction("Show me a cue now") {
-                        scope.launch {
-                            val now = Instant.now()
-                            val cue = Cue(
-                                id = UUID.randomUUID(),
-                                firedDate = now.atZone(ZoneId.systemDefault()).toLocalDate(),
-                                triggerSource = TriggerSource.MANUAL,
-                                firedAt = now,
-                            )
-                            store.recordCue(cue)
-                            context.startActivity(
-                                Intent(context, CueActivity::class.java).apply {
-                                    putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
-                                    putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
-                                    putExtra(
-                                        CueNotifier.EXTRA_SOURCE,
-                                        TriggerSource.MANUAL.name,
-                                    )
-                                },
-                            )
-                        }
+                        scope.launch { showManualCue(context, store, who) }
                     }
                     SmallCopy(
                         "Hear their sound and see the moment, without waiting " +
@@ -283,4 +265,35 @@ private fun openAppSettings(context: Context) {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     context.startActivity(intent)
+}
+
+/**
+ * Fires a real cue on demand, from here or from onboarding.
+ *
+ * Not debug scaffolding: [TriggerSource.MANUAL] is in the model and
+ * [CuePolicy] lets a manual request past every gate, on the grounds that
+ * somebody standing there asking for the prompt should get it. It is also the
+ * most persuasive thing onboarding can do — hearing her ringtone once explains
+ * the app better than a screen of copy about it.
+ */
+internal suspend fun showManualCue(
+    context: Context,
+    store: HarborRepository,
+    who: Contact,
+) {
+    val now = Instant.now()
+    val cue = Cue(
+        id = UUID.randomUUID(),
+        firedDate = now.atZone(ZoneId.systemDefault()).toLocalDate(),
+        triggerSource = TriggerSource.MANUAL,
+        firedAt = now,
+    )
+    store.recordCue(cue)
+    context.startActivity(
+        Intent(context, CueActivity::class.java).apply {
+            putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
+            putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
+            putExtra(CueNotifier.EXTRA_SOURCE, TriggerSource.MANUAL.name)
+        },
+    )
 }

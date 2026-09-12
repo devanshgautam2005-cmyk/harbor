@@ -206,6 +206,15 @@ class HarborStore(context: Context) : HarborRepository {
         }
     }
 
+    // --- first run ---------------------------------------------------------
+
+    override suspend fun hasOnboarded(): Boolean =
+        withContext(Dispatchers.IO) { prefs.getBoolean(KEY_ONBOARDED, false) }
+
+    override suspend fun setOnboarded() {
+        write { putBoolean(KEY_ONBOARDED, true) }
+    }
+
     // --- the study export -------------------------------------------------
 
     override suspend fun allCues(): List<Cue> =
@@ -277,6 +286,7 @@ class HarborStore(context: Context) : HarborRepository {
         const val KEY_ANSWERS = "daily_answers"
         const val KEY_LEDGER = "ledger"
         const val KEY_CUES = "cues"
+        const val KEY_ONBOARDED = "onboarded"
         const val KEY_PARTICIPANT = "participant_id"
         const val KEY_SYNCED_CUES = "synced_cue_ids"
         const val KEY_SYNCED_ENTRIES = "synced_entry_ids"

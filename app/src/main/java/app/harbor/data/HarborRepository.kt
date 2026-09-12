@@ -82,6 +82,17 @@ interface HarborRepository {
     suspend fun markReminderDone(id: UUID)
 
     /**
+     * Whether the first run is behind us.
+     *
+     * Deliberately not part of [UserSettings]: it is a fact about this
+     * install, not about the person, and it has no business syncing to a
+     * server or appearing in a study export.
+     */
+    suspend fun hasOnboarded(): Boolean
+
+    suspend fun setOnboarded()
+
+    /**
      * Every cue still held, for the study export.
      *
      * Distinct from [unsyncedCues]: the export is not a sync, and a

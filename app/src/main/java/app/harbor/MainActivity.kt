@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +24,7 @@ import app.harbor.ui.GardenScreen
 import app.harbor.ui.HarborShell
 import app.harbor.ui.HarborTab
 import app.harbor.ui.HomeScreen
+import app.harbor.ui.OnboardingScreen
 import app.harbor.ui.NotesScreen
 import app.harbor.ui.PersonScreen
 import app.harbor.ui.ScheduleScreen
@@ -66,10 +68,27 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 val home = { screen = Screen.Home }
 
-                BackHandler(enabled = screen != Screen.Home) { home() }
+                // Null until we know, so the first frame is not the wrong
+                // screen: flashing home at somebody who has never set the app
+                // up would be the worst possible first impression of it.
+                var onboarded by remember { mutableStateOf<Boolean?>(null) }
+                LaunchedEffect(Unit) { onboarded = store.hasOnboarded() }
+
+                BackHandler(enabled = onboarded == true && screen != Screen.Home) { home() }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
                     val inset = Modifier.padding(padding)
+
+                    if (onboarded != true) {
+                        if (onboarded == false) {
+                            OnboardingScreen(
+                                store = store,
+                                onFinished = { onboarded = true },
+                                modifier = inset,
+                            )
+                        }
+                        return@Scaffold
+                    }
 
                     HarborShell(
                         tab = screen.tab,
