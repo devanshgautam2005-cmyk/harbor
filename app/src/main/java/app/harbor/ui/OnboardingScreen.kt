@@ -74,7 +74,6 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     var step by remember { mutableIntStateOf(0) }
-    val contacts by store.contacts.collectAsState()
     val scope = rememberCoroutineScope()
 
     fun next() { step++ }
@@ -89,7 +88,16 @@ fun OnboardingScreen(
         when (step) {
             0 -> Welcome(::next)
             1 -> YourName(store, ::next)
-            2 -> ContactScreen(store, onDone = { if (contacts.isNotEmpty()) next() })
+            // Reads the live value, not the collected copy: upsertContact
+            // updates the flow before it returns, but collectAsState only
+            // catches up on the next recomposition — so gating on the copy
+            // meant saving a contact never advanced the step. The gate itself
+            // has to stay, because this screen's Back also calls onDone and a
+            // person must not reach home without somebody to call.
+            2 -> ContactScreen(
+                store,
+                onDone = { if (store.contacts.value.isNotEmpty()) next() },
+            )
             3 -> HearACue(store, ::next)
             4 -> AskPermission(store, ::next)
             5 -> YourPace(store, ::next)
