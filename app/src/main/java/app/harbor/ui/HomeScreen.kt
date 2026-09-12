@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,7 +52,6 @@ import app.harbor.domain.Resolution
 import app.harbor.ui.theme.CardEdge
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
-import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
@@ -93,107 +93,126 @@ fun HomeScreen(
 
     val grown = entries.count { it.resolution == Resolution.CALLED && it.flower != null }
 
-    Column(
-        modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState()),
-    ) {
-        // .home-greeting
-        // Two lines, not three. "A little closer, every day" was a tagline
-        // above a greeting above a count, and the third of those is the only
-        // one that says anything the reader did not already know.
-        Column(Modifier.padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 10.dp)) {
-            Text(
-                if (settings.name.isBlank()) "Hey there." else "Hey, ${settings.name}.",
-                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp),
-            )
-            Spacer(Modifier.size(7.dp))
-            // Caps, not a sentence. In the specimen the line under a greeting
-            // is a catalogue caption rather than a second voice.
-            Eyebrow(
-                if (grown > 0) "$grown calls have grown here"
-                else "A little closer, every day",
-            )
-        }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        // How tall the field can be, given how tall the phone actually is.
+        //
+        // It was a fixed number, and a fixed number cannot be right: the
+        // same height that leaves room for somebody's face on a tall phone
+        // pushes the call button clean off a short one, and testers are not
+        // all on the same handset. A share of the viewport keeps the field
+        // the largest thing on the page everywhere, and keeps the people
+        // under it on screen everywhere.
+        val fieldHeight = (maxHeight * 0.40f).coerceIn(232.dp, 336.dp)
 
-        // .field-holder — the field itself, on the home screen, exactly as
-        // the trial page has it. Tapping opens it full bleed.
-        Box(
+        // `modifier` belongs to the BoxWithConstraints above; applying it
+        // here as well would pay the Scaffold's insets twice.
+        Column(
             Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth()
-                // 404dp put the call button off the bottom of the screen on
-                // its own. The field is still the largest thing on the page.
-                .height(304.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .clickable(onClick = onOpenGarden),
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(rememberScrollState()),
         ) {
-            FieldCanvas(store, Modifier.fillMaxSize(), interactive = false)
-        }
-
-        Flow(Modifier.pageContent()) {
-            // A call Harbor watched you start and never heard about.
-            CallStats.pendingReflection(entries, Instant.now())?.let { waiting ->
-                Surface {
-                    SectionHeading("How did that go?")
-                    SmallCopy(
-                        "You called " +
-                            (contacts.firstOrNull { it.id == waiting.contactId }?.label
-                                ?: "someone") +
-                            " earlier. It only takes a moment, and it is what grows " +
-                            "the flower.",
-                    )
-                    TextLink("Tell me") { onReflect(waiting) }
-                }
+            // .home-greeting
+            // Two lines, not three. "A little closer, every day" was a tagline
+            // above a greeting above a count, and the third of those is the only
+            // one that says anything the reader did not already know.
+            Column(Modifier.padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 10.dp)) {
+                Text(
+                    if (settings.name.isBlank()) "Hey there." else "Hey, ${settings.name}.",
+                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp),
+                )
+                Spacer(Modifier.size(7.dp))
+                // Caps, not a sentence. In the specimen the line under a greeting
+                // is a catalogue caption rather than a second voice.
+                Eyebrow(
+                    if (grown > 0) "$grown calls have grown here"
+                    else "A little closer, every day",
+                )
             }
 
-            SectionHeader("Your people", "one patch each")
-            if (contacts.isEmpty()) {
-                SmallCopy("Nobody yet. Add someone, and their patch appears above.")
-                TextLink("Choose someone", onOpenCues)
+            // .field-holder — the field itself, on the home screen, exactly as
+            // the trial page has it. Tapping opens it full bleed.
+            Box(
+                Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+                    // 404dp put the call button off the bottom of the screen
+                    // on its own, and a fixed number could never be right for
+                    // every phone. See fieldHeight.
+                    .height(fieldHeight)
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable(onClick = onOpenGarden),
+            ) {
+                FieldCanvas(store, Modifier.fillMaxSize(), interactive = false)
             }
-            contacts.chunked(2).forEach { row ->
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    row.forEach { contact ->
-                        PersonTile(
-                            contact = contact,
-                            calls = entries.count {
-                                it.resolution == Resolution.CALLED &&
-                                    it.contactId == contact.id &&
-                                    it.flower != null
-                            },
-                            usual = CallStats.usualMinutes(entries, contact.id),
-                            flower = entries
-                                .filter { it.contactId == contact.id && it.flower != null }
-                                .maxByOrNull { it.occurredAt }
-                                ?.flower,
-                            onClick = { onOpenPerson(contact.id) },
-                            // Through Dialer, not a bare intent: that is what
-                            // writes the row the flower flow looks for when
-                            // you come back (see cue/Dialer).
-                            onCall = contact.phoneE164?.let {
-                                { Dialer.handOff(context, store, scope, contact) }
-                            },
-                            modifier = Modifier.weight(1f),
+
+            Flow(Modifier.pageContent()) {
+                // A call Harbor watched you start and never heard about.
+                CallStats.pendingReflection(entries, Instant.now())?.let { waiting ->
+                    Surface {
+                        SectionHeading("How did that go?")
+                        SmallCopy(
+                            "You called " +
+                                (contacts.firstOrNull { it.id == waiting.contactId }?.label
+                                    ?: "someone") +
+                                " earlier. It only takes a moment, and it is what grows " +
+                                "the flower.",
                         )
+                        TextLink("Tell me") { onReflect(waiting) }
                     }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
                 }
+
+                // How life feels, between the field and the people. It
+                // reads as the sky over the garden rather than something to get
+                // past before the call button, and it is compact enough now to
+                // sit there without pushing anybody below the fold.
+                WeatherBar(store)
+
+                // No "Your people" heading. A row of faces with a call button
+                // under each one does not need to be told what it is, and the
+                // header was costing a line directly above the one thing this
+                // whole app exists to make easy.
+                if (contacts.isEmpty()) {
+                    SmallCopy("Nobody yet. Add someone, and their patch appears above.")
+                    TextLink("Choose someone", onOpenCues)
+                }
+                contacts.chunked(2).forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        row.forEach { contact ->
+                            PersonTile(
+                                contact = contact,
+                                calls = entries.count {
+                                    it.resolution == Resolution.CALLED &&
+                                        it.contactId == contact.id &&
+                                        it.flower != null
+                                },
+                                usual = CallStats.usualMinutes(entries, contact.id),
+                                flower = entries
+                                    .filter { it.contactId == contact.id && it.flower != null }
+                                    .maxByOrNull { it.occurredAt }
+                                    ?.flower,
+                                onClick = { onOpenPerson(contact.id) },
+                                // Through Dialer, not a bare intent: that is what
+                                // writes the row the flower flow looks for when
+                                // you come back (see cue/Dialer).
+                                onCall = contact.phoneE164?.let {
+                                    { Dialer.handOff(context, store, scope, contact) }
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+
+                // One word about today lives inside the weather card now, and
+                // finding a moment and setting your pace live under Account. Home
+                // is the garden, your people, and a quick way to say something.
+                SendAPetal(onOpenNotes)
             }
-
-            // How life feels, after the call button rather than in front of
-            // it. Setting your mood is a thing you might do; calling your mum
-            // is the thing the app is for.
-            WeatherBar(store)
-
-            // One word about today lives inside the weather card now, and
-            // finding a moment and setting your pace live under Account. Home
-            // is the garden, your people, and a quick way to say something.
-            SendAPetal(onOpenNotes)
         }
     }
 }
@@ -219,6 +238,10 @@ private fun PersonTile(
             },
             tone = contact.tone,
             flower = flower,
+            // Shorter than the 150 a specimen gets on its own page. Here the
+            // arch is what stands between the field and the call button, and
+            // the face still reads at this height.
+            archHeight = 116,
         )
 
         // The whole point of the app, said out loud.

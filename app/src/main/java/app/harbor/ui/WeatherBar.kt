@@ -100,17 +100,29 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
     }
 
     Surface(modifier) {
-        Eyebrow("How is life right now")
-        Text(
-            settings.weather.label,
-            style = MaterialTheme.typography.titleLarge,
-        )
-        SmallCopy(settings.weather.caption)
+        // Label and answer on one line rather than three stacked.
+        //
+        // This card sits between the field and the call button now, so every
+        // row it takes is a row of somebody's people pushed off the screen.
+        // The caption under the weather word was the first to go: it said
+        // "Room to breathe. Nothing pressing." under the word "Clear", which
+        // is the same thought twice.
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Eyebrow("How is life right now")
+            Text(
+                settings.weather.label,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 17.sp),
+            )
+        }
 
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(40.dp)
                 .onSizeChanged { trackWidth = it.width }
                 .pointerInput(last, trackWidth) {
                     detectTapGestures { chooseFromX(it.x) }
@@ -144,20 +156,20 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
 
             // the thumb
             val thumbX = with(density) {
-                (inset + (trackWidth - inset * 2) * fraction).toDp() - 21.dp
+                (inset + (trackWidth - inset * 2) * fraction).toDp() - 17.dp
             }
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
                     .offset(x = thumbX)
-                    .size(42.dp)
+                    .size(34.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     Modifier
-                        .size(14.dp)
+                        .size(12.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary),
                 )

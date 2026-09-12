@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -84,7 +85,13 @@ fun HarborShell(
             Box(Modifier.weight(1f)) { content() }
 
             // Room for the floating pill, so nothing hides beneath it.
-            Spacer(Modifier.height(if (tab != null) 88.dp else 16.dp))
+            //
+            // 72 rather than 88: the content inside already carries the
+            // system navigation inset from the Scaffold, and the pill now sits
+            // above that inset too, so the old number was reserving the same
+            // band twice. Everything below the fold stopped short of the pill
+            // by an inch of nothing and looked cut off.
+            Spacer(Modifier.height(if (tab != null) 72.dp else 16.dp))
         }
 
         if (tab != null) {
@@ -95,7 +102,11 @@ fun HarborShell(
             Row(
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 18.dp)
+                    // Above the system navigation bar, not on top of it. This
+                    // Box is not inset by the Scaffold - it is the full window
+                    // - so the pill has to step over the gesture bar itself.
+                    .navigationBarsPadding()
+                    .padding(bottom = 12.dp)
                     .clip(NavShape)
                     .background(MaterialTheme.colorScheme.surface)
                     .border(1.dp, CardEdge, NavShape)
