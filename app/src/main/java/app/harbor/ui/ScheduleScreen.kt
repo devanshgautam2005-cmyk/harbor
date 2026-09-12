@@ -1,6 +1,5 @@
 package app.harbor.ui
 
-import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,16 +48,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.net.toUri
+import app.harbor.cue.Dialer
 import app.harbor.data.HarborRepository
 import app.harbor.domain.BlockKind
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.WeekBlock
 import app.harbor.domain.Windows
+import app.harbor.ui.theme.BandWarm
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Eyebrow
-import app.harbor.ui.theme.SectionHeader
-import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.pageContent
 import kotlinx.coroutines.launch
@@ -128,28 +126,29 @@ fun ScheduleScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val contacts by store.contacts.collectAsState()
 
     // The window card dials, so it needs somebody to dial. The first person
     // with a number is the one Harbor would have cued anyway.
     val callable = contacts.firstOrNull { it.phoneE164 != null }
 
+    val skin = WeekSkin.specimen()
+
     WeekEditor(
         store = store,
-        skin = WeekSkin.specimen(),
+        skin = skin,
         modifier = modifier,
-        footer = { TextLink("Back", onDone) },
+        footer = {
+            // The promise moves to the foot rather than disappearing. It is
+            // the one line on this screen that is not about times, and the
+            // screen where somebody types their week is the screen where it
+            // most needs saying — but it does not need saying above the grid.
+            Eyebrow("Only the times · no subjects, no locations · nothing leaves this phone")
+            TextLink("Back", onDone)
+        },
     ) { live ->
-        PageIntro(
-            eyebrow = "Room for real life",
-            title = "Your week.",
-            subtitle = "Press and drag to plant a thorn where you are busy, or a " +
-                "flower where a call would be welcome.",
-        )
-
-        // The sheet sets this promise as a caption rather than a notice: the
-        // same words, in the voice the rest of the page labels things in.
-        Eyebrow("Only the times · no subjects, no locations · nothing leaves this phone")
+        WeekHeading(skin)
 
         // The sheet leads its schedule with this card, and it is the best
         // thing on the screen. Its copy says "your window" and never
@@ -164,22 +163,48 @@ fun ScheduleScreen(
                     if (window.chosen) ", which you marked free" else ", free today"
                     ),
                 flower = FlowerKind.POPPY,
+                container = skin.tile,
+                edge = skin.line.copy(alpha = 0.35f),
                 action = callable?.let { "Call " + it.label },
-                onAction = callable?.phoneE164?.let { number ->
-                    {
-                        // ACTION_DIAL, never CALL_PHONE: Harbor hands the
-                        // number to the dialer and the person presses the
-                        // green button themselves (ADR-002).
-                        context.startActivity(
-                            Intent(Intent.ACTION_DIAL, "tel:$number".toUri()),
-                        )
-                    }
+                onAction = callable?.takeIf { it.phoneE164 != null }?.let { who ->
+                    // Through Dialer: ACTION_DIAL and never CALL_PHONE
+                    // (ADR-002), and it writes the row that brings the flower
+                    // flow back when you return. Calling from here used to
+                    // leave no trace at all, so nothing followed the call.
+                    { Dialer.handOff(context, store, scope, who) }
                 },
             )
         }
 
-        SectionHeader("What you are planting", "press and drag on the week")
     }
+}
+
+/**
+ * The two lines the frames put at the top, and nothing else.
+ *
+ * This screen used to open with a page title, a subtitle, a privacy caption
+ * and a section header before you reached the grid — four pieces of copy in
+ * front of a thing whose whole job is to be looked at. The frames have two
+ * lines and they are enough.
+ */
+@Composable
+private fun WeekHeading(skin: WeekSkin) {
+    Spacer(Modifier.height(4.dp))
+    Text(
+        "Drag and drop slots on your calendar",
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+        style = MaterialTheme.typography.titleLarge.copy(fontSize = 21.sp, color = skin.ink),
+    )
+    // The frame says "We won't disturb you when you're busy". There is no "we"
+    // in this product — nothing about this week leaves the phone, and nobody
+    // is on the other end of it — so it is Harbor that stays quiet.
+    Text(
+        "Harbor stays quiet when you're busy",
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+        style = MaterialTheme.typography.titleLarge.copy(fontSize = 15.sp, color = skin.muted),
+    )
 }
 
 /**
@@ -209,28 +234,8 @@ fun WeekSetupScreen(
             TextLink("Skip for now", onSkip)
         },
     ) {
-        Spacer(Modifier.height(20.dp))
-        Text(
-            "Drag and drop slots on your calendar",
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontSize = 21.sp,
-                color = Color.Black,
-            ),
-        )
-        // The frame says "We won't disturb you when you're busy". There is no
-        // "we" in this product — nothing about this week leaves the phone, and
-        // nobody is on the other end of it — so it is Harbor that stays quiet.
-        Text(
-            "Harbor stays quiet when you're busy",
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontSize = 15.sp,
-                color = Color(0x99000000),
-            ),
-        )
+        Spacer(Modifier.height(16.dp))
+        WeekHeading(WeekSkin.flow())
     }
 }
 
@@ -254,7 +259,10 @@ internal data class WeekSkin(
         @Composable
         fun specimen() = WeekSkin(
             ground = MaterialTheme.colorScheme.background,
-            band = MaterialTheme.colorScheme.surfaceVariant,
+            // Warmer than surfaceVariant, which is a cool grey that all but
+            // vanishes on the bone ground. The frames' band is warm, and the
+            // banding is what makes seven narrow columns countable.
+            band = BandWarm,
             line = MaterialTheme.colorScheme.outlineVariant,
             ink = MaterialTheme.colorScheme.onSurface,
             muted = MaterialTheme.colorScheme.onSurfaceVariant,

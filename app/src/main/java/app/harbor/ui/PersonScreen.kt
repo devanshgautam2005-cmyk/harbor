@@ -1,7 +1,5 @@
 package app.harbor.ui
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,12 +19,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.harbor.cue.Dialer
 import app.harbor.data.HarborRepository
 import app.harbor.domain.CallStats
 import app.harbor.domain.Flowers
@@ -64,6 +64,7 @@ fun PersonScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val contacts by store.contacts.collectAsState()
     var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
 
@@ -129,9 +130,9 @@ fun PersonScreen(
             // Two ways to reach them, and Harbor does neither itself: the
             // dialer places the call, and whatever they already use carries
             // the line.
-            person.phoneE164?.let { number ->
+            if (person.phoneE164 != null) {
                 TextLink("Call " + person.label) {
-                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + number)))
+                    Dialer.handOff(context, store, scope, person)
                 }
             }
             TextLink("Leave a line", onLeaveLine)

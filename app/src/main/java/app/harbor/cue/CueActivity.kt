@@ -1,10 +1,9 @@
 package app.harbor.cue
 
-import android.content.Intent
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -163,7 +163,7 @@ class CueActivity : ComponentActivity() {
 
         setContent {
             HarborTheme {
-                Surface(Modifier.fillMaxSize()) {
+                Surface(Modifier.fillMaxSize().imePadding()) {
                     when (phase) {
                         Phase.CUE -> CueSurface(
                             contact = contact,
@@ -274,24 +274,41 @@ class CueActivity : ComponentActivity() {
     /**
      * Hand off to the phone's own dialer and start the clock.
      *
-     * The entry is written now rather than after the reflection, so a call
-     * that happened is recorded even if the user never comes back to say how
-     * it went. The reflection amends that same row.
+     * The entry is written as soon as the dialer is in front of the user
+     * rather than after the reflection, so a call that happened is recorded
+     * even if they never come back to say how it went. The reflection amends
+     * that same row.
+     *
+     * It is written *after* [Dialer] confirms the handoff, not before. This
+     * cue is shown over the keyguard, and Android will not bring the dialer
+     * over a locked screen: the old order recorded a call, watched the intent
+     * quietly go nowhere, and then asked the user how it had gone.
      */
     private fun placeCall(topic: String?, number: String?) {
         chosenTopic = topic
-        record(Resolution.CALLED, topic = topic)
-        dialedAt = Instant.now()
         ringer.stop()
 
-        if (number != null) {
-            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
-        } else {
-            // No number to dial, so there is nothing to time. Go straight to
-            // the reflection rather than stranding them on the cue.
-            phase = Phase.CALL
+        Dialer.open(this, number) { outcome ->
+            when (outcome) {
+                Dialer.Outcome.Dialing -> {
+                    record(Resolution.CALLED, topic = topic)
+                    dialedAt = Instant.now()
+                }
+
+                // They were asked to unlock and said no. That is not a call,
+                // and it is not a dismissal either: leave the cue standing.
+                Dialer.Outcome.Locked -> Unit
+
+                Dialer.Outcome.NoNumber ->
+                    say("There is no number saved for them yet.")
+
+                Dialer.Outcome.NoDialer ->
+                    say("This phone has no app to make calls with.")
+            }
         }
     }
+
+    private fun say(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     /** Dismissal costs nothing, but it is still an answer, so it is recorded. */
     private fun dismissAndFinish() {

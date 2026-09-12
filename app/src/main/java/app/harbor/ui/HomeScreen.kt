@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.harbor.cue.Dialer
 import app.harbor.data.HarborRepository
 import app.harbor.domain.CallStats
 import app.harbor.domain.Contact
@@ -81,6 +83,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val settings by store.settings.collectAsState()
     val contacts by store.contacts.collectAsState()
     var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
@@ -167,12 +170,11 @@ fun HomeScreen(
                                 .maxByOrNull { it.occurredAt }
                                 ?.flower,
                             onClick = { onOpenPerson(contact.id) },
-                            onCall = contact.phoneE164?.let { number ->
-                                {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_DIAL, "tel:$number".toUri()),
-                                    )
-                                }
+                            // Through Dialer, not a bare intent: that is what
+                            // writes the row the flower flow looks for when
+                            // you come back (see cue/Dialer).
+                            onCall = contact.phoneE164?.let {
+                                { Dialer.handOff(context, store, scope, contact) }
                             },
                             modifier = Modifier.weight(1f),
                         )

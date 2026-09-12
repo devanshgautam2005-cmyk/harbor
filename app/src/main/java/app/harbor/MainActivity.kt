@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
@@ -116,10 +117,17 @@ class MainActivity : ComponentActivity() {
                         store.recentEntries(),
                         Instant.now(),
                     ) ?: return@LaunchedEffect
-                    // Not while they are mid-way through something of their
-                    // own. Anywhere else, the flower takes the screen.
+                    // Not while they are mid-way through typing something of
+                    // their own. Anywhere else, the flower takes the screen.
+                    //
+                    // Schedule used to be on this list, which is why a call
+                    // started from the little window on that screen was the
+                    // one call in the app that never got a flower: you came
+                    // back to the screen you left, and the screen you left
+                    // suppressed the reward. Drawing a week is not the kind
+                    // of half-finished thought this guard is for.
                     val busy = screen == Screen.Reflect || screen == Screen.Contact ||
-                        screen == Screen.Notes || screen == Screen.Schedule
+                        screen == Screen.Notes
                     if (waiting.id != offered && !busy) {
                         offered = waiting.id
                         reflecting = waiting
@@ -130,7 +138,13 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = onboarded == true && screen != Screen.Home) { home() }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
-                    val inset = Modifier.padding(padding)
+                    // imePadding here rather than on each screen: the app is
+                    // edge to edge, so the window no longer resizes itself
+                    // when the keyboard opens and every screen has to give
+                    // back the inset. Without it the field you are typing in
+                    // sits behind the keyboard — which is exactly what
+                    // happened all through onboarding.
+                    val inset = Modifier.padding(padding).imePadding()
 
                     if (onboarded != true) {
                         if (onboarded == false) {

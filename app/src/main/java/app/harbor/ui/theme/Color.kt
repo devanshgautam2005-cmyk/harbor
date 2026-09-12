@@ -60,6 +60,15 @@ val CardEdge = Color(0xE6FFFFFF)
 /** The drawn line: outline chips, dividers, anything that must read as a rule. */
 val Hairline = Color(0xFFD5D4D2)
 
+/**
+ * The warm stripe down every other day column on the week grid.
+ *
+ * Its own colour rather than `surfaceVariant`, which is a cool grey that all
+ * but disappears against the bone ground — and the banding is the only thing
+ * that makes seven narrow columns countable without reading the labels.
+ */
+val BandWarm = Color(0xFFF6EFE4)
+
 /** Gold. The accent, and deliberately rare. */
 val Gold = Color(0xFFE7B23F)
 

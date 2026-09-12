@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -217,14 +218,24 @@ fun LittleWindow(
     flower: FlowerKind,
     modifier: Modifier = Modifier,
     action: String? = null,
+    /**
+     * What the card is made of, for screens that are not on the specimen's
+     * bone ground.
+     *
+     * The default is frosted white over bone, which is invisible on white:
+     * the schedule now runs on the onboarding flow's white, so it passes the
+     * flow's own warm tile instead. One parameter rather than a second card.
+     */
+    container: Color = Color.Unspecified,
+    edge: Color = Color.Unspecified,
     onAction: (() -> Unit)? = null,
 ) {
     Box(
         modifier
             .fillMaxWidth()
             .clip(WindowShape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, CardEdge, WindowShape),
+            .background(container.takeOrElse { MaterialTheme.colorScheme.surface })
+            .border(1.dp, edge.takeOrElse { CardEdge }, WindowShape),
     ) {
         Canvas(
             Modifier
