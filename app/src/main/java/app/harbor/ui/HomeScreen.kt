@@ -108,7 +108,7 @@ fun HomeScreen(
             Spacer(Modifier.size(6.dp))
             SmallCopy(
                 if (grown > 0) "$grown calls have grown here."
-                else "Your first call plants the first flower.",
+                else "Start growing today.",
             )
         }
 

@@ -143,6 +143,10 @@ fun FieldCanvas(
     var goal by remember { mutableStateOf(cam) }
     var touched by remember { mutableStateOf(false) }
 
+    // Nothing planted yet is its own opening shot, not a smaller version of
+    // the usual one.
+    val planted = remember(patches) { patches.sumOf { it.calls } > 0 }
+
     // Frame the whole island, and keep framing it until the user takes over.
     //
     // Latching on the first size that arrived was wrong: layout reports an
@@ -150,9 +154,16 @@ fun FieldCanvas(
     // one's overview zoom and the island then sat at a third of the width it
     // should have filled. Re-aiming until the first gesture also means a
     // rotation reframes instead of leaving the world off-centre.
-    LaunchedEffect(base, frame) {
+    LaunchedEffect(base, frame, planted) {
         if (!touched && base > 0 && frame.width > 0) {
-            cam = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
+            cam = if (planted) {
+                Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
+            } else {
+                // Down among the grass, where there is visibly room, rather
+                // than looking at an empty island from orbit.
+                val spot = Field.emptyStart()
+                Field.Camera(spot.x, spot.y, base * Field.EMPTY_ZOOM)
+            }
             goal = cam
         }
     }
@@ -250,6 +261,21 @@ fun FieldCanvas(
                 goal = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
             },
                 modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+            )
+        }
+
+        // Said on the field itself, because the field is the invitation.
+        // Home carries the same line above its own preview, so this one is
+        // only for the full screen.
+        if (interactive && !planted) {
+            Text(
+                "Start growing today.",
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 32.dp),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    color = MaterialTheme.colorScheme.onBackground,
+                ),
             )
         }
 

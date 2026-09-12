@@ -269,6 +269,23 @@ object Field {
         val flower: FlowerKind,
     )
 
+    /**
+     * Where a garden with nothing in it opens.
+     *
+     * Not the overview. An empty island seen from above is a map of nothing —
+     * it reads as a screen that failed to load. Standing on good ground
+     * instead, close enough to see the grass, it reads as somewhere with room
+     * in it, which is the honest description of a garden nobody has planted
+     * yet.
+     *
+     * [Terrain.settle] is what keeps this out of the river.
+     */
+    fun emptyStart(): Garden.Spot =
+        Terrain.settle(Terrain.FIELD_W * 0.52, Terrain.FIELD_H * 0.60)
+
+    /** How far in an empty garden stands. Past [TILT_TO], so it is landscape. */
+    const val EMPTY_ZOOM = 6.5
+
     /** Which patch contains a point, or -1. */
     fun patchAt(patches: List<Patch>, px: Double, py: Double): Int {
         for (i in patches.indices) {
