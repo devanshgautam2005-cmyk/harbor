@@ -2,6 +2,7 @@ package app.harbor.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -328,14 +329,14 @@ private fun WeekEditor(
             ) {
                 PaletteChip(
                     kind = BlockKind.BUSY,
-                    label = "Place thorns\n(busy)",
+                    label = "Busy time",
                     selected = planting == BlockKind.BUSY,
                     tile = skin.tile,
                     ink = skin.ink,
                 ) { planting = BlockKind.BUSY }
                 PaletteChip(
                     kind = BlockKind.FREE,
-                    label = "Place flowers\n(free)",
+                    label = "Free time",
                     selected = planting == BlockKind.FREE,
                     tile = skin.tile,
                     ink = skin.ink,
@@ -372,6 +373,15 @@ private fun WeekEditor(
                             color = skin.muted,
                         ),
                     )
+                    // A timetable is the same hour on five days far more
+                    // often than it is five different hours, and drawing the
+                    // same block five times is the tedium this screen exists
+                    // to remove.
+                    Pill(text = "Copy to next day", selected = false) {
+                        val copy = chosen.copy(day = chosen.day.plus(1))
+                        selected = copy
+                        commit(Windows.place(blocks, copy))
+                    }
                     Pill(text = "Remove", selected = false) {
                         selected = null
                         commit(blocks.filterNot { it == chosen })
@@ -380,9 +390,10 @@ private fun WeekEditor(
             } else {
                 SmallCopy(
                     if (blocks.isEmpty()) {
-                        "Nothing yet. Without any thorns, a cue can land during a class."
+                        "Nothing yet. Double tap the week to plant your first one."
                     } else {
-                        "Tap one to remove it. Drag its bottom edge to make it longer."
+                        "Double tap to plant one. Drag its bottom edge to make it " +
+                            "longer, or drag it down into the bin."
                     },
                     size = 13,
                 )
@@ -435,10 +446,16 @@ private fun WeekGrid(
     skin: WeekSkin,
     onSelect: (WeekBlock?) -> Unit,
     onPreview: (List<WeekBlock>) -> Unit,
-    onCommit: (List<WeekBlock>, WeekBlock) -> Unit,
+    /** The second argument is null when the block was dropped in the bin. */
+    onCommit: (List<WeekBlock>, WeekBlock?) -> Unit,
 ) {
     val hours = LAST_HOUR - FIRST_HOUR
     val density = LocalDensity.current
+
+    // Raised while a block is being held below the foot of the grid. The bin
+    // sits directly under it, so dragging something off the bottom of your
+    // week is the gesture, and the pointer stays captured once a drag starts.
+    var overBin by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
@@ -590,7 +607,28 @@ private fun WeekGrid(
                 Modifier
                     .fillMaxSize()
                     .pointerInput(colPx, hourPx) {
-                        detectTapGestures { at -> onSelect(hitTest(at)?.first) }
+                        detectTapGestures(
+                            onTap = { at -> onSelect(hitTest(at)?.first) },
+                            // Two taps puts an hour down where you tapped.
+                            // Press-and-drag still draws one at whatever
+                            // length you like; this is the quick way to say
+                            // "here", which is most of what anybody does.
+                            onDoubleTap = { at ->
+                                if (hitTest(at) == null) {
+                                    val start = minuteAt(at.y)
+                                    val end = (start + 60).coerceAtMost(LAST_HOUR * 60)
+                                    if (end > start) {
+                                        val block = WeekBlock(
+                                            day = dayAt(at.x),
+                                            start = minutesToTime(start),
+                                            end = minutesToTime(end),
+                                            kind = nowPlanting,
+                                        )
+                                        onCommit(Windows.place(latest, block), block)
+                                    }
+                                }
+                            },
+                        )
                     }
                     .pointerInput(colPx, hourPx) {
                         detectDragGesturesAfterLongPress(
@@ -631,6 +669,7 @@ private fun WeekGrid(
                                 val held = carried
                                 if (held != null) {
                                     cursor += amount
+                                    overBin = cursor.y > size.height
                                     val next = when (grab) {
                                         Grab.Move -> {
                                             val length =
@@ -661,17 +700,76 @@ private fun WeekGrid(
                                 }
                             },
                             onDragEnd = {
-                                // Placing is also erasing: whatever this
-                                // landed on gets cut back out of the week.
-                                carried?.let { onCommit(Windows.place(rest, it), it) }
+                                carried?.let {
+                                    // Dropped past the foot of the week: the
+                                    // bin takes it, and nothing is placed.
+                                    if (overBin) onCommit(rest, null)
+                                    // Placing is also erasing: whatever this
+                                    // landed on gets cut back out of the week.
+                                    else onCommit(Windows.place(rest, it), it)
+                                }
                                 carried = null
+                                overBin = false
                             },
                             onDragCancel = {
                                 carried?.let { onCommit(Windows.place(rest, it), it) }
                                 carried = null
+                                overBin = false
                             },
                         )
                     },
+            )
+        }
+
+        // The bin, directly under the foot of the week.
+        //
+        // Removing a block used to mean tapping it and then finding a pill
+        // further down the page, which is a two-step answer to a one-step
+        // thought. Dragging something off the bottom of your week and letting
+        // go of it is the same gesture as throwing it away.
+        Spacer(Modifier.size(8.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (overBin) skin.band else Color.Transparent)
+                .border(
+                    1.dp,
+                    if (overBin) skin.ink else skin.line.copy(alpha = 0.5f),
+                    RoundedCornerShape(12.dp),
+                )
+                .padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Canvas(Modifier.size(width = 13.dp, height = 15.dp)) {
+                val w = size.width
+                val h = size.height
+                val ink = skin.muted
+                // A lid, and a tub under it.
+                drawRect(
+                    color = ink,
+                    topLeft = Offset(0f, h * 0.10f),
+                    size = Size(w, h * 0.10f),
+                )
+                drawRect(
+                    color = ink,
+                    topLeft = Offset(w * 0.34f, 0f),
+                    size = Size(w * 0.32f, h * 0.10f),
+                )
+                drawRect(
+                    color = ink,
+                    topLeft = Offset(w * 0.12f, h * 0.26f),
+                    size = Size(w * 0.76f, h * 0.74f),
+                )
+            }
+            Spacer(Modifier.size(8.dp))
+            Text(
+                if (overBin) "Let go to remove it" else "Drag one here to remove it",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 11.sp,
+                    color = skin.muted,
+                ),
             )
         }
     }

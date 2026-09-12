@@ -112,8 +112,8 @@ fun OnboardingScreen(
             1 -> YourName(store, ::next)
             2 -> WhoToCall(store, ::next)
             3 -> TheirPicture(store, ::next)
-            4 -> TheirSound(store, ::next)
-            5 -> WhenFree(::next)
+            4 -> WhenFree(::next)
+            5 -> TheirSound(store, ::next)
             6 -> AskPermission(store, ::next)
             7 -> AlmostComplete(store, ::next)
             8 -> GoodJob(::next)
@@ -255,7 +255,16 @@ private fun ComingSoon(label: String, note: String, modifier: Modifier = Modifie
 
 // --- the five questions ---------------------------------------------------
 
-/** What this is, what it will never do, and an offer to begin. */
+/**
+ * The frame, and only the frame.
+ *
+ * A card headed "What it will not do" used to sit under the button, making
+ * the promise that your family install nothing and are told nothing. It was
+ * not in the design and it is gone. The promise is not: it is made on the
+ * permission screen, which is where the worry actually arrives — nobody
+ * wonders what an app is telling their mother until it asks to watch them
+ * walk.
+ */
 @Composable
 private fun Welcome(onNext: () -> Unit) = FlowPage(bloom = true) {
     Question("Let’s build our first Flower together", size = 22)
@@ -263,19 +272,6 @@ private fun Welcome(onNext: () -> Unit) = FlowPage(bloom = true) {
     Question("Answer the questions\nto add petals", size = 18)
     Spacer(Modifier.height(28.dp))
     FlowPill("Continue", onClick = onNext)
-    Spacer(Modifier.height(34.dp))
-
-    // Said before any permission is mentioned, because this is the worry the
-    // permission dialog will otherwise raise on its own.
-    Surface {
-        SectionHeading("What it will not do")
-        SmallCopy(
-            "Your family are not part of this. They install nothing, they are " +
-                "never told anything, and they never see a thing you do here — " +
-                "not your walking, not whether you answered, not even a summary.",
-        )
-        SmallCopy("There is no streak. Ignoring a cue costs you nothing.")
-    }
 }
 
 /** Petal one. */
@@ -314,7 +310,7 @@ private fun WhoToCall(store: HarborRepository, onNext: () -> Unit) {
         Question("You can add more people later", size = 17)
         Spacer(Modifier.height(26.dp))
 
-        ComingSoon("searching your contacts", "reading your contacts comes later")
+        ComingSoon("search", "reading your contacts comes later")
         Spacer(Modifier.height(22.dp))
 
         FlowField(name, "their name") { name = it.take(40) }
@@ -346,9 +342,12 @@ private fun TheirPicture(store: HarborRepository, onNext: () -> Unit) {
     val contacts by store.contacts.collectAsState()
     val who = contacts.firstOrNull()
 
-    FlowPage(petal = 2) {
-        Question("Who would you like to call more often")
-        Spacer(Modifier.height(34.dp))
+    // Petal one still: the frames give the picture the same petal as the
+    // question before it, because it is the second half of choosing somebody
+    // rather than a question of its own. The heading is not repeated here —
+    // it was asked one screen ago and the answer is on this one.
+    FlowPage(petal = 1) {
+        Spacer(Modifier.height(20.dp))
         if (who != null) {
             Avatar(who.label, who.tone, size = AvatarSize.XL)
             Spacer(Modifier.height(14.dp))
@@ -420,9 +419,11 @@ private fun TheirSound(store: HarborRepository, onNext: () -> Unit) {
  */
 @Composable
 private fun WhenFree(onNext: () -> Unit) {
-    FlowPage(petal = 4) {
-        Question("When would you be free for calls")
-        Spacer(Modifier.height(30.dp))
+    FlowPage(petal = 2) {
+        Question("When should Harbor catch you?")
+        Spacer(Modifier.height(10.dp))
+        Question("Pick the moment you would not mind being asked", size = 16)
+        Spacer(Modifier.height(26.dp))
 
         Row(
             Modifier
@@ -678,7 +679,7 @@ private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
         Question("Our flower is almost complete")
         Spacer(Modifier.height(34.dp))
         if (who != null) {
-            FlowPill("check the notification out") {
+            FlowPill("show me a cue") {
                 scope.launch { showManualCue(context, store, who) }
             }
             Spacer(Modifier.height(10.dp))
@@ -689,7 +690,7 @@ private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
             )
             Spacer(Modifier.height(22.dp))
         }
-        TextLink("I’ve already seen it", onNext)
+        TextLink("I’ve already seen one", onNext)
     }
 }
 
@@ -706,7 +707,7 @@ private fun GoodJob(onNext: () -> Unit) = FlowPage(bloom = true) {
 private fun OneLastThing(onSetUp: () -> Unit, onSkip: () -> Unit) = FlowPage(bloom = true) {
     Question("One last thing,", size = 20)
     Spacer(Modifier.height(18.dp))
-    Question("when are you busy so we know\nwhen NOT to send the cue.")
+    Question("tell us when you are busy\nand we will not bother you then.")
     Spacer(Modifier.height(30.dp))
     FlowPill("Set Up", onClick = onSetUp)
     Spacer(Modifier.height(18.dp))
