@@ -71,6 +71,7 @@ class StudyExportTest {
                 occurredAt = at,
             ),
         ),
+        lastTransitionAt = at,
     )
 
     // --- redaction ----------------------------------------------------------
@@ -139,6 +140,24 @@ class StudyExportTest {
         val json = StudyExport.json(bundle())
         assertTrue(json.contains("\"feeling\":\"warm\""))
         assertTrue(json.contains("\"flower\":\"marigold\""))
+    }
+
+    @Test
+    fun `a call that did not happen is not counted as one`() {
+        val notReached = bundle().let { b ->
+            b.copy(entries = b.entries.map { it.copy(resolution = Resolution.NOT_REACHED) })
+        }
+        val json = StudyExport.json(notReached)
+        assertTrue(json.contains("\"resolution\":\"not_reached\""))
+        assertEquals(0, StudyExport.summarise(notReached).calls)
+    }
+
+    @Test
+    fun `the file records whether the phone was ever heard from`() {
+        // A week with no cues is uninterpretable without this.
+        assertTrue(StudyExport.json(bundle()).contains("\"last_transition_at\""))
+        val silent = bundle().copy(lastTransitionAt = null)
+        assertTrue(StudyExport.json(silent).contains("\"last_transition_at\":null"))
     }
 
     // --- the encoder ---------------------------------------------------------

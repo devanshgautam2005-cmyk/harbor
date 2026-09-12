@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.harbor.data.HarborRepository
 import app.harbor.domain.StudyExport
+import app.harbor.sensing.Sensing
 import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
@@ -62,6 +63,7 @@ fun StudyExportCard(store: HarborRepository) {
                 busy = busy,
                 cues = store.allCues(),
                 entries = store.recentEntries(),
+                lastTransitionAt = Sensing.lastTransition(context),
             )
         }
     }

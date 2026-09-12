@@ -52,7 +52,24 @@ enum class Resolution {
     PLAYED,
 
     PROPOSED_LATER,
-    DISMISSED;
+    DISMISSED,
+
+    /**
+     * They went to call and no conversation happened.
+     *
+     * Changed their mind at the dialer, or nobody picked up. The row is
+     * written as [CALLED] the moment the dialer opens — before anything is
+     * known — because a call that happened must be recorded even if the user
+     * never comes back to say how it went. That trade means the only way
+     * `called` stays honest is if there is a way to say no afterwards, and
+     * this is it.
+     *
+     * Kept separate from [DISMISSED] on purpose: dismissing is declining the
+     * cue, this is accepting it and coming away with nothing. For the study
+     * those are different answers to "what happened to a cue", and collapsing
+     * them would hide the more interesting one.
+     */
+    NOT_REACHED;
 
     /**
      * Whether this counts as having reached the other person today.

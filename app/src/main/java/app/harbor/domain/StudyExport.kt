@@ -57,6 +57,15 @@ object StudyExport {
         val busy: List<BusyWindow>,
         val cues: List<Cue>,
         val entries: List<LedgerEntry>,
+        /**
+         * When the system last delivered a transition.
+         *
+         * Without this, a week with no cues cannot be read: it looks the same
+         * whether the person never walked or the app was asleep the whole
+         * time. It is a timestamp, not a movement — nothing about where they
+         * were or what they were doing.
+         */
+        val lastTransitionAt: Instant?,
     )
 
     /** What to show someone before they hand the file over. */
@@ -103,6 +112,7 @@ object StudyExport {
         "app_version" to str(bundle.appVersion),
         "participant" to str(bundle.participant.toString()),
         "exported_at" to str(bundle.exportedAt.toString()),
+        "last_transition_at" to str(bundle.lastTransitionAt?.toString()),
 
         "settings" to obj(
             "cues_enabled" to bool(bundle.settings.cuesEnabled),

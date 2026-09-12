@@ -33,8 +33,32 @@ internal class SensingStore(context: Context) {
             }.commit()
         }
 
+    /**
+     * The last time the system told us anything at all.
+     *
+     * Not for the tracker — for us. Without it, a week with no cues is
+     * indistinguishable between "never took a walk", "dismissed one before it
+     * registered" and "Play services never delivered a single transition and
+     * the app was dead the whole time, while telling them cues were on". The
+     * study's first question cannot survive that ambiguity, so the app records
+     * its own pulse and shows it.
+     *
+     * Stamped for every transition, not just walking ones: the question this
+     * answers is whether the pipe is alive, not what came down it.
+     */
+    var lastTransitionAt: Instant?
+        get() {
+            val millis = prefs.getLong(KEY_LAST_TRANSITION, ABSENT)
+            return if (millis == ABSENT) null else Instant.ofEpochMilli(millis)
+        }
+        set(value) {
+            if (value == null) return
+            prefs.edit().putLong(KEY_LAST_TRANSITION, value.toEpochMilli()).commit()
+        }
+
     private companion object {
         const val KEY_WALKING_SINCE = "walking_since"
+        const val KEY_LAST_TRANSITION = "last_transition_at"
         const val ABSENT = -1L
     }
 }

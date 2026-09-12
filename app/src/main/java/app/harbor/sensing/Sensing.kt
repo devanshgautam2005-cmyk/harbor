@@ -1,6 +1,7 @@
 package app.harbor.sensing
 
 import android.content.Context
+import java.time.Instant
 import app.harbor.data.HarborRepository
 
 /**
@@ -51,6 +52,18 @@ object Sensing {
      * looking, which leaves `cuesEnabled` true and nothing listening. Anything
      * that reports status to the user should ask this, not the setting alone.
      */
+    /**
+     * When the system last delivered a transition, or null if it never has.
+     *
+     * [isActive] only says the switch is on and the permission is granted. It
+     * cannot tell whether Play services ever registered, whether the receiver
+     * is still alive, or whether the OS put the app to sleep three days ago.
+     * This can, and it is the difference between a null result you can
+     * interpret and one you cannot.
+     */
+    fun lastTransition(context: Context): Instant? =
+        SensingStore(context).lastTransitionAt
+
     fun isActive(context: Context, store: HarborRepository): Boolean =
         store.settings.value.cuesEnabled && ActivityTransitions.hasPermission(context)
 }

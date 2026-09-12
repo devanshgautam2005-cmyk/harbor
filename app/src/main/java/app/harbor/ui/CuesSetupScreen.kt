@@ -46,6 +46,7 @@ import app.harbor.ui.theme.Surface
 import app.harbor.ui.theme.pageContent
 import app.harbor.domain.Contact
 import app.harbor.domain.Cue
+import app.harbor.domain.Liveness
 import app.harbor.domain.TriggerSource
 import java.time.Instant
 import java.time.ZoneId
@@ -202,6 +203,30 @@ fun CuesSetupScreen(
                             "${settings.thresholds.walkingMinutes} minutes.",
                         size = 15,
                     )
+
+                    // Proof, rather than reassurance. "Cues are on" only means
+                    // the switch is on and the permission was granted; this is
+                    // the only thing on the screen that knows whether the
+                    // phone is actually still talking to us.
+                    val heard = Sensing.lastTransition(context)
+                    val now = Instant.now()
+                    when (Liveness.state(heard, now)) {
+                        Liveness.State.NEVER -> Notice(
+                            "Your phone has not told Harbor anything yet. That is " +
+                                "normal for the first few minutes \u2014 it starts once " +
+                                "you move about.",
+                        )
+                        Liveness.State.HEALTHY -> SmallCopy(
+                            "Last noticed you moving " + Liveness.phrase(heard, now) + ".",
+                            size = 13,
+                        )
+                        Liveness.State.QUIET_TOO_LONG -> Notice(
+                            "Harbor has not heard from your phone since " +
+                                Liveness.phrase(heard, now) + ". It may have been put " +
+                                "to sleep in the background. Opening Harbor now and " +
+                                "then keeps it awake.",
+                        )
+                    }
                     QuietAction("Turn cues off") {
                         scope.launch { Sensing.disable(context, store) }
                     }

@@ -194,6 +194,10 @@ class CueActivity : ComponentActivity() {
                                     callMinutes = measuredMinutes,
                                 )
                             },
+                            onNotReached = {
+                                record(resolution = Resolution.NOT_REACHED)
+                                finish()
+                            },
                             onDone = { finish() },
                         )
                     }

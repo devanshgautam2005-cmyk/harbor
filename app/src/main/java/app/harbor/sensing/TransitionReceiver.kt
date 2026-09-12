@@ -58,6 +58,10 @@ class TransitionReceiver : BroadcastReceiver() {
 
     private suspend fun handle(context: Context, result: ActivityTransitionResult) {
         val sensing = SensingStore(context)
+
+        // Proof of life, written before anything else can go wrong with this
+        // batch. Whether it becomes a cue is a separate question.
+        sensing.lastTransitionAt = Instant.now()
         val store = HarborStore(context)
 
         // Events arrive batched and are documented as chronological, but the

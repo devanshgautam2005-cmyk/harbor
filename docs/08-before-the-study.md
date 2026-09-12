@@ -33,7 +33,7 @@ The study's first question is *does the walking-stop trigger land at moments
 people call good*. With this hole, a null result cannot be interpreted — and a
 null result is the likeliest outcome on aggressive Android skins.
 
-**Fix before the study.** Stamp a `last_transition_at` every time
+**Done.** `SensingStore.lastTransitionAt` is stamped every time
 `TransitionReceiver` runs, whatever the transition. Then:
 
 - show it in the app ("last noticed you moving: 20 minutes ago"), so the
@@ -84,7 +84,7 @@ The study's second question is the distribution across called / reacted /
 proposed-later / dismissed. This inflates `called` by exactly the number of
 people who changed their mind, which is not a small number.
 
-**Fix:** an escape on the first reflection step — *we did not get to talk* —
+**Done.** There is now an escape on the first reflection step — *we did not get to talk* —
 that rewrites the row to `dismissed` or a new resolution. `docs/03` already
 promises to write this up as "reported a call" rather than a measured one;
 that phrasing only stays honest if there is a way to report *no*.
@@ -157,9 +157,12 @@ is a participant opening Account and saving a file.
 
 **Before anyone outside the team installs it**
 
-1. Record and surface `last_transition_at`, and carry it into the export.
-2. Get one real `walking_stop` on one real phone.
-3. Add the *we did not get to talk* escape.
+1. ~~Record and surface `last_transition_at`, and carry it into the export.~~
+   Done — shown on the cues screen, and in the export as `last_transition_at`.
+2. ~~Add the *we did not get to talk* escape.~~ Done — `Resolution.NOT_REACHED`,
+   with `0007_not_reached.sql` to match.
+3. **Get one real `walking_stop` on one real phone.** Still the open one, and
+   still the thing the week depends on.
 
 **Before the full cohort**
 

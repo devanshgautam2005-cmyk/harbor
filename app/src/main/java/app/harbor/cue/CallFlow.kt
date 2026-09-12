@@ -62,6 +62,8 @@ fun CallFlow(
     initialTopic: String?,
     onPlant: (minutes: Int, feeling: Feeling, flower: FlowerKind, topic: String?) -> Unit,
     onPulse: (FeedbackPulse) -> Unit,
+    /** They went to call and no conversation happened. */
+    onNotReached: () -> Unit,
     onDone: () -> Unit,
 ) {
     var step by remember { mutableStateOf(Step.Reflect) }
@@ -182,6 +184,13 @@ fun CallFlow(
 
                 Spacer(Modifier.size(20.dp))
                 PrimaryAction("Choose a flower") { step = Step.Flower }
+
+                // The row was written the moment the dialer opened, before
+                // anything was known. Without this, changing your mind at the
+                // dialer is recorded as a call, and "called" quietly counts
+                // conversations that never happened.
+                Spacer(Modifier.size(4.dp))
+                CallOut("We did not get to talk", onNotReached)
             }
 
             Step.Flower -> {
@@ -333,3 +342,20 @@ private val Feeling.caption: String
         Feeling.STEADY -> "Ordinary, in a good way."
         Feeling.TENDER -> "A lot, but worth it."
     }
+
+/** A way out that is not a failure. Quiet, and never the loudest thing here. */
+@Composable
+private fun CallOut(text: String, onClick: () -> Unit) {
+    Text(
+        text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.labelLarge.copy(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    )
+}

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import app.harbor.cue.CallFlow
 import app.harbor.data.HarborStore
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Resolution
 import app.harbor.domain.CallStats
 import app.harbor.ui.ContactScreen
 import app.harbor.ui.CuesSetupScreen
@@ -246,6 +247,21 @@ class MainActivity : ComponentActivity() {
                                         val next = amended.copy(feedbackPulse = pulse)
                                         amended = next
                                         scope.launch { store.append(next) }
+                                    },
+                                    onNotReached = {
+                                        // Nothing to plant, and nothing to
+                                        // ask about. The row stops claiming a
+                                        // call happened and the flow ends.
+                                        val next = amended.copy(
+                                            resolution = Resolution.NOT_REACHED,
+                                            callMinutes = null,
+                                            feeling = null,
+                                            flower = null,
+                                        )
+                                        amended = next
+                                        scope.launch { store.append(next) }
+                                        reflecting = null
+                                        screen = Screen.Home
                                     },
                                     onDone = {
                                         reflecting = null
