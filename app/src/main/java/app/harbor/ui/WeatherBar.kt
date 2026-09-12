@@ -1,6 +1,7 @@
 package app.harbor.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -40,6 +41,7 @@ import app.harbor.domain.DailyQuestion
 import app.harbor.domain.Weather
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Hairline
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
 import kotlinx.coroutines.launch
@@ -142,6 +144,36 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                     .background(MaterialTheme.colorScheme.secondaryContainer),
             )
 
+            // A notch per weather.
+            //
+            // The five words used to run underneath, which cost a whole row.
+            // Without them the rail came out as a grey bar with a dot resting
+            // at one end of it — on a clear day, indistinguishable from a
+            // control that was broken or switched off. These say the same
+            // thing (there are five of these, you are at this one) and cost
+            // no height at all.
+            Row(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(horizontal = 22.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                steps.forEachIndexed { i, _ ->
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (i <= index) MaterialTheme.colorScheme.primary
+                                    .copy(alpha = 0.45f)
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                    .copy(alpha = 0.3f),
+                            ),
+                    )
+                }
+            }
+
             // how far along the scale we are, sky through to gold
             val fraction = if (last == 0) 0f else index.toFloat() / last
             Box(
@@ -164,7 +196,11 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                     .offset(x = thumbX)
                     .size(34.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface),
+                    .background(MaterialTheme.colorScheme.surface)
+                    // The card is nearly the same white as the thumb, so
+                    // without a rim the thumb reads as a bare dot floating on
+                    // the rail rather than as something you can take hold of.
+                    .border(1.dp, Hairline, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
