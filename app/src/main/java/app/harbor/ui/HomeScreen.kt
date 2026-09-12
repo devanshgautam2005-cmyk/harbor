@@ -3,6 +3,7 @@ package app.harbor.ui
 import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,7 @@ import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import androidx.core.net.toUri
+import app.harbor.ui.theme.CardEdge
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.SectionHeader
@@ -297,17 +299,18 @@ private fun QuickShareAction(
 ) {
     Row(
         modifier
-            .clip(RoundedCornerShape(999.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, CardEdge, RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         val ink = MaterialTheme.colorScheme.onSurface
         Box(
             Modifier
-                .size(30.dp)
+                .size(27.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
@@ -321,10 +324,8 @@ private fun QuickShareAction(
         }
         Text(
             label,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-            ),
+            maxLines = 1,
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 14.sp),
         )
     }
 }

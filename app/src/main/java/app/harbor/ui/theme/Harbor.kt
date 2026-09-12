@@ -267,6 +267,15 @@ internal val Tone.fill: Color
         Tone.SKY -> SurfaceSky
     }
 
+/** The same tone at full strength, for a mark too small to carry a tint. */
+internal val Tone.mark: Color
+    get() = when (this) {
+        Tone.GREEN -> MarkGreen
+        Tone.GOLD -> MarkGold
+        Tone.ORANGE -> MarkOrange
+        Tone.SKY -> MarkSky
+    }
+
 /**
  * The one thing a screen is actually asking for.
  *

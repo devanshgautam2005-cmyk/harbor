@@ -93,3 +93,15 @@ val SurfaceGreen = Color(0xFFC9D6B9)
 val SurfaceGold = Color(0xFFF1D9A5)
 val SurfaceOrange = Color(0xFFE7C4B6)
 val SurfaceSky = Color(0xFFBECCF8)
+
+// --- the marks ----------------------------------------------------------
+//
+// The same four tones at full strength, for the little petal mark on a
+// specimen's plinth. The Surface* fills above are hues at 35-45% and are
+// meant for an area -- an avatar, a card. At 11dp they simply disappear, so
+// the mark gets the hue itself.
+
+val MarkGreen = Leaf
+val MarkGold = Gold
+val MarkOrange = Color(0xFFD9604A)
+val MarkSky = Color(0xFF507AF5)

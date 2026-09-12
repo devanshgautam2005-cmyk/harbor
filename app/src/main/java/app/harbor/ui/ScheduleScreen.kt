@@ -153,7 +153,7 @@ fun ScheduleScreen(
             Windows.next(blocks, LocalDate.now().dayOfWeek, LocalTime.now())?.let { window ->
                 LittleWindow(
                     headline = timeLabel(window.start) + " – " + timeLabel(window.end),
-                    caption = window.minutes.toString() + " unhurried minutes, free today",
+                    caption = Windows.phrase(window) + ", free today",
                     flower = FlowerKind.POPPY,
                     action = callable?.let { "Call " + it.label },
                     onAction = callable?.phoneE164?.let { number ->

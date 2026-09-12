@@ -97,4 +97,21 @@ object Windows {
         from: LocalTime = DAY_START,
         to: LocalTime = DAY_END,
     ): Window? = free(blocks, day, maxOf(now, from), to).maxByOrNull { it.minutes }
+
+    /**
+     * How long the window is, in words rather than in minutes.
+     *
+     * On a day with nothing blocked the arithmetic answer is "373 unhurried
+     * minutes", which is true and is not what anybody means. Past an hour,
+     * people count in hours.
+     *
+     * Rounded to the nearest hour rather than truncated, so an hour and fifty
+     * minutes does not present itself as one.
+     */
+    fun phrase(window: Window): String {
+        val m = window.minutes
+        if (m < 60) return "$m unhurried minutes"
+        val hours = (m + 30) / 60
+        return if (hours == 1) "an unhurried hour" else "$hours unhurried hours"
+    }
 }

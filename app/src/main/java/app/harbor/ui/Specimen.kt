@@ -41,7 +41,7 @@ import app.harbor.ui.theme.Hairline
 import app.harbor.ui.theme.LeafLight
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Stem
-import app.harbor.ui.theme.fill
+import app.harbor.ui.theme.mark
 
 /**
  * A person, shown the way the specimen sheet shows a flower.
@@ -119,7 +119,7 @@ fun Specimen(
                     name,
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 14.sp),
                 )
-                Box(Modifier.size(11.dp).clip(MarkShape).background(tone.fill))
+                Box(Modifier.size(11.dp).clip(MarkShape).background(tone.mark))
             }
             Text(
                 caption.uppercase(),
@@ -140,10 +140,10 @@ fun Specimen(
  * shape is a function of the flower's spec, so adding a flower to the library
  * stays a data change.
  */
-internal fun DrawScope.drawSpecimen(kind: FlowerKind) {
+internal fun DrawScope.drawSpecimen(kind: FlowerKind, bloom: Float = 0.17f) {
     val cx = size.width / 2f
     val foot = size.height * 0.97f
-    val bloomY = size.height * 0.34f
+    val bloomY = size.height * 0.30f
     val unit = size.minDimension
 
     drawPath(
@@ -163,7 +163,7 @@ internal fun DrawScope.drawSpecimen(kind: FlowerKind) {
     drawLeaf(cx, foot - unit * 0.38f, 1f, unit * 0.26f, LeafLight)
 
     translate(left = cx, top = bloomY) {
-        drawFlower(Flowers.spec(kind), unit * 0.26f)
+        drawFlower(Flowers.spec(kind), unit * bloom)
     }
 }
 
@@ -233,7 +233,9 @@ fun LittleWindow(
                 .offset(x = 20.dp, y = 18.dp)
                 .alpha(0.9f),
         ) {
-            drawSpecimen(flower)
+            // Larger here than in a patch: this card has one flower in it and
+            // room for it, where a patch has the arch to fill.
+            drawSpecimen(flower, bloom = 0.22f)
         }
 
         Column(

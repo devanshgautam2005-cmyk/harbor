@@ -113,4 +113,35 @@ class WindowsTest {
     fun `minutes are what the card prints`() {
         assertEquals(50, Windows.Window(at(20, 40), at(21, 30)).minutes)
     }
+
+    // --- how the card says it -----------------------------------------------
+
+    @Test
+    fun `under an hour is counted in minutes`() {
+        assertEquals("50 unhurried minutes", Windows.phrase(Windows.Window(at(20, 40), at(21, 30))))
+    }
+
+    @Test
+    fun `a whole free day is not three hundred and seventy three minutes`() {
+        // The bug this exists for: with nothing blocked, the honest arithmetic
+        // answer is absurd as copy.
+        val all = Windows.Window(at(15, 46), at(22))
+        assertEquals("6 unhurried hours", Windows.phrase(all))
+    }
+
+    @Test
+    fun `one hour reads as one hour`() {
+        assertEquals("an unhurried hour", Windows.phrase(Windows.Window(at(9), at(10))))
+    }
+
+    @Test
+    fun `an hour and fifty minutes does not present itself as one`() {
+        assertEquals("2 unhurried hours", Windows.phrase(Windows.Window(at(9), at(10, 50))))
+    }
+
+    @Test
+    fun `the boundary between minutes and hours is exactly an hour`() {
+        assertEquals("59 unhurried minutes", Windows.phrase(Windows.Window(at(9), at(9, 59))))
+        assertEquals("an unhurried hour", Windows.phrase(Windows.Window(at(9), at(10))))
+    }
 }
