@@ -5,9 +5,9 @@ import androidx.compose.ui.graphics.Color
 /**
  * Harbor's palette, taken from "Harbor Reskin" — the dark glass language.
  *
- * The design is a warm dusk: a near-black ground, cards that are nothing but
- * white held at six percent, and a single amber that appears on the current
- * tab, the primary action and the selected chip. Nowhere else. Everything the
+ * The design is a lit dusk: a gradient behind every screen, cards that are
+ * nothing but white held at seven percent *over* it, and a single amber that
+ * appears on the current tab, the primary action and the selected chip. Nowhere else. Everything the
  * app *says* is white or a muted warm grey; everything it *asks for* is amber.
  *
  * ## What the dark pass changed, and what it kept
@@ -21,15 +21,28 @@ import androidx.compose.ui.graphics.Color
  *    survives as what sits *on top of* a light thing — the initials on an
  *    avatar, the label on an amber button. Reading [Ink] as "the text colour"
  *    is the one mistake that paints a screen black on black.
- *  - **Cards are lighter than the ground again, but barely.** In the light
- *    specimen a card was near-white with a *lighter* rim. Here it is white at
- *    six percent over near-black, rimmed with white at nine. The relationship
- *    is identical; only the amounts collapsed.
+ *  - **A card is no longer a colour.** It is an alpha, and what it looks like
+ *    depends entirely on what it is lying on. See the next section, which is
+ *    the part of this file worth reading.
  *
- * The fills below are composited rather than translucent, for the same reason
- * they were in the light specimen: a genuinely translucent card stops being
- * legible the moment it is laid over the garden. The *rims* stay translucent,
- * because a rim has to catch whatever it is lying on.
+ * ## The cards are translucent, and that is the whole design
+ *
+ * The light specimen composited its card fill to an opaque colour, because on
+ * a flat bone page a translucent white and a composited one are the same
+ * pixels and the opaque one is cheaper and safer.
+ *
+ * That reasoning does not carry over, and carrying it over is what made the
+ * first dark pass look like a different app to the drawing. This design puts a
+ * lit gradient behind every screen and then lays `rgba(255,255,255,0.07)` over
+ * it. The card is a *window onto the gradient*: warm where it crosses the
+ * ember, cold where it crosses the blue, near-black at the bottom of the page.
+ * Composite that to one flat grey and every card becomes a box, the gradient
+ * only survives in the gaps between them, and the screen reads as "dark mode"
+ * rather than as glass on a sunset.
+ *
+ * So these are alpha, not colour, and they are meant to be laid over something
+ * worth seeing. The reference the design was drawn from is a sunset with the
+ * card sitting straight across the middle of it.
  *
  * The garden field does not read from here. Its terrain lives in
  * [app.harbor.domain.Field] and its weather in `FieldSky`, both hardcoded.
@@ -41,16 +54,25 @@ import androidx.compose.ui.graphics.Color
 val Paper = Color(0xFF0D0E11)
 
 /**
- * A card: white at six percent over the ground, already composited.
+ * A card: white at seven percent, laid over whatever is behind it.
  *
- * This is the design's `Raised glass` token, and the two agree to the byte —
- * which is a useful check that the ground and the card really are one
- * relationship rather than two hand-picked colours.
+ * Not composited. See the note above — over the dusk this is the design's
+ * glass, and flattened it is a grey box.
  */
-val Cream = Color(0xFF1B1C21)
+val Cream = Color(0x12FFFFFF)
 
-/** A surface that should recede rather than advance: white at four percent. */
-val Sand = Color(0xFF17181B)
+/** A surface that should recede rather than advance: white at five percent. */
+val Sand = Color(0x0DFFFFFF)
+
+/**
+ * The floating navigation pill.
+ *
+ * Denser than a card and darker than the ground it crosses, because it has to
+ * stay readable while the field scrolls underneath it. The design writes it as
+ * `rgba(18,18,22,0.72)`, which is the one surface in the whole language that
+ * is tinted *down* rather than up.
+ */
+val NavGlass = Color(0xB8121216)
 
 /**
  * Ink — what sits on top of a *light* thing.

@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -130,7 +131,17 @@ fun OnboardingScreen(
     // suspending on the prefs lock. The name you typed on the first question
     // simply never arrived, and the contact only arrived when it won the
     // race. This scope belongs to the flow and outlives every step in it.
-    Box(modifier.fillMaxSize().background(FlowGround)) {
+    // The same dusk the app stands in.
+    //
+    // Onboarding is not inside HarborShell -- it runs before there is a shell
+    // -- so it has to draw the ground itself or it opens on flat near-black
+    // and then the first real screen lights up behind the person's back.
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(FlowGround)
+            .drawBehind { drawDusk() },
+    ) {
         when (step) {
             0 -> Welcome(::next)
             1 -> YourName(store, scope, ::next)

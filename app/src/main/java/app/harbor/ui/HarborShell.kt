@@ -28,7 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.harbor.ui.theme.CardEdge
+import app.harbor.ui.theme.Hairline
+import app.harbor.ui.theme.NavGlass
 
 /** The pill the nav and its tabs are both cut from. */
 private val NavShape = RoundedCornerShape(99.dp)
@@ -122,8 +123,8 @@ fun HarborShell(
                     .navigationBarsPadding()
                     .padding(bottom = 12.dp)
                     .clip(NavShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, CardEdge, NavShape)
+                    .background(NavGlass)
+                    .border(1.dp, Hairline, NavShape)
                     .padding(5.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
@@ -138,28 +139,48 @@ fun HarborShell(
 /**
  * The dusk every screen stands in.
  *
- * The design never draws a flat ground. Each screen has a wash anchored just
- * above its top edge -- cool blue overhead, falling through ember to the near
- * black the cards sit on -- and it is most of what separates this language
- * from "the same app with dark colours". Without it the glass has nothing to
- * catch, the rims go dead, and the cards read as grey boxes.
+ * This is the design, not a backdrop to it. The reference it was drawn from is
+ * a photograph of a sunset with a glass card laid across the middle of it, and
+ * every screen here is built the same way: a lit gradient, and then translucent
+ * white over the top. If this is weak, the cards have nothing to be windows
+ * onto and the whole language collapses into "dark mode".
+ *
+ * Two layers, because one will not do it. The wash carries the colour down the
+ * page; the glow is the sun itself, a small bright core just off the top edge
+ * that keeps the brightest point genuinely bright rather than leaving the
+ * gradient to peak at a mid-tone.
  *
  * Drawn rather than declared because the design states it in percentages of
- * the screen ("120% 70% at 50% -8%"), and a Brush needs pixels. Behind the
- * content, so anything that paints its own ground -- the field, the garden --
- * covers it rather than fighting it.
+ * the screen and a Brush needs pixels. Behind the content, so anything that
+ * paints its own ground -- the field, the garden -- covers it rather than
+ * fighting it.
  */
-private fun DrawScope.drawDusk() {
+internal fun DrawScope.drawDusk() {
+    // The wash: blue overhead, falling through ember to the ground.
     drawRect(
         brush = Brush.radialGradient(
             colorStops = arrayOf(
-                0.00f to Color(0xFF1D4A6E),
-                0.34f to Color(0xFF7B4A2E),
-                0.62f to Color(0xFF2A1A18),
-                0.88f to Color(0x000D0E11),
+                0.00f to Color(0xFF2E6B96),
+                0.26f to Color(0xFF8A5230),
+                0.46f to Color(0xFF52251C),
+                0.68f to Color(0xFF1A1216),
+                0.92f to Color(0x000D0E11),
             ),
-            center = Offset(size.width / 2f, -size.height * 0.08f),
-            radius = size.height * 0.70f,
+            center = Offset(size.width / 2f, -size.height * 0.10f),
+            radius = size.height * 0.78f,
+        ),
+        size = size,
+    )
+    // The sun, sitting just off the top edge.
+    drawRect(
+        brush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0.00f to Color(0x66FFC98C),
+                0.45f to Color(0x33F0A35F),
+                1.00f to Color(0x00F0783C),
+            ),
+            center = Offset(size.width / 2f, size.height * 0.02f),
+            radius = size.width * 0.72f,
         ),
         size = size,
     )
