@@ -2,11 +2,14 @@ package app.harbor.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.harbor.domain.Beat
 import app.harbor.domain.Contact
 import app.harbor.domain.Cue
 import app.harbor.domain.CuePolicy
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Moment
 import app.harbor.domain.Resolution
+import app.harbor.domain.Telemetry
 import app.harbor.domain.TriggerSource
 import app.harbor.domain.UserSettings
 import app.harbor.domain.WeekBlock
@@ -103,6 +106,29 @@ class HarborStore(context: Context) : HarborRepository {
         val sorted = blocks.sortedWith(compareBy({ it.day }, { it.start }))
         write { putString(KEY_BUSY, LedgerJson.blocks(sorted).toString()) }
         _weekBlocks.value = sorted
+    }
+
+    // --- study beats ------------------------------------------------------
+
+    /**
+     * Append one beat, oldest dropped once [Telemetry.KEEP] is reached.
+     *
+     * Read-modify-write under the same lock every other write uses, so two
+     * taps in the same frame cannot lose one another. The list is small and
+     * the write is off the main thread.
+     */
+    override suspend fun note(moment: Moment, detail: String?, value: Int?) {
+        val beat = Beat(Instant.now(), moment, detail, value)
+        writeList(KEY_BEATS) {
+            (readBeats() + beat).takeLast(Telemetry.KEEP).let(LedgerJson::beats)
+        }
+    }
+
+    override suspend fun beats(): List<Beat> = withContext(Dispatchers.IO) { readBeats() }
+
+    private fun readBeats(): List<Beat> {
+        val raw = prefs.getString(KEY_BEATS, null) ?: return emptyList()
+        return runCatching { LedgerJson.beats(JSONArray(raw)) }.getOrDefault(emptyList())
     }
 
     // --- the daily question -----------------------------------------------
@@ -288,6 +314,7 @@ class HarborStore(context: Context) : HarborRepository {
         // lose the timetable of every phone that already has Harbor on it.
         const val KEY_BUSY = "busy_windows"
         const val KEY_ANSWERS = "daily_answers"
+        const val KEY_BEATS = "study_beats"
         const val KEY_LEDGER = "ledger"
         const val KEY_CUES = "cues"
         const val KEY_ONBOARDED = "onboarded"

@@ -17,12 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import app.harbor.cue.CallFlow
 import app.harbor.data.HarborStore
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.domain.CallStats
+import app.harbor.domain.Moment
 import app.harbor.ui.ContactScreen
 import app.harbor.ui.CuesSetupScreen
 import app.harbor.ui.FlowerLanding
@@ -37,6 +39,7 @@ import app.harbor.ui.ScheduleScreen
 import app.harbor.ui.SettingsScreen
 import app.harbor.ui.theme.HarborTheme
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
 
 /**
@@ -59,9 +62,28 @@ class MainActivity : ComponentActivity() {
      */
     private var resumes by mutableIntStateOf(0)
 
+    private var cameForward: Instant? = null
+
     override fun onResume() {
         super.onResume()
         resumes++
+        cameForward = Instant.now()
+        lifecycleScope.launch { store.note(Moment.APP_OPENED) }
+    }
+
+    /**
+     * How long they stayed, recorded on the way out.
+     *
+     * Paired with APP_OPENED this is the session length the study wants, and
+     * it costs nothing to keep: the alternative was asking participants at the
+     * end of the week how often they had opened the app, which nobody knows.
+     */
+    override fun onPause() {
+        super.onPause()
+        val since = cameForward ?: return
+        cameForward = null
+        val seconds = Duration.between(since, Instant.now()).seconds.toInt()
+        lifecycleScope.launch { store.note(Moment.APP_LEFT, value = seconds) }
     }
 
     private enum class Screen(val tab: HarborTab?, val title: String?) {
@@ -76,15 +98,23 @@ class MainActivity : ComponentActivity() {
         Reflect(null, null),
     }
 
+    private lateinit var store: HarborStore
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val store = HarborStore(applicationContext)
+        // A field as well as a local, because onResume and onPause need it
+        // too and they run outside the composition.
+        store = HarborStore(applicationContext)
 
         setContent {
             HarborTheme {
                 var screen by remember { mutableStateOf(Screen.Home) }
+
+                // Which screens get looked at, and in what order. A category
+                // per screen; nothing about what was on it.
+                LaunchedEffect(screen) { store.note(Moment.SCREEN, screen.name) }
                 var reflecting by remember { mutableStateOf<LedgerEntry?>(null) }
 
                 // The flower on its way into the field, drawn over whatever
@@ -139,6 +169,10 @@ class MainActivity : ComponentActivity() {
                         offered = waiting.id
                         reflecting = waiting
                         screen = Screen.Reflect
+                        store.note(
+                            Moment.CALL_RETURNED,
+                            value = CallStats.minutesAway(waiting.occurredAt, Instant.now()),
+                        )
                     }
                 }
 
@@ -274,7 +308,15 @@ class MainActivity : ComponentActivity() {
                                     who = store.contacts.value
                                         .firstOrNull { it.id == entry.contactId }?.label
                                         ?: "them",
-                                    measuredMinutes = entry.callMinutes ?: 10,
+                                    // Timed from when the call was placed to
+                                    // when they came back, not a stand-in ten
+                                    // minutes. The row's own occurredAt is the
+                                    // moment Harbor dialled.
+                                    measuredMinutes = entry.callMinutes
+                                        ?: CallStats.minutesAway(
+                                            entry.occurredAt,
+                                            Instant.now(),
+                                        ),
                                     initialTopic = entry.topic,
                                     reducedMotion = store.settings.value.reducedMotion,
                                     onPlant = { minutes, flower, topic ->
@@ -287,7 +329,14 @@ class MainActivity : ComponentActivity() {
                                             topic = topic ?: amended.topic,
                                         )
                                         amended = next
-                                        scope.launch { store.append(next) }
+                                        scope.launch {
+                                            store.append(next)
+                                            store.note(
+                                                Moment.FLOWER_PLANTED,
+                                                flower.name,
+                                                minutes,
+                                            )
+                                        }
                                     },
                                     onPulse = { pulse ->
                                         val next = amended.copy(feedbackPulse = pulse)

@@ -1,15 +1,19 @@
 package app.harbor.cue
 
+import android.Manifest
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import app.harbor.data.HarborRepository
 import app.harbor.domain.Contact
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Moment
 import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
 import kotlinx.coroutines.CoroutineScope
@@ -44,10 +48,19 @@ import java.util.UUID
  * that never happened — and `called` is the single number the study exists to
  * measure. The order is the other way round now.
  *
- * It is still [Intent.ACTION_DIAL] and never `CALL_PHONE` (ADR-002). Harbor
- * fills in the number; the person presses the green button. That is not a
- * limitation to be worked around — it is the reason this app needs no phone
- * permission at all.
+ * ## It places the call now
+ *
+ * Harbor used to hand the number to the dialer and leave the green button to
+ * the user (ADR-002, amended 2026-09-10). It dials directly when it may, and
+ * falls back to the dialer when it may not — an ungranted permission is not
+ * an error path, it is just the old behaviour.
+ *
+ * One thing follows from that and is worth knowing: there is no longer a
+ * screen between a tap and a ringing phone. A stray tap on a cue used to land
+ * on the dialer, where nothing happened until you pressed call. Now it rings.
+ *
+ * READ_PHONE_STATE is still not requested and should stay that way. Harbor
+ * does not watch the call; it times how long you were away from it.
  */
 object Dialer {
 
@@ -84,12 +97,36 @@ object Dialer {
             return
         }
 
-        val intent = Intent(Intent.ACTION_DIAL, "tel:$number".toUri())
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Place it if we are allowed to, and offer it to the dialer if we
+        // are not. The fallback is the whole of the old behaviour, so a
+        // refused permission costs the tap nothing.
+        val mayCall = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CALL_PHONE,
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val intent = Intent(
+            if (mayCall) Intent.ACTION_CALL else Intent.ACTION_DIAL,
+            "tel:$number".toUri(),
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         fun go() {
             try {
                 context.startActivity(intent)
+            } catch (_: SecurityException) {
+                // Revoked between the check and the call. Fall back rather
+                // than losing the tap.
+                try {
+                    context.startActivity(
+                        Intent(Intent.ACTION_DIAL, "tel:$number".toUri())
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                } catch (_: ActivityNotFoundException) {
+                    onOutcome(Outcome.NoDialer)
+                    return
+                }
+                onOutcome(Outcome.Dialing)
+                return
             } catch (_: ActivityNotFoundException) {
                 // A tablet with no dialer, or a locked-down device. Say so
                 // rather than recording a call and asking how it went.
@@ -159,6 +196,10 @@ object Dialer {
         val id = UUID.randomUUID()
         val now = Instant.now()
         scope.launch {
+            // Which surface the call came from is the study's second question:
+            // whether the trigger is doing the work, or whether people open
+            // Harbor and call on their own.
+            store.note(Moment.CALL_STARTED, source.name)
             store.append(
                 LedgerEntry(
                     id = id,

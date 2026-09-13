@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.Contact
 import app.harbor.domain.CueSound
+import app.harbor.domain.Moment
 import app.harbor.sensing.ActivityTransitions
 import app.harbor.sensing.Sensing
 import app.harbor.ui.theme.Avatar
@@ -102,9 +104,15 @@ fun OnboardingScreen(
     fun finish() {
         scope.launch {
             store.setOnboarded()
+            store.note(Moment.ONBOARDING_DONE, value = step)
             onFinished()
         }
     }
+
+    // Where people stop is the funnel, and the funnel is the number the study
+    // lives on: somebody who abandons at the permission ask contributes
+    // nothing to question one.
+    LaunchedEffect(step) { store.note(Moment.ONBOARDING_STEP, value = step) }
 
     Box(modifier.fillMaxSize().background(FlowGround)) {
         when (step) {
@@ -528,6 +536,11 @@ private fun AskPermission(store: HarborRepository, onNext: () -> Unit) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
+            // So the call button rings rather than opening the dialer with
+            // the number filled in. Refusing it costs nothing: the button
+            // falls back to handing the number over, which is what it did
+            // before. See cue/Dialer.
+            add(Manifest.permission.CALL_PHONE)
         }
         if (wanted.isEmpty()) scope.launch { failed = !Sensing.enable(context, store) }
         else request.launch(wanted.toTypedArray())
@@ -544,6 +557,13 @@ private fun AskPermission(store: HarborRepository, onNext: () -> Unit) {
             SmallCopy(
                 "Whether your phone thinks you are walking or still. Not where " +
                     "you are, not what you are doing, not which apps you use.",
+            )
+            SectionHeading("What it does with it")
+            SmallCopy(
+                "Offers you one person, and dials them if you say yes. It asks " +
+                    "for the phone permission so the call button rings instead " +
+                    "of dropping you in the dialer. Say no and it still works, " +
+                    "with the extra tap.",
             )
             SectionHeading("Where it stays")
             SmallCopy(

@@ -1,5 +1,6 @@
 package app.harbor.data
 
+import app.harbor.domain.Beat
 import app.harbor.domain.BlockKind
 import app.harbor.domain.Contact
 import app.harbor.domain.ContactKind
@@ -9,6 +10,7 @@ import app.harbor.domain.FeedbackPulse
 import app.harbor.domain.Feeling
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Moment
 import app.harbor.domain.Resolution
 import app.harbor.domain.Thresholds
 import app.harbor.domain.Tone
@@ -130,6 +132,27 @@ internal object LedgerJson {
 
     fun blocks(list: List<WeekBlock>): JSONArray =
         JSONArray().apply { list.forEach { put(block(it)) } }
+
+    // --- study beats ------------------------------------------------------
+
+    fun beat(b: Beat): JSONObject = JSONObject()
+        .put("at", b.at.toString())
+        .put("moment", b.moment.name.lowercase())
+        .put("detail", b.detail)
+        .put("value", b.value)
+
+    fun beat(o: JSONObject): Beat = Beat(
+        at = Instant.parse(o.getString("at")),
+        moment = Moment.entries.fromWire(o.getString("moment")),
+        detail = o.optStringOrNull("detail"),
+        value = if (o.isNull("value")) null else o.optInt("value"),
+    )
+
+    fun beats(array: JSONArray): List<Beat> =
+        (0 until array.length()).map { beat(array.getJSONObject(it)) }
+
+    fun beats(list: List<Beat>): JSONArray =
+        JSONArray().apply { list.forEach { put(beat(it)) } }
 
     // --- cue --------------------------------------------------------------
 

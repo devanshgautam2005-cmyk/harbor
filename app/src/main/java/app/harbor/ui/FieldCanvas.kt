@@ -7,6 +7,7 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -47,9 +48,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
+import app.harbor.domain.CallStats
 import app.harbor.domain.Field
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.Flowers
+import app.harbor.ui.theme.CardEdge
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.domain.Terrain
@@ -132,6 +135,9 @@ fun FieldCanvas(
     val cells by produceState(initialValue = emptyList<Field.Cell>(), patches) {
         value = withContext(Dispatchers.Default) { Field.cells(patches) }
     }
+
+    // The patch whose card is open, or null. Cleared by tapping open country.
+    var showing by remember { mutableStateOf<Field.Patch?>(null) }
 
     var frame by remember { mutableStateOf(IntSize.Zero) }
     val base = remember(frame) {
@@ -234,6 +240,11 @@ fun FieldCanvas(
                                 best = patch
                             }
                         }
+                        // Travel there, and say whose it is. Flying the
+                        // camera at a patch and then telling the user nothing
+                        // about it was the one interaction on this screen that
+                        // answered a question with a gesture.
+                        showing = best
                         best?.let {
                             touched = true
                             goal = Field.Camera(it.x, it.y, base * 6.5)
@@ -269,15 +280,33 @@ fun FieldCanvas(
         // Home carries the same line above its own preview, so this one is
         // only for the full screen.
         if (interactive && !planted) {
-            Text(
-                "Start growing today.",
+            Column(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(horizontal = 32.dp),
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    color = MaterialTheme.colorScheme.onBackground,
-                ),
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "Waiting for you to grow a flower.",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        color = MaterialTheme.colorScheme.onBackground,
+                    ),
+                )
+                Text(
+                    "A call, and how it felt. That is the whole of it.",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+            }
+        }
+
+        showing?.let { patch ->
+            PatchCard(
+                patch = patch,
+                usual = CallStats.usualMinutes(entries, patch.contactId),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(14.dp),
+            ) { showing = null }
         }
 
         if (interactive && base > 0) {
@@ -287,6 +316,73 @@ fun FieldCanvas(
                 modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
             )
         }
+    }
+}
+
+/**
+ * Whose patch this is, on the field itself.
+ *
+ * The field could always be flown around and a patch could always be tapped,
+ * but a tap only moved the camera — you arrived somewhere and the screen told
+ * you nothing about where you had arrived. A patch is a person and a count of
+ * calls, and those are the two things worth knowing while looking at it.
+ *
+ * Sits over the field rather than replacing it, because the point is to read
+ * this *and* see the ground it belongs to.
+ */
+@Composable
+private fun PatchCard(
+    patch: Field.Patch,
+    usual: Int?,
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, CardEdge, RoundedCornerShape(16.dp))
+            .padding(start = 16.dp, end = 10.dp, top = 14.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        FlowerMark(patch.flower, Modifier.size(46.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                patch.label,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
+            )
+            Text(
+                when (patch.calls) {
+                    0 -> "nothing here yet"
+                    1 -> "one flower, " + Flowers.spec(patch.flower).name.lowercase()
+                    else -> patch.calls.toString() + " flowers, mostly " +
+                        Flowers.spec(patch.flower).name.lowercase()
+                },
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+            )
+            usual?.let {
+                Text(
+                    "calls usually run " + CallStats.formatDuration(it),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+            }
+        }
+        Text(
+            "Close",
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onClose)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelLarge.copy(
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
     }
 }
 

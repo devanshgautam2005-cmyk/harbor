@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Moment
 import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.Flow
@@ -90,6 +91,7 @@ fun NotesScreen(
         if (picked != null && who != null) {
             recordSnapshot(store, scope, who.id) { entries = it }
             sent = "Your picture is on its way."
+            scope.launch { store.note(Moment.PETAL_SENT, "picture") }
             context.startActivity(
                 Intent.createChooser(
                     Intent(Intent.ACTION_SEND).apply {
@@ -182,11 +184,13 @@ fun NotesScreen(
                                     ),
                                 )
                                 sent = "Your line is on its way."
+                            scope.launch { store.note(Moment.PETAL_SENT, "line") }
                             }
                         }
                         Pill(text = "Just keep it", selected = false) {
                             record()
                             sent = "Kept, just for you."
+                        scope.launch { store.note(Moment.PETAL_SENT, "kept") }
                         }
                     }
                     Pill(text = "Send a picture instead", selected = false) {

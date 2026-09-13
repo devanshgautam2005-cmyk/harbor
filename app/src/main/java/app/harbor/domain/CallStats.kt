@@ -66,6 +66,21 @@ object CallStats {
             }
             .maxByOrNull { it.occurredAt }
 
+    /**
+     * How long the user was away, in minutes, from the moment Harbor dialled.
+     *
+     * The row is written the instant the call is placed, so its `occurredAt`
+     * *is* the start of the call and coming back is near enough the end of it.
+     * Harbor never asks the system how long the call ran — that would need
+     * READ_PHONE_STATE, and it is not worth a permission to turn "about eleven
+     * minutes" into "eleven minutes and four seconds".
+     *
+     * Floored at one, because a call that rounds to nothing still happened,
+     * and capped with the same ceiling the stepper uses.
+     */
+    fun minutesAway(dialedAt: Instant, now: Instant): Int =
+        Duration.between(dialedAt, now).toMinutes().toInt().coerceIn(1, 180)
+
     /** How long a call stays worth asking about. */
     val WINDOW: Duration = Duration.ofHours(12)
 

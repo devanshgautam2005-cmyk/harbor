@@ -53,6 +53,7 @@ import app.harbor.cue.Dialer
 import app.harbor.data.HarborRepository
 import app.harbor.domain.BlockKind
 import app.harbor.domain.FlowerKind
+import app.harbor.domain.Moment
 import app.harbor.domain.WeekBlock
 import app.harbor.domain.Windows
 import app.harbor.ui.theme.BandWarm
@@ -311,7 +312,15 @@ private fun WeekEditor(
 
     fun commit(next: List<WeekBlock>) {
         draft = null
-        scope.launch { store.setWeekBlocks(next) }
+        val grew = next.size > blocks.size
+        scope.launch {
+            store.setWeekBlocks(next)
+            store.note(
+                Moment.WEEK_EDITED,
+                if (grew) planting.name.lowercase() else "removed",
+                next.size,
+            )
+        }
     }
 
     Column(

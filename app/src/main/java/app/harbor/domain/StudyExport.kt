@@ -66,6 +66,18 @@ object StudyExport {
          * were or what they were doing.
          */
         val lastTransitionAt: Instant?,
+
+        /**
+         * What the participant did, as categories and timestamps.
+         *
+         * The ledger says what became of a cue. This says whether anybody
+         * opened the app, how long they stayed, what they looked at, and how
+         * many of their calls Harbor had anything to do with — the questions
+         * the study was otherwise reduced to asking people afterwards.
+         *
+         * Shapes only, never content. See [Moment].
+         */
+        val beats: List<Beat>,
     )
 
     /** What to show someone before they hand the file over. */
@@ -82,6 +94,7 @@ object StudyExport {
         "names, phone numbers, photos and ringtones",
         "the words of any line you left",
         "your answers to the daily question",
+        "the words of anything at all: what is recorded is which kind of thing happened, and when",
         "what you called any block on your week",
         "your own name",
         "anything about where you were or how you moved",
@@ -142,6 +155,17 @@ object StudyExport {
                 "start" to str(it.start.toString()),
                 "end" to str(it.end.toString()),
                 "kind" to str(it.kind.name.lowercase()),
+            )
+        },
+
+        // Categories and timestamps. No words, ever - a beat's detail is an
+        // enum name or a screen name and nothing else.
+        "beats" to arr(bundle.beats) {
+            obj(
+                "at" to str(it.at.toString()),
+                "moment" to str(it.moment.name.lowercase()),
+                "detail" to str(it.detail),
+                "value" to num(it.value),
             )
         },
 

@@ -47,6 +47,7 @@ import app.harbor.domain.FeedbackPulse
 import app.harbor.domain.Feeling
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Moment
 import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.HarborTheme
@@ -147,6 +148,8 @@ class CueActivity : ComponentActivity() {
             ?.let { runCatching { TriggerSource.valueOf(it) }.getOrNull() }
             ?: TriggerSource.WALKING_STOP
         val contact = store.contacts.value.firstOrNull { it.id == contactId }
+
+        lifecycleScope.launch { store.note(Moment.CUE_SHOWN, source.name) }
 
         // The notification has done its job; the surface takes over the sound.
         CueNotifier.cancel(this)
@@ -268,6 +271,10 @@ class CueActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { store.append(entry) }
+            store.note(Moment.CUE_RESOLVED, resolution.name)
+            if (flower != null) {
+                store.note(Moment.FLOWER_PLANTED, flower.name, callMinutes)
+            }
         }
     }
 

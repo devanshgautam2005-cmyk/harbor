@@ -84,6 +84,11 @@ class StudyExportTest {
             ),
         ),
         lastTransitionAt = at,
+        beats = listOf(
+            Beat(at, Moment.APP_OPENED),
+            Beat(at, Moment.CALL_STARTED, TriggerSource.WALKING_STOP.name),
+            Beat(at, Moment.ANSWER_KEPT),
+        ),
     )
 
     // --- redaction ----------------------------------------------------------
@@ -102,6 +107,16 @@ class StudyExportTest {
         ).forEach {
             assertFalse("$it leaked into the export", json.contains(it))
         }
+    }
+
+    @Test
+    fun `a beat carries a category and never a word`() {
+        // The whole safety of the study log: it says which kind of thing
+        // happened, and when, and nothing about what was in it.
+        val json = StudyExport.json(bundle())
+        assertTrue(json.contains("app_opened"))
+        assertTrue(json.contains("call_started"))
+        assertTrue("the daily word must not ride out with the beat", !json.contains("SECRET_NOTE"))
     }
 
     @Test

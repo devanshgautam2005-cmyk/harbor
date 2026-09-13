@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.DailyQuestion
+import app.harbor.domain.Moment
 import app.harbor.domain.Weather
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Gold
@@ -91,7 +92,10 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
         val clamped = next.coerceIn(0, last)
         moodSet = true
         if (steps[clamped] != settings.weather) {
-            scope.launch { store.setSettings(settings.copy(weather = steps[clamped])) }
+            scope.launch {
+                store.setSettings(settings.copy(weather = steps[clamped]))
+                store.note(Moment.WEATHER_SET, steps[clamped].name.lowercase())
+            }
         }
     }
 
@@ -251,7 +255,11 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                     Pill(text = "Keep it", selected = draft.isNotBlank()) {
                         val word = draft.trim()
                         if (word.isNotEmpty()) {
-                            scope.launch { store.setDailyAnswer(today, word) }
+                            scope.launch {
+                                store.setDailyAnswer(today, word)
+                                // That they answered, never the word.
+                                store.note(Moment.ANSWER_KEPT)
+                            }
                             expanded = false
                         }
                     }
