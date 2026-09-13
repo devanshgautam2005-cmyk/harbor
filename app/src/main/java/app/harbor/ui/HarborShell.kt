@@ -14,12 +14,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.harbor.ui.theme.Chalk
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
@@ -157,30 +166,38 @@ fun HarborShell(
  */
 internal fun DrawScope.drawDusk() {
     // The wash: blue overhead, falling through ember to the ground.
+    //
+    // Reaching further down the page than the design file's own stops do.
+    // Taken literally those go near-black by about 40% of the screen, which on
+    // a 2400px phone leaves the colour hiding behind the status bar -- the
+    // gradient is there, but almost nowhere you can see it. The reference the
+    // file was derived from is a photograph of a sunset filling the top half,
+    // and that is the proportion this matches.
     drawRect(
         brush = Brush.radialGradient(
             colorStops = arrayOf(
-                0.00f to Color(0xFF2E6B96),
-                0.26f to Color(0xFF8A5230),
-                0.46f to Color(0xFF52251C),
-                0.68f to Color(0xFF1A1216),
-                0.92f to Color(0x000D0E11),
+                0.00f to Color(0xFF3C7FA8),
+                0.30f to Color(0xFFB4602C),
+                0.52f to Color(0xFF7A3420),
+                0.74f to Color(0xFF2A1618),
+                0.96f to Color(0x000D0E11),
             ),
-            center = Offset(size.width / 2f, -size.height * 0.10f),
-            radius = size.height * 0.78f,
+            center = Offset(size.width / 2f, -size.height * 0.12f),
+            radius = size.height * 1.02f,
         ),
         size = size,
     )
-    // The sun, sitting just off the top edge.
+    // The sun, sitting just off the top edge. Without it the gradient peaks at
+    // a mid-tone and never has a bright point for the glass to catch.
     drawRect(
         brush = Brush.radialGradient(
             colorStops = arrayOf(
-                0.00f to Color(0x66FFC98C),
-                0.45f to Color(0x33F0A35F),
+                0.00f to Color(0x8CFFD2A0),
+                0.40f to Color(0x40F0A35F),
                 1.00f to Color(0x00F0783C),
             ),
-            center = Offset(size.width / 2f, size.height * 0.02f),
-            radius = size.width * 0.72f,
+            center = Offset(size.width / 2f, size.height * 0.06f),
+            radius = size.width * 0.86f,
         ),
         size = size,
     )
@@ -193,27 +210,84 @@ enum class HarborTab(val label: String) {
 }
 
 /**
- * Muted until current, when it takes the amber pill.
+ * A disc, and its name underneath.
  *
- * Gold rather than `primary`: the design gives the current tab the brighter of
- * the two ambers and saves the [app.harbor.ui.theme.Ember] gradient for a
- * button. This is one of the exactly three places amber is allowed to appear.
+ * The design draws each tab as a 40dp circle over an 11px label rather than as
+ * a text pill -- the current one is an amber disc with a white label, the rest
+ * are faint glass with a muted one. Gold rather than `primary`: the current tab
+ * gets the brighter of the two ambers and the [app.harbor.ui.theme.Ember]
+ * gradient is saved for a button. This is one of exactly three places amber is
+ * allowed to appear.
  */
 @Composable
-private fun NavItem(tab: HarborTab, current: Boolean, onClick: () -> Unit) = Box(
+private fun NavItem(tab: HarborTab, current: Boolean, onClick: () -> Unit) = Column(
     Modifier
+        .width(74.dp)
         .clip(NavShape)
-        .background(if (current) MaterialTheme.colorScheme.tertiary else Color.Transparent)
         .clickable(onClick = onClick)
-        .padding(horizontal = 18.dp, vertical = 9.dp),
-    contentAlignment = Alignment.Center,
+        .padding(top = 6.dp, bottom = 4.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(3.dp),
 ) {
+    val ink =
+        if (current) MaterialTheme.colorScheme.onTertiary
+        else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(
+                if (current) MaterialTheme.colorScheme.tertiary
+                else Color.White.copy(alpha = 0.07f),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(19.dp)) { drawTabMark(tab, ink) }
+    }
     Text(
         tab.label,
         style = MaterialTheme.typography.titleMedium.copy(
-            fontSize = 13.sp,
-            color = if (current) MaterialTheme.colorScheme.onTertiary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+            color = if (current) Chalk else MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )
+}
+
+/**
+ * The three marks, drawn rather than imported.
+ *
+ * Harbor ships no icon library and no bitmaps on purpose -- every mark in the
+ * app is geometry, so it restyles with the palette for free. These are the
+ * design's own paths on its 100x100 grid: a house, a clock, a person.
+ */
+private fun DrawScope.drawTabMark(tab: HarborTab, colour: Color) {
+    val u = size.minDimension / 100f
+    val line = Stroke(width = 11f * u, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    fun path(build: Path.() -> Unit) = drawPath(Path().apply(build), colour, style = line)
+    when (tab) {
+        HarborTab.Home -> {
+            path {
+                moveTo(12f * u, 45f * u); lineTo(50f * u, 12f * u); lineTo(88f * u, 45f * u)
+            }
+            path {
+                moveTo(24f * u, 42f * u); lineTo(24f * u, 88f * u)
+                lineTo(76f * u, 88f * u); lineTo(76f * u, 42f * u)
+            }
+        }
+
+        HarborTab.Schedule -> {
+            drawCircle(colour, radius = 40f * u, center = Offset(50f * u, 50f * u), style = line)
+            path {
+                moveTo(50f * u, 28f * u); lineTo(50f * u, 52f * u); lineTo(70f * u, 62f * u)
+            }
+        }
+
+        HarborTab.Account -> {
+            drawCircle(colour, radius = 20f * u, center = Offset(50f * u, 33f * u), style = line)
+            path {
+                moveTo(17f * u, 90f * u)
+                cubicTo(17f * u, 60f * u, 83f * u, 60f * u, 83f * u, 90f * u)
+            }
+        }
+    }
 }
