@@ -92,19 +92,19 @@ internal object Sky {
             Weather.BRIGHT -> {
                 translate(-9f, -11f) { scale(0.86f, pivot = Offset(50f, 50f)) { drawSun() } }
                 translate(6f, 9f) {
-                    scale(0.82f, pivot = Offset(50f, 50f)) { drawCloud(Color.White) }
+                    scale(0.82f, pivot = Offset(50f, 50f)) { drawCloud(Color(0xFFF0C894)) }
                 }
             }
 
             Weather.CLOUDY -> {
                 translate(-14f, -12f) {
-                    scale(0.66f, pivot = Offset(50f, 50f)) { drawCloud(Color(0xFFEDF1F2)) }
+                    scale(0.66f, pivot = Offset(50f, 50f)) { drawCloud(Color(0xFF9CACB8)) }
                 }
-                drawCloud(Color.White)
+                drawCloud(Color(0xFF8FA0AC))
             }
 
             Weather.RAIN -> {
-                drawCloud(Color(0xFFD8DFE3))
+                drawCloud(Color(0xFF7E8A94))
                 listOf(38f, 50f, 62f).forEach { x ->
                     drawLine(
                         color = Color(0xFF8FA6B8),
@@ -117,7 +117,7 @@ internal object Sky {
             }
 
             Weather.STORM -> {
-                drawCloud(Color(0xFFB6C0C8))
+                drawCloud(Color(0xFF6B747D))
                 drawPath(
                     Path().apply {
                         moveTo(55f, 68f); lineTo(44f, 86f); lineTo(53f, 86f)
@@ -157,12 +157,17 @@ internal object Sky {
         )
     }
 
-    /** The dashed ring the emblems ride on. Faint, and mostly off-frame. */
+    /**
+     * The dashed ring the emblems ride on. Faint, and mostly off-frame.
+     *
+     * White rather than the dark green it was. A faint *dark* line on a dusk
+     * sky is not faint, it is absent.
+     */
     fun DrawScope.drawRing() {
         val radius = max(size.width, 300f) * 1.06f
         val centre = Offset(size.width / 2f, size.height + 26f)
         drawCircle(
-            color = Color(0x1A33553D),
+            color = Color(0x1AFFFFFF),
             radius = radius * 0.75f,
             center = centre,
             style = Stroke(width = 1.5f),

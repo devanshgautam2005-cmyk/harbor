@@ -20,6 +20,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -48,7 +52,12 @@ fun HarborShell(
     title: String?,
     content: @Composable () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .drawBehind { drawDusk() },
+    ) {
         Column(Modifier.fillMaxSize()) {
             // No wordmark. It cost 70dp on every screen to tell someone which
             // app they had just opened, which they know — and on home that
@@ -124,6 +133,36 @@ fun HarborShell(
             }
         }
     }
+}
+
+/**
+ * The dusk every screen stands in.
+ *
+ * The design never draws a flat ground. Each screen has a wash anchored just
+ * above its top edge -- cool blue overhead, falling through ember to the near
+ * black the cards sit on -- and it is most of what separates this language
+ * from "the same app with dark colours". Without it the glass has nothing to
+ * catch, the rims go dead, and the cards read as grey boxes.
+ *
+ * Drawn rather than declared because the design states it in percentages of
+ * the screen ("120% 70% at 50% -8%"), and a Brush needs pixels. Behind the
+ * content, so anything that paints its own ground -- the field, the garden --
+ * covers it rather than fighting it.
+ */
+private fun DrawScope.drawDusk() {
+    drawRect(
+        brush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0.00f to Color(0xFF1D4A6E),
+                0.34f to Color(0xFF7B4A2E),
+                0.62f to Color(0xFF2A1A18),
+                0.88f to Color(0x000D0E11),
+            ),
+            center = Offset(size.width / 2f, -size.height * 0.08f),
+            radius = size.height * 0.70f,
+        ),
+        size = size,
+    )
 }
 
 enum class HarborTab(val label: String) {

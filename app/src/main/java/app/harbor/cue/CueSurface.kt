@@ -54,6 +54,7 @@ import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
+import androidx.compose.ui.graphics.Brush
 import app.harbor.ui.theme.Paper
 import app.harbor.ui.theme.SmallCopy
 import java.time.Duration
@@ -96,8 +97,23 @@ internal fun CueSurface(
     Column(
         Modifier
             .fillMaxSize()
-            // .cue-screen — the ground, flat. The specimen never gradients it.
-            .background(Paper)
+            // .cue-screen — the ground.
+            //
+            // The one screen the design gives a gradient of its own, and it
+            // gives it the strongest one in the app: a straight fall from
+            // evening blue through ember to the ground, no radial softening.
+            // This is the screen somebody sees when their phone lights up in
+            // their hand, and it is meant to look like a time of day.
+            .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.00f to Color(0xFF1F4560),
+                        0.38f to Color(0xFF8D5230),
+                        0.66f to Color(0xFF3B1F18),
+                        0.92f to Paper,
+                    ),
+                ),
+            )
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 26.dp, vertical = 22.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
