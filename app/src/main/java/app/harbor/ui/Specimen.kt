@@ -122,11 +122,16 @@ fun Specimen(
                 )
                 Box(Modifier.size(11.dp).clip(MarkShape).background(tone.mark))
             }
+            // Sentence case, not the sheet's small caps.
+            //
+            // The flower sheet does set this line in tracked capitals, and it
+            // is the one place in the whole design that does. Everywhere else
+            // -- and in the reference the language comes from -- a quiet line
+            // is just a quiet line, so it is one here too.
             Text(
-                caption.uppercase(),
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 9.sp,
-                    letterSpacing = 1.3.sp,
+                caption,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             )

@@ -184,10 +184,20 @@ fun SectionHeading(text: String, modifier: Modifier = Modifier) = Text(
 )
 
 /**
- * The specimen's caption: small, spaced wide, muted.
+ * The quiet line under something: small, muted, and in sentences.
  *
- * The tracking is what makes this read as a catalogue label rather than a UI
- * string, so it is wider than a label would normally want.
+ * It used to uppercase its own text and track it out to 2sp, which is what the
+ * light specimen wanted -- it was imitating a printed catalogue, where a label
+ * under a plate is set in small caps.
+ *
+ * The dark design does not do that anywhere. Its labels are ordinary sentence
+ * case at 11-13px in a muted grey ("Golden Hour", "Cloud Cover", "Quality"),
+ * and the reference it comes from has no capitalised line on it at all. Caps
+ * also cost real legibility at this size, and they make a line of plain
+ * English read as a heading for a table that is not there.
+ *
+ * So this no longer transforms the string it is given. Anything that wants to
+ * be shouted has to say so itself, and nothing should.
  */
 @Composable
 fun Eyebrow(
@@ -196,12 +206,11 @@ fun Eyebrow(
     /** End-aligned when it is the right half of a [SectionHeader]. */
     textAlign: TextAlign? = null,
 ) = Text(
-    text.uppercase(),
+    text,
     modifier = modifier,
     textAlign = textAlign,
-    style = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 10.sp,
-        letterSpacing = 2.0.sp,
+    style = MaterialTheme.typography.bodySmall.copy(
+        fontSize = 13.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     ),
 )
@@ -425,10 +434,9 @@ fun QuietRow(text: String, meta: String, modifier: Modifier = Modifier) = Row(
         style = MaterialTheme.typography.bodyMedium,
     )
     Text(
-        meta.uppercase(),
-        style = MaterialTheme.typography.labelSmall.copy(
-            fontSize = 9.sp,
-            letterSpacing = 1.3.sp,
+        meta,
+        style = MaterialTheme.typography.bodySmall.copy(
+            fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )

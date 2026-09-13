@@ -624,7 +624,7 @@ private fun drawTags(
         // unreadable anyway.
         if (kit.point.x > w - 80 * unit && kit.point.y < 210 * unit) continue
         tags += Tag(
-            patch.label.uppercase() + " · " + patch.calls,
+            patch.label + " · " + patch.calls,
             kit.point.x.toFloat(),
             kit.point.y.toFloat(),
             kit.point.y.toFloat(),

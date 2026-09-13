@@ -231,6 +231,17 @@ class MainActivity : ComponentActivity() {
                     // happened all through onboarding.
                     val inset = Modifier.padding(padding).imePadding()
 
+                    // Home keeps the bottom inset and gives up the top one.
+                    //
+                    // Its field is full bleed and is meant to run under the
+                    // status bar, the way the reference runs its sky under the
+                    // clock. Nothing on home needs the top inset: the greeting
+                    // sits at the *foot* of the field, so the only thing level
+                    // with the clock is sky.
+                    val homeInset = Modifier
+                        .padding(bottom = padding.calculateBottomPadding())
+                        .imePadding()
+
                     if (onboarded != true) {
                         if (onboarded == false) {
                             OnboardingScreen(
@@ -268,7 +279,7 @@ class MainActivity : ComponentActivity() {
                                     reflecting = entry
                                     screen = Screen.Reflect
                                 },
-                                modifier = inset,
+                                modifier = homeInset,
                             )
 
                             Screen.Cues -> CuesSetupScreen(

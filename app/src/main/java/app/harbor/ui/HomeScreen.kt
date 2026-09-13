@@ -31,6 +31,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.harbor.ui.theme.Paper
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -108,7 +110,10 @@ fun HomeScreen(
         // all on the same handset. A share of the viewport keeps the field
         // the largest thing on the page everywhere, and keeps the people
         // under it on screen everywhere.
-        val fieldHeight = (maxHeight * 0.40f).coerceIn(232.dp, 336.dp)
+        // Taller than it was, because it is now the top of the page rather
+        // than a card sitting on it. The reference gives its sky a little under
+        // half the phone and then lets the first card climb back over it.
+        val fieldHeight = (maxHeight * 0.46f).coerceIn(280.dp, 400.dp)
 
         // `modifier` belongs to the BoxWithConstraints above; applying it
         // here as well would pay the Scaffold's insets twice.
@@ -118,44 +123,67 @@ fun HomeScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(rememberScrollState()),
         ) {
-            // .home-greeting
-            // Two lines, not three. "A little closer, every day" was a tagline
-            // above a greeting above a count, and the third of those is the only
-            // one that says anything the reader did not already know.
-            Column(Modifier.padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 10.dp)) {
-                Text(
-                    if (settings.name.isBlank()) "Hey there." else "Hey, ${settings.name}.",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp),
-                )
-                Spacer(Modifier.size(7.dp))
-                // Caps, not a sentence. In the specimen the line under a greeting
-                // is a catalogue caption rather than a second voice.
-                Eyebrow(
-                    when (grown) {
-                        0 -> "A little closer, every day"
-                        1 -> "One flower has grown here"
-                        else -> "$grown flowers have grown here"
-                    },
-                )
-            }
-
-            // .field-holder — the field itself, on the home screen, exactly as
-            // the trial page has it. Tapping opens it full bleed.
+            // The field, full bleed, with the greeting standing on it.
+            //
+            // It used to be a rounded rectangle inset by 16dp with the
+            // greeting stacked above it -- a picture pinned to a page. The
+            // reference does the opposite and it is the whole shape of the
+            // screen: the sky runs edge to edge and under the status bar, what
+            // the screen has to say sits on top of it, and the first card
+            // climbs back over its bottom edge so the two overlap rather than
+            // stack. Nothing is inset until below the fold.
             Box(
                 Modifier
-                    .padding(horizontal = 16.dp)
                     .fillMaxWidth()
-                    // 404dp put the call button off the bottom of the screen
-                    // on its own, and a fixed number could never be right for
-                    // every phone. See fieldHeight.
                     .height(fieldHeight)
-                    .clip(RoundedCornerShape(24.dp))
                     .clickable(onClick = onOpenGarden),
             ) {
                 FieldCanvas(store, Modifier.fillMaxSize(), interactive = false)
+
+                // A scrim at the foot of the sky, so the card that overlaps it
+                // has something to emerge from and the greeting stays readable
+                // whatever the weather is doing behind it.
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(fieldHeight * 0.46f)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Paper.copy(alpha = 0.86f)),
+                            ),
+                        ),
+                )
+
+                Column(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 24.dp, end = 24.dp, bottom = 26.dp),
+                ) {
+                    Text(
+                        if (settings.name.isBlank()) "Hey there." else "Hey, ${settings.name}.",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
+                    )
+                    Spacer(Modifier.size(5.dp))
+                    Eyebrow(
+                        when (grown) {
+                            0 -> "A little closer, every day"
+                            1 -> "One flower has grown here"
+                            else -> "$grown flowers have grown here"
+                        },
+                    )
+                }
             }
 
-            Flow(Modifier.pageContent()) {
+            // The card climbs back over the sky by 22dp. That overlap is the
+            // reference's one structural move, and without it the page is two
+            // things one after the other instead of one thing in front of
+            // another.
+            Flow(
+                Modifier
+                    .offset(y = (-22).dp)
+                    .pageContent(),
+            ) {
                 // A call Harbor watched you start and never heard about.
                 CallStats.pendingReflection(entries, Instant.now())?.let { waiting ->
                     Surface {
