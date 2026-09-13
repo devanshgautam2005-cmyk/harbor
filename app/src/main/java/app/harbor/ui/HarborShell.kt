@@ -101,9 +101,9 @@ fun HarborShell(
 
         if (tab != null) {
             // A frosted pill, the same glass the cards are made of, holding
-            // three serif labels. The bar used to be a block of colour with
-            // an icon disc per tab; the specimen has neither, and on a page
-            // this quiet the filled tab alone is enough to say where you are.
+            // three sans labels. The bar used to be a block of colour with an
+            // icon disc per tab; the design has neither, and against a ground
+            // this dark the one amber tab is enough to say where you are.
             Row(
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -132,21 +132,27 @@ enum class HarborTab(val label: String) {
     Account("Account"),
 }
 
-/** Muted until current, when it takes the ink pill. */
+/**
+ * Muted until current, when it takes the amber pill.
+ *
+ * Gold rather than `primary`: the design gives the current tab the brighter of
+ * the two ambers and saves the [app.harbor.ui.theme.Ember] gradient for a
+ * button. This is one of the exactly three places amber is allowed to appear.
+ */
 @Composable
 private fun NavItem(tab: HarborTab, current: Boolean, onClick: () -> Unit) = Box(
     Modifier
         .clip(NavShape)
-        .background(if (current) MaterialTheme.colorScheme.primary else Color.Transparent)
+        .background(if (current) MaterialTheme.colorScheme.tertiary else Color.Transparent)
         .clickable(onClick = onClick)
         .padding(horizontal = 18.dp, vertical = 9.dp),
     contentAlignment = Alignment.Center,
 ) {
     Text(
         tab.label,
-        style = MaterialTheme.typography.titleLarge.copy(
+        style = MaterialTheme.typography.titleMedium.copy(
             fontSize = 13.sp,
-            color = if (current) MaterialTheme.colorScheme.onPrimary
+            color = if (current) MaterialTheme.colorScheme.onTertiary
             else MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )

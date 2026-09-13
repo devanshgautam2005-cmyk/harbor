@@ -147,29 +147,37 @@ private class SkyTint(
 )
 
 private fun fieldTintOf(weather: Weather): SkyTint = when (weather) {
-    // Drained toward the ground the rest of the app stands on. Weather still
-    // has to be legible at a glance -- that is the whole point of it -- so
-    // these keep their order and their contrast with each other, and lose
-    // only their saturation. A bright day is warm rather than yellow; a storm
-    // is grey rather than blue.
+    // Dusk, in five weathers.
+    //
+    // The design draws the field as one gradient -- cool blue overhead falling
+    // through ember to a near-black floor -- and these are that gradient bent
+    // five ways. Weather still has to be legible at a glance, which is the
+    // whole point of it, so what separates them is the same thing it always
+    // was: how warm the bottom is and how much of the sky the cloud takes. A
+    // bright evening keeps its ember; a storm loses it and goes blue-grey.
+    //
+    // Nothing here is allowed to get light. The field sits directly on the
+    // app's ground with no card around it, so a pale sky would read as a hole
+    // cut in the page rather than as weather.
     Weather.CLEAR -> SkyTint(
-        Color(0xFFDEE6EA), Color(0xFFECEBE6),
-        sun = 0.55f, cloud = 0f, cloudColour = Color.White, rain = 0f, dim = 0f,
+        Color(0xFF2B4F6B), Color(0xFF3A2018),
+        sun = 0.55f, cloud = 0f, cloudColour = Color(0xFFE8D6A8), rain = 0f, dim = 0f,
     )
     Weather.BRIGHT -> SkyTint(
-        Color(0xFFF3EBDA), Color(0xFFEEEDE7),
-        sun = 1f, cloud = 0.5f, cloudColour = Color.White, rain = 0f, dim = 0f,
+        Color(0xFF2F5A7D), Color(0xFF7B4226),
+        sun = 1f, cloud = 0.5f, cloudColour = Color(0xFFF0C894), rain = 0f, dim = 0f,
     )
     Weather.CLOUDY -> SkyTint(
-        Color(0xFFE1E2E1), Color(0xFFEAE9E4),
-        sun = 0f, cloud = 0.92f, cloudColour = Color.White, rain = 0f, dim = 0.07f,
+        Color(0xFF2A3F52), Color(0xFF33262A),
+        sun = 0f, cloud = 0.92f, cloudColour = Color(0xFF8FA0AC), rain = 0f, dim = 0.07f,
     )
     Weather.RAIN -> SkyTint(
-        Color(0xFFCFD5D8), Color(0xFFDFDFDA),
-        sun = 0f, cloud = 0.9f, cloudColour = Color(0xFFE6E7E7), rain = 0.7f, dim = 0.13f,
+        Color(0xFF24374A), Color(0xFF262126),
+        sun = 0f, cloud = 0.9f, cloudColour = Color(0xFF7E8A94), rain = 0.7f, dim = 0.13f,
     )
     Weather.STORM -> SkyTint(
-        Color(0xFFB6BBBE), Color(0xFFC9C9C4),
-        sun = 0f, cloud = 0.92f, cloudColour = Color(0xFFCFD1D2), rain = 1f, dim = 0.24f,
+        Color(0xFF1D2C3C), Color(0xFF1E1B20),
+        sun = 0f, cloud = 0.92f, cloudColour = Color(0xFF6B747D), rain = 1f, dim = 0.24f,
     )
 }
+

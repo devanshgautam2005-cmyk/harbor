@@ -54,6 +54,13 @@ import app.harbor.domain.Moment
 import app.harbor.domain.WeekBlock
 import app.harbor.domain.Windows
 import app.harbor.ui.theme.BandWarm
+import app.harbor.ui.theme.Chalk
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Hairline
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Muted
+import app.harbor.ui.theme.Paper
+import app.harbor.ui.theme.Sand
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.SmallCopy
@@ -296,9 +303,10 @@ internal data class WeekSkin(
         @Composable
         fun specimen() = WeekSkin(
             ground = MaterialTheme.colorScheme.background,
-            // Warmer than surfaceVariant, which is a cool grey that all but
-            // vanishes on the bone ground. The frames' band is warm, and the
-            // banding is what makes seven narrow columns countable.
+            // Its own colour rather than surfaceVariant, which sits too close
+            // to a card to read as banding. This is barely anything -- white at
+            // three percent -- and it only has to make seven narrow columns
+            // countable without anybody reading the day labels.
             band = BandWarm,
             line = MaterialTheme.colorScheme.outlineVariant,
             ink = MaterialTheme.colorScheme.onSurface,
@@ -306,15 +314,22 @@ internal data class WeekSkin(
             tile = MaterialTheme.colorScheme.secondaryContainer,
         )
 
-        /** Measured off the frames. */
+        /**
+         * The onboarding flow's grid.
+         *
+         * This used to be a second, lighter palette, because the flow was
+         * drawn on white while the app was drawn on bone. Both are the dusk
+         * ground now, so the two skins differ only in the tile -- the flow
+         * wants a plainer one, without the theme's warmth behind it.
+         */
         @Composable
         fun flow() = WeekSkin(
-            ground = Color.White,
-            band = Color(0xFFFCF3E9),
-            line = Color(0xFFB3B3B3),
-            ink = Color.Black,
-            muted = Color(0x99000000),
-            tile = Color(0xFFF3EDE4),
+            ground = Paper,
+            band = BandWarm,
+            line = Hairline,
+            ink = Chalk,
+            muted = Muted,
+            tile = Color(0xFF202124),
         )
     }
 }
@@ -819,20 +834,26 @@ private fun WeekGrid(
     }
 }
 
-/** The flow's grey pill, so the last step matches the ten before it. */
+/**
+ * The flow's pill, so the last step matches the ten before it.
+ *
+ * Named for the grey it used to be. It is amber now, like every other enabled
+ * control in onboarding, and the name is kept only because this is the step
+ * that closes that flow and the two files are read together.
+ */
 @Composable
 private fun GreyPill(label: String, enabled: Boolean, onClick: () -> Unit) = Box(
     Modifier
         .clip(RoundedCornerShape(29.dp))
-        .background(if (enabled) Color(0xFFD9D9D9) else Color(0x8FD9D9D9))
+        .background(if (enabled) Gold else Sand)
         .clickable(enabled = enabled, onClick = onClick)
         .padding(horizontal = 26.dp, vertical = 8.dp),
 ) {
     Text(
         label,
-        style = MaterialTheme.typography.titleLarge.copy(
-            fontSize = 18.sp,
-            color = if (enabled) Color.Black else Color(0x47000000),
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontSize = 17.sp,
+            color = if (enabled) Ink else Muted,
         ),
     )
 }

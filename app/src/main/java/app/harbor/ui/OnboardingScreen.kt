@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +53,12 @@ import app.harbor.sensing.ActivityTransitions
 import app.harbor.sensing.Sensing
 import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
+import app.harbor.ui.theme.Chalk
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Muted
+import app.harbor.ui.theme.Paper
+import app.harbor.ui.theme.Sand
 import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
@@ -143,16 +150,46 @@ fun OnboardingScreen(
 
 // --- the flow's own surface -----------------------------------------------
 //
-// Measured off the Figma frames rather than taken from the app's theme: this
-// flow is drawn on white with its own grey pill controls, and runs once before
-// the person ever reaches the app proper.
+// Still measured off the Figma frames -- the shapes, sizes and placements are
+// the frames' -- but the frames were drawn on white, and the app they open
+// into is not. These are those controls restated on the dusk ground.
+//
+// The one thing the dark pass had to pull apart is the grey the frames used
+// for everything. A single #D9D9D9 served as the text field, the enabled
+// button and the selected chip, because on white all three can be the same
+// grey. On this ground they cannot: a field is a hole you type into and wants
+// to be glass, while a button and a chosen chip are the thing being asked for
+// and want to be amber. Hence three fills where the frames had one.
 
-private val FlowGround = Color.White
-private val FlowInk = Color.Black
-private val FieldFill = Color(0xFFD9D9D9)
-private val PillIdle = Color(0x8FD9D9D9)
-private val PillInk = Color(0x47000000)
-private val MutedInk = Color(0x99000000)
+/** The ground, and the app's ground -- the flow no longer changes it. */
+private val FlowGround = Paper
+
+/** What the flow says: a question, an answer being typed, a label. */
+private val FlowInk = Chalk
+
+/** A hole you type into. White at eight percent, composited. */
+private val FieldGlass = Color(0xFF202124)
+
+/** The enabled button and the chosen chip. The design's one accent. */
+private val ActionFill = Gold
+
+/** What sits on [ActionFill]. Brown-black, never white. */
+private val ActionInk = Ink
+
+/**
+ * A card that is chosen, rather than a chip that is.
+ *
+ * Amber at eight percent with a rim at twenty, which is the design's own way
+ * of marking a whole card as live -- it does the same on the cues screen. A
+ * card filled solid amber would shout down the question above it.
+ */
+private val SelectedCard = Color(0xFF1F1C15)
+private val SelectedEdge = Color(0x33F0BD3E)
+
+/** Not yet, or not available. */
+private val PillIdle = Sand
+private val PillInk = Muted
+private val MutedInk = Muted
 
 /** Every question is set the same way: serif, centred, unhurried. */
 @Composable
@@ -203,7 +240,7 @@ private fun FlowField(
             .width(236.dp)
             .height(40.dp)
             .clip(RoundedCornerShape(29.dp))
-            .background(FieldFill)
+            .background(FieldGlass)
             .padding(horizontal = 18.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -235,7 +272,7 @@ private fun FlowNext(enabled: Boolean, label: String = "Next", onClick: () -> Un
         Box(
             Modifier
                 .clip(RoundedCornerShape(29.dp))
-                .background(if (enabled) FieldFill else PillIdle)
+                .background(if (enabled) ActionFill else PillIdle)
                 .clickable(enabled = enabled, onClick = onClick)
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
@@ -243,7 +280,7 @@ private fun FlowNext(enabled: Boolean, label: String = "Next", onClick: () -> Un
                 label,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontSize = 18.sp,
-                    color = if (enabled) FlowInk else PillInk,
+                    color = if (enabled) ActionInk else PillInk,
                 ),
             )
         }
@@ -260,7 +297,7 @@ private fun FlowPill(
 ) = Box(
     modifier
         .clip(RoundedCornerShape(29.dp))
-        .background(if (enabled) FieldFill else PillIdle)
+        .background(if (enabled) ActionFill else PillIdle)
         .clickable(enabled = enabled, onClick = onClick)
         .padding(horizontal = 26.dp, vertical = 11.dp),
 ) {
@@ -268,7 +305,7 @@ private fun FlowPill(
         label,
         style = MaterialTheme.typography.titleLarge.copy(
             fontSize = 18.sp,
-            color = if (enabled) FlowInk else PillInk,
+            color = if (enabled) ActionInk else PillInk,
         ),
     )
 }
@@ -432,7 +469,7 @@ private fun TheirSound(
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(29.dp))
-                        .background(if (chosen) FieldFill else PillIdle)
+                        .background(if (chosen) ActionFill else PillIdle)
                         .clickable {
                             scope.launch { store.setSettings(settings.copy(sound = option)) }
                         }
@@ -442,7 +479,7 @@ private fun TheirSound(
                         option.label,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = 16.sp,
-                            color = if (chosen) FlowInk else PillInk,
+                            color = if (chosen) ActionInk else PillInk,
                         ),
                     )
                 }
@@ -478,7 +515,8 @@ private fun WhenFree(onNext: () -> Unit) {
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(FieldFill)
+                .background(SelectedCard)
+                .border(1.dp, SelectedEdge, RoundedCornerShape(20.dp))
                 .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,

@@ -71,16 +71,23 @@ object Field {
     // Colours are bucketed so the whole field draws in about a dozen fills
     // rather than one per cell. The index a cell carries is its bucket.
 
-    // Sage rather than grass.
+    // Sage rather than grass, and now sage after dark.
     //
     // These used to be saturated yellow-greens, which made the whole field a
-    // wall of colour and left a bloom nothing to be brighter than. The
-    // specimen sheet holds colour back everywhere except the flower, and the
-    // field is the largest surface in the app to apply that to: the ground is
-    // quiet so that a patch of somebody's flowers reads from across the
-    // valley.
-    val VEG = listOf(0xFFB8C4A4, 0xFFA3B18C, 0xFF8D9C75, 0xFF77875E, 0xFF5F6E4A)
-    val WATER = listOf(0xFFC3D3D9, 0xFFA8BEC8)
+    // wall of colour and left a bloom nothing to be brighter than. The design
+    // holds colour back everywhere except the flower, and the field is the
+    // largest surface in the app to apply that to: the ground is quiet so a
+    // patch of somebody's flowers reads from across the valley.
+    //
+    // The dark pass took the same ladder down rather than replacing it. That
+    // matters more here than anywhere else in the reskin -- the sky above this
+    // is now a dusk gradient (see `FieldSky`), and pale terrain under a dusk
+    // sky does not read as an evening field. It reads as a lit lawn at night,
+    // which is a stranger thing to look at than either.
+    //
+    // Order is preserved: index 0 is still the lightest step.
+    val VEG = listOf(0xFF485B3D, 0xFF3F5136, 0xFF37472F, 0xFF2F3D28, 0xFF273322)
+    val WATER = listOf(0xFF2E4658, 0xFF26384A)
 
     /**
      * Sparse ground, drawn faintly.
@@ -91,7 +98,7 @@ object Field {
      * mock with four fixed people; in Harbor the ground would change colour
      * when a contact is added. This is the constant that was meant.
      */
-    const val BARE = 0xFFCBC7C0
+    const val BARE = 0xFF2B2724
 
     /** Where per-patch colours start in the palette. Two each: deep, then petal. */
     const val PATCH_PAINT_FROM = 8

@@ -1,9 +1,11 @@
 package app.harbor
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
@@ -109,7 +111,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Dark bars, stated rather than inferred.
+        //
+        // enableEdgeToEdge() with no arguments picks its bar style from the
+        // system's light/dark setting, not from the app's. Harbor is dark on
+        // every phone (see HarborTheme), so on a phone in light mode the
+        // platform would draw a dark clock and battery over the dusk ground,
+        // where they all but disappear.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
 
         // A field as well as a local, because onResume and onPause need it
         // too and they run outside the composition.

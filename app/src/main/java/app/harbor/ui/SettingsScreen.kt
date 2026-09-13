@@ -36,7 +36,9 @@ import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Hairline
-import app.harbor.ui.theme.Leaf
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Muted
 import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SectionHeading
@@ -186,19 +188,25 @@ fun SettingsScreen(
                                 "Nothing is lost; it simply stops moving.",
                         )
                     }
-                    // Green is the one colour the specimen lets the interface
-                    // itself use, and this is the only place it uses it: a
-                    // switch that is on. Left to Material it would come out
-                    // ink, because ink is `primary` in this palette.
+                    // Amber, not green.
+                    //
+                    // The light specimen let the interface use exactly one
+                    // colour of its own, and spent it here: a switch that is
+                    // on. The dark design is stricter still -- amber is the
+                    // current tab, the primary action and the selected thing,
+                    // and nothing else gets a colour at all -- so a green
+                    // switch would now be the only green in the whole app and
+                    // would read as a stray rather than as an accent. A switch
+                    // that is on is a selected thing, so it takes the amber.
                     Switch(
                         checked = settings.reducedMotion,
                         onCheckedChange = { save(settings.copy(reducedMotion = it)) },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = androidx.compose.ui.graphics.Color.White,
-                            checkedTrackColor = Leaf,
-                            checkedBorderColor = Leaf,
-                            uncheckedThumbColor = androidx.compose.ui.graphics.Color.White,
-                            uncheckedTrackColor = Hairline,
+                            checkedThumbColor = Ink,
+                            checkedTrackColor = Gold,
+                            checkedBorderColor = Gold,
+                            uncheckedThumbColor = Muted,
+                            uncheckedTrackColor = androidx.compose.ui.graphics.Color.Transparent,
                             uncheckedBorderColor = Hairline,
                         ),
                     )
