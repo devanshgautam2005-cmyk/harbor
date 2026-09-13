@@ -31,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -51,6 +52,8 @@ import app.harbor.domain.Flowers
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.ui.theme.CardEdge
+import app.harbor.ui.theme.Ember
+import app.harbor.ui.theme.EmberLight
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.SectionHeading
@@ -265,10 +268,13 @@ private fun PersonTile(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    // A pill with a top-lit amber fill, like every other
+                    // action in the design. It was an 8dp rectangle in flat
+                    // primary, which is what the light specimen asked for.
+                    .clip(RoundedCornerShape(99.dp))
+                    .background(Brush.verticalGradient(listOf(EmberLight, Ember)))
                     .clickable(onClick = onCall)
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 11.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -279,7 +285,10 @@ private fun PersonTile(
                 Text(
                     "Call " + contact.label,
                     maxLines = 1,
-                    style = MaterialTheme.typography.titleLarge.copy(
+                    // Sans, not serif. Serif is Harbor's own voice in this
+                    // design; a button label is the interface talking about
+                    // itself, and set in serif it reads as a pull-quote.
+                    style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = 13.sp,
                         color = onInk,
                     ),
@@ -348,7 +357,7 @@ private fun SendAPetal(onClick: () -> Unit) {
             Text(
                 "Send a petal",
                 maxLines = 1,
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 15.sp),
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
             )
             SmallCopy("A line or a picture. Nothing owed back.", size = 12)
         }
