@@ -71,7 +71,7 @@ import kotlin.math.abs
  * how many minutes, and a box for what it was about. It was three questions
  * standing between somebody and their reward, asked in the minute after they
  * hung up on their mother, and the only one of the three that did any work was
- * the feeling — which existed to narrow fourteen flowers down to four.
+ * the feeling — which existed to narrow the library down to four.
  *
  * Picking the flower answers that question better than a menu of adjectives
  * does, so the menu is gone and all of them are offered. The length of the
@@ -146,7 +146,7 @@ fun CallFlow(
                 //
                 // Four at a time in a grid meant the library had to be pruned
                 // to four before it was shown, which is what the feelings
-                // question was for. All fourteen fit on a shelf, the one in
+                // question was for. They all fit on a shelf, the one in
                 // the middle is the one you are choosing, and moving between
                 // them is the good part.
                 HorizontalPager(

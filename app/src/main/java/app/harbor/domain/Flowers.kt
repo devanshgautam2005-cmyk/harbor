@@ -64,8 +64,26 @@ object Flowers {
             0xFFFFEBA0, 0xFFF2C441, 0xFFB9862A, 5, FlowerSpec.Shape.CUP),
         FlowerSpec(FlowerKind.ANEMONE, "Anemone", "A lot at once, and it held.",
             0xFFE8C6E8, 0xFFA65CA8, 0xFF3B2440, 6, FlowerSpec.Shape.POINT),
+
+        // The four corners the shelf was missing. See [FlowerKind].
+        FlowerSpec(FlowerKind.SNOWDROP, "Snowdrop", "Brief, and it still counted.",
+            0xFFF7FAF6, 0xFFCFE0CC, 0xFF6E9443, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.DAHLIA, "Dahlia", "Full, and it went somewhere.",
+            0xFFC8445C, 0xFF8E1F38, 0xFF3B1020, 8, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.IRIS, "Iris", "Long, and it went deep.",
+            0xFF9C8FE8, 0xFF4B3C99, 0xFFF2C441, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.HYDRANGEA, "Hydrangea", "Soft, and all of a piece.",
+            0xFFA9DCD6, 0xFF3E8F92, 0xFF1F5B66, 8, FlowerSpec.Shape.ROUND),
     )
 
+    /**
+     * The spec for a kind, falling back to the first rather than throwing.
+     *
+     * The fallback is why `FlowersTest` insists every kind has one: a new
+     * variant added to the enum and forgotten here would not crash, it would
+     * quietly draw daisies for a flower somebody chose on purpose, and nothing
+     * on screen would look wrong enough to notice.
+     */
     fun spec(kind: FlowerKind?): FlowerSpec =
         LIBRARY.firstOrNull { it.kind == kind } ?: LIBRARY.first()
 

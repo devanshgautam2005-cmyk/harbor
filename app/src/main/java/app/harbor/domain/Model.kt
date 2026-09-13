@@ -107,7 +107,7 @@ enum class Feeling(val flower: FlowerKind) {
 /**
  * What a call becomes.
  *
- * Fourteen kinds, and the user picks from all of them. The garden is the
+ * Eighteen kinds, and the user picks from all of them. The garden is the
  * reward surface — there is no score, no streak, and nothing that can be lost;
  * a flower that grew stays grown.
  */
@@ -119,6 +119,17 @@ enum class FlowerKind {
     // shelf; these widen the range of colour rather than adding more of what
     // was already there.
     LAVENDER, ZINNIA, CAMELLIA, PERIWINKLE, BUTTERCUP, ANEMONE,
+
+    // Four more, chosen by what the shelf did not have rather than by what
+    // would be nice to draw. Fourteen blooms sounds like plenty and came out
+    // clustered: everything was a warm pastel or a mid violet, so scrolling
+    // the shelf went past a lot that looked alike. These are the corners that
+    // were empty - a true white, a deep red, an indigo, and a teal.
+    //
+    // The teal is deliberate. The flower the first run builds petal by petal
+    // is teal, and until now that flower existed nowhere in the garden it was
+    // introducing.
+    SNOWDROP, DAHLIA, IRIS, HYDRANGEA,
 }
 
 /**
