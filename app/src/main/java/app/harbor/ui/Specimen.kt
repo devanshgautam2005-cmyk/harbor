@@ -146,7 +146,7 @@ fun Specimen(
  * shape is a function of the flower's spec, so adding a flower to the library
  * stays a data change.
  */
-internal fun DrawScope.drawSpecimen(kind: FlowerKind, bloom: Float = 0.17f) {
+internal fun DrawScope.drawSpecimen(kind: FlowerKind, bloom: Float = 0.30f) {
     val cx = size.width / 2f
     val foot = size.height * 0.97f
     val bloomY = size.height * 0.30f
@@ -162,11 +162,18 @@ internal fun DrawScope.drawSpecimen(kind: FlowerKind, bloom: Float = 0.17f) {
             )
         },
         color = Stem,
-        style = Stroke(width = unit * 0.035f, cap = StrokeCap.Round),
+        style = Stroke(width = unit * 0.045f, cap = StrokeCap.Round),
     )
 
-    drawLeaf(cx, foot - unit * 0.20f, -1f, unit * 0.30f, Forest)
-    drawLeaf(cx, foot - unit * 0.38f, 1f, unit * 0.26f, LeafLight)
+    // Broader leaves and a bigger bloom, to the sheet's proportions.
+    //
+    // The flower was drawn at 0.17 of the tile with thin leaves, which on a
+    // bone page read as a delicate botanical plate. The sheet's flowers are
+    // the opposite -- a big saturated head on a sturdy stem with two wide
+    // leaves, filling most of the arch -- and at the old size, on this ground,
+    // a specimen read as a bare stalk with a bud on it.
+    drawLeaf(cx, foot - unit * 0.20f, -1f, unit * 0.38f, Forest)
+    drawLeaf(cx, foot - unit * 0.40f, 1f, unit * 0.33f, LeafLight)
 
     translate(left = cx, top = bloomY) {
         drawFlower(Flowers.spec(kind), unit * bloom)
