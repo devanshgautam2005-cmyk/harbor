@@ -8,7 +8,7 @@
       theme still decides the text-selection handles, the cursor, the magnifier
       and any platform dialog. Left on Light those all arrive tuned for a white
       page, and the selection handles in particular are nearly invisible on the
-      dusk ground -- which only shows up when somebody edits a name or a note,
+      dusk ground, which only shows up when somebody edits a name or a note,
       long after the screens themselves look finished.
     -->
     <style name="Theme.Harbor" parent="android:Theme.Material.NoActionBar">

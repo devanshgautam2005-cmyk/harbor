@@ -41,7 +41,6 @@ import app.harbor.domain.DailyQuestion
 import app.harbor.domain.Moment
 import app.harbor.domain.Weather
 import app.harbor.ui.theme.Eyebrow
-import app.harbor.ui.theme.Gold
 import app.harbor.ui.theme.Hairline
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
@@ -178,7 +177,13 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                 }
             }
 
-            // how far along the scale we are, sky through to gold
+            // How far along the scale we are: dusk through to ember.
+            //
+            // The design draws this rail as a five-stop gradient rather than
+            // the two it had -- cool blue, a hazy middle, warm sand, ember,
+            // and a burnt red at the far end. It is the one place in the app
+            // where a whole spectrum appears, and it is what makes the rail
+            // read as a sky going over rather than as a volume slider.
             val fraction = if (last == 0) 0f else index.toFloat() / last
             Box(
                 Modifier
@@ -187,7 +192,17 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                     .fillMaxWidth(fraction.coerceAtLeast(0.001f))
                     .height(10.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF9DC6E8), Gold))),
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF2B4F6B),
+                                Color(0xFF6F8FA8),
+                                Color(0xFFE8D6A8),
+                                Color(0xFFF0A35F),
+                                Color(0xFFC9542C),
+                            ),
+                        ),
+                    ),
             )
 
             // the thumb

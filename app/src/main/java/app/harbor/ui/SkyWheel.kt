@@ -28,13 +28,19 @@ import kotlin.math.sin
  */
 internal object Sky {
 
-    /** `.garden-frame[data-weather]` — the ground the whole scene sits on. */
+    /**
+     * `.garden-frame[data-weather]` — the ground the whole scene sits on.
+     *
+     * The same five dusks `FieldSky` draws, and they have to stay the same
+     * five: this paints the garden screen and that paints the field inside
+     * home, so a phone showing both at once shows the same evening twice.
+     */
     fun gradient(weather: Weather): Pair<Color, Color> = when (weather) {
-        Weather.CLEAR -> Color(0xFFDCEBF6) to Color(0xFFE9F1E2)
-        Weather.BRIGHT -> Color(0xFFFBEBC8) to Color(0xFFE5EFD8)
-        Weather.CLOUDY -> Color(0xFFDDE3E4) to Color(0xFFE3E9DC)
-        Weather.RAIN -> Color(0xFFC8D4DA) to Color(0xFFD5E0D1)
-        Weather.STORM -> Color(0xFFAAB6C0) to Color(0xFFBECABA)
+        Weather.CLEAR -> Color(0xFF2B4F6B) to Color(0xFF3A2018)
+        Weather.BRIGHT -> Color(0xFF2F5A7D) to Color(0xFF7B4226)
+        Weather.CLOUDY -> Color(0xFF2A3F52) to Color(0xFF33262A)
+        Weather.RAIN -> Color(0xFF24374A) to Color(0xFF262126)
+        Weather.STORM -> Color(0xFF1D2C3C) to Color(0xFF1E1B20)
     }
 
     /** `.garden-frame::after` — heavier weather dims the whole scene. */

@@ -6,6 +6,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import app.harbor.ui.theme.Ember
+import app.harbor.ui.theme.Gold
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -35,16 +37,28 @@ import androidx.compose.ui.unit.dp
  * lobe outward.
  */
 
-/** Bright at the throat, deepening to the tip. Sampled from the design. */
-private val PetalCore = Color(0xFF0A9AA0)
-private val PetalEdge = Color(0xFF184B6A)
+/**
+ * Bright at the throat, deepening to the tip.
+ *
+ * This was a teal sampled from the Figma flow, which was drawn on white. It is
+ * the flow's amber now: a petal you have earned is the same colour as the
+ * button you pressed to earn it, and amber is the only colour onboarding has.
+ */
+private val PetalCore = Gold
+private val PetalEdge = Ember
 
-/** A petal not yet earned. */
-private val PetalWaiting = Color(0xFFD0DEE3)
-private val PetalWaitingEdge = Color(0xFFB6C7CE)
+/** A petal not yet earned. White at eight percent, like any other empty slot. */
+private val PetalWaiting = Color(0xFF202124)
+private val PetalWaitingEdge = Color(0xFF2B2C30)
 
-/** The one being answered. */
-private val PetalCurrentEdge = Color(0xFF1A1A1A)
+/**
+ * The one being answered.
+ *
+ * It was near-black, which was the strongest mark available on a white page
+ * and is invisible on this one. Amber, so the ring round the current petal
+ * says the same thing the filled petals do.
+ */
+private val PetalCurrentEdge = Gold
 
 @Composable
 fun PetalProgress(
