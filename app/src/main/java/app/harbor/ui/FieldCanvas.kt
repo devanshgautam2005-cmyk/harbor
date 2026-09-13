@@ -309,7 +309,10 @@ fun FieldCanvas(
             ) { showing = null }
         }
 
-        if (interactive && base > 0) {
+        // Not while a card is open: the two sit in the same corner of the
+        // screen and the readout was drawing straight over the third line of
+        // the card.
+        if (interactive && base > 0 && showing == null) {
             FieldReadout(
                 relative = cam.zoom / base,
                 tilt = Field.tiltFor(cam.zoom, base),

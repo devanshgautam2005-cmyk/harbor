@@ -128,8 +128,11 @@ fun HomeScreen(
                 // Caps, not a sentence. In the specimen the line under a greeting
                 // is a catalogue caption rather than a second voice.
                 Eyebrow(
-                    if (grown > 0) "$grown flowers have grown here"
-                    else "A little closer, every day",
+                    when (grown) {
+                        0 -> "A little closer, every day"
+                        1 -> "One flower has grown here"
+                        else -> "$grown flowers have grown here"
+                    },
                 )
             }
 
