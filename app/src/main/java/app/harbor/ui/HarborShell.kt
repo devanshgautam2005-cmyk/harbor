@@ -110,12 +110,17 @@ fun HarborShell(
 
             // Room for the floating pill, so nothing hides beneath it.
             //
-            // 72 rather than 88: the content inside already carries the
-            // system navigation inset from the Scaffold, and the pill now sits
-            // above that inset too, so the old number was reserving the same
-            // band twice. Everything below the fold stopped short of the pill
-            // by an inch of nothing and looked cut off.
-            Spacer(Modifier.height(if (tab != null) 72.dp else 16.dp))
+            // The content inside already carries the system navigation inset
+            // from the Scaffold, and the pill sits above that inset too, so
+            // this only has to cover the pill's own height -- reserving the
+            // whole band twice left everything below the fold stopping short
+            // by an inch of nothing.
+            //
+            // 96 rather than 72 because the pill grew: each tab is now a 40dp
+            // disc over its label rather than a line of text, which took it
+            // from about 56dp tall to about 78dp, and at 72 it sat over the
+            // last card on home.
+            Spacer(Modifier.height(if (tab != null) 96.dp else 16.dp))
         }
 
         if (tab != null) {
