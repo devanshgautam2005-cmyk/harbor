@@ -100,6 +100,13 @@ fun SettingsScreen(
 
             Surface {
                 SectionHeader("When a cue can come", "suggestions, not rules")
+                SmallCopy(
+                    "A cue is Harbor offering you one person, on its own, at a " +
+                        "moment it thinks you have room - usually just after a " +
+                        "walk ends. It shows their face and plays their sound, " +
+                        "and the only thing it ever does is offer. Ignoring one " +
+                        "costs nothing and there is no streak to break.",
+                )
                 Stepper(
                     label = "Walk before a cue",
                     value = settings.thresholds.walkingMinutes.toString() + " min",
@@ -138,27 +145,13 @@ fun SettingsScreen(
                         )
                     },
                 )
-                Stepper(
-                    label = "Quiet between cues",
-                    value = settings.thresholds.cooldownMinutes.toString() + " min",
-                    onDown = {
-                        thresholds(
-                            settings.thresholds.copy(
-                                cooldownMinutes =
-                                    (settings.thresholds.cooldownMinutes - 30).coerceAtLeast(1),
-                            ),
-                        )
-                    },
-                    onUp = {
-                        thresholds(
-                            settings.thresholds.copy(
-                                cooldownMinutes =
-                                    (settings.thresholds.cooldownMinutes + 30)
-                                        .coerceAtMost(1440),
-                            ),
-                        )
-                    },
-                )
+                // The quiet gap between two cues is not here any more.
+                //
+                // It is still enforced - CuePolicy checks it before anything
+                // else - but it exists to stop two cues landing on top of one
+                // another, which is a rule about how the app behaves rather
+                // than a taste anybody holds. Nobody opened this screen to
+                // decide how many minutes apart their interruptions should be.
                 SmallCopy("Suggested values, always editable.")
             }
 
@@ -187,7 +180,11 @@ fun SettingsScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         SectionHeading("A little less movement")
-                        SmallCopy("Reduce animation.")
+                        SmallCopy(
+                            "Accessibility. Flowers appear rather than bloom, " +
+                                "and a petal arrives rather than drifting off. " +
+                                "Nothing is lost; it simply stops moving.",
+                        )
                     }
                     // Green is the one colour the specimen lets the interface
                     // itself use, and this is the only place it uses it: a
@@ -208,13 +205,14 @@ fun SettingsScreen(
                 }
             }
 
-            // Both of these used to sit at the bottom of home, under the
-            // garden, where they competed with the things you open Harbor to
-            // do. They are settings; they live with the settings.
-            StudyExportCard(store)
+            // Handing over the week is no longer something the participant
+            // has to do. Harbor records what the study needs as it happens
+            // (domain/Telemetry) and the file is assembled from that, so the
+            // card that used to ask somebody to remember to export is gone.
+            // The export itself still exists for whoever collects it.
 
             TextLink("When you are busy", onEditSchedule)
-            TextLink("Find a quiet moment", onOpenCues)
+            TextLink("Set up a daily reminder", onOpenCues)
             TextLink("Back", onDone)
         }
     }
@@ -299,7 +297,7 @@ internal fun Pill(
     )
 }
 
-private val CueSound.label: String
+internal val CueSound.label: String
     get() = when (this) {
         CueSound.CHIME -> "Little chime"
         CueSound.SOFT -> "Soft note"

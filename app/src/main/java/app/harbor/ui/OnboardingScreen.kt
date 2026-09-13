@@ -56,6 +56,7 @@ import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -114,15 +115,23 @@ fun OnboardingScreen(
     // nothing to question one.
     LaunchedEffect(step) { store.note(Moment.ONBOARDING_STEP, value = step) }
 
+    // Every step below is handed this scope rather than making its own.
+    //
+    // A step that saved and then advanced was launching the write into its
+    // own rememberCoroutineScope and immediately leaving the composition,
+    // which cancels that scope - usually before the write had finished
+    // suspending on the prefs lock. The name you typed on the first question
+    // simply never arrived, and the contact only arrived when it won the
+    // race. This scope belongs to the flow and outlives every step in it.
     Box(modifier.fillMaxSize().background(FlowGround)) {
         when (step) {
             0 -> Welcome(::next)
-            1 -> YourName(store, ::next)
-            2 -> WhoToCall(store, ::next)
+            1 -> YourName(store, scope, ::next)
+            2 -> WhoToCall(store, scope, ::next)
             3 -> TheirPicture(store, ::next)
             4 -> WhenFree(::next)
-            5 -> TheirSound(store, ::next)
-            6 -> AskPermission(store, ::next)
+            5 -> TheirSound(store, scope, ::next)
+            6 -> AskPermission(store, scope, ::next)
             7 -> AlmostComplete(store, ::next)
             8 -> GoodJob(::next)
             9 -> OneLastThing(onSetUp = ::next, onSkip = ::finish)
@@ -297,8 +306,11 @@ private fun Welcome(onNext: () -> Unit) = FlowPage(bloom = true) {
 
 /** Petal one. */
 @Composable
-private fun YourName(store: HarborRepository, onNext: () -> Unit) {
-    val scope = rememberCoroutineScope()
+private fun YourName(
+    store: HarborRepository,
+    scope: CoroutineScope,
+    onNext: () -> Unit,
+) {
     val settings by store.settings.collectAsState()
     var draft by remember { mutableStateOf(settings.name) }
 
@@ -309,17 +321,23 @@ private fun YourName(store: HarborRepository, onNext: () -> Unit) {
         Spacer(Modifier.height(20.dp))
         FlowField(draft, "your name") { draft = it.take(40) }
         Spacer(Modifier.height(52.dp))
+        // Advance *after* the write, not beside it.
         FlowNext(enabled = draft.isNotBlank()) {
-            scope.launch { store.setSettings(settings.copy(name = draft.trim())) }
-            onNext()
+            scope.launch {
+                store.setSettings(settings.copy(name = draft.trim()))
+                onNext()
+            }
         }
     }
 }
 
 /** Petal two. Contacts search is drawn but not wired, so the number is typed. */
 @Composable
-private fun WhoToCall(store: HarborRepository, onNext: () -> Unit) {
-    val scope = rememberCoroutineScope()
+private fun WhoToCall(
+    store: HarborRepository,
+    scope: CoroutineScope,
+    onNext: () -> Unit,
+) {
     val contacts by store.contacts.collectAsState()
     val existing = contacts.firstOrNull()
     var name by remember { mutableStateOf(existing?.label.orEmpty()) }
@@ -351,8 +369,8 @@ private fun WhoToCall(store: HarborRepository, onNext: () -> Unit) {
                     (existing ?: Contact(UUID.randomUUID(), name.trim(), number.trim()))
                         .copy(label = name.trim(), phoneE164 = number.trim()),
                 )
+                onNext()
             }
-            onNext()
         }
     }
 }
@@ -385,8 +403,11 @@ private fun TheirPicture(store: HarborRepository, onNext: () -> Unit) {
 
 /** Petal four. Spotify and the file picker wait; the built-in sounds work. */
 @Composable
-private fun TheirSound(store: HarborRepository, onNext: () -> Unit) {
-    val scope = rememberCoroutineScope()
+private fun TheirSound(
+    store: HarborRepository,
+    scope: CoroutineScope,
+    onNext: () -> Unit,
+) {
     val settings by store.settings.collectAsState()
 
     FlowPage(petal = 3) {
@@ -394,9 +415,16 @@ private fun TheirSound(store: HarborRepository, onNext: () -> Unit) {
         Spacer(Modifier.height(30.dp))
 
         ComingSoon("search Spotify", "Spotify comes later")
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(10.dp))
+        ComingSoon("add your own", "a sound off this phone, later")
+        Spacer(Modifier.height(26.dp))
 
-        Question("browse ringtones", size = 17)
+        // The two ways of choosing a sound that actually means something to
+        // you both wait on an integration, so what is left has to be offered
+        // as a stand-in rather than as the point. These used to read "chime",
+        // "soft" and "silent" - the enum's own names, which say what the file
+        // is rather than what it is for.
+        Question("Until then, one of these", size = 17)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             CueSound.entries.forEach { option ->
@@ -411,7 +439,7 @@ private fun TheirSound(store: HarborRepository, onNext: () -> Unit) {
                         .padding(horizontal = 16.dp, vertical = 9.dp),
                 ) {
                     Text(
-                        option.name.lowercase(),
+                        option.label,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = 16.sp,
                             color = if (chosen) FlowInk else PillInk,
@@ -508,9 +536,12 @@ private fun WhenFree(onNext: () -> Unit) {
  * watch you walk*.
  */
 @Composable
-private fun AskPermission(store: HarborRepository, onNext: () -> Unit) {
+private fun AskPermission(
+    store: HarborRepository,
+    scope: CoroutineScope,
+    onNext: () -> Unit,
+) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val settings by store.settings.collectAsState()
 
     var granted by remember { mutableStateOf(ActivityTransitions.hasPermission(context)) }
@@ -588,12 +619,6 @@ private fun AskPermission(store: HarborRepository, onNext: () -> Unit) {
                 value = settings.thresholds.dailyCap.toString(),
                 onDown = { daily(store, scope, settings, -1) },
                 onUp = { daily(store, scope, settings, +1) },
-            )
-            Stepper(
-                label = "Quiet between cues",
-                value = settings.thresholds.cooldownMinutes.toString() + " min",
-                onDown = { cooldown(store, scope, settings, -30) },
-                onUp = { cooldown(store, scope, settings, +30) },
             )
             SmallCopy(
                 "Suggestions, not rules — move them now or later. Every cue can " +
@@ -675,21 +700,6 @@ private fun daily(
         settings.copy(
             thresholds = settings.thresholds.copy(
                 dailyCap = (settings.thresholds.dailyCap + by).coerceIn(1, 10),
-            ),
-        ),
-    )
-}
-
-private fun cooldown(
-    store: HarborRepository,
-    scope: kotlinx.coroutines.CoroutineScope,
-    settings: app.harbor.domain.UserSettings,
-    by: Int,
-) = scope.launch {
-    store.setSettings(
-        settings.copy(
-            thresholds = settings.thresholds.copy(
-                cooldownMinutes = (settings.thresholds.cooldownMinutes + by).coerceIn(1, 1440),
             ),
         ),
     )

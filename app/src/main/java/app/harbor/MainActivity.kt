@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import app.harbor.cue.CallFlow
 import app.harbor.data.HarborStore
+import app.harbor.data.StudyFile
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
@@ -83,7 +84,13 @@ class MainActivity : ComponentActivity() {
         val since = cameForward ?: return
         cameForward = null
         val seconds = Duration.between(since, Instant.now()).seconds.toInt()
-        lifecycleScope.launch { store.note(Moment.APP_LEFT, value = seconds) }
+        lifecycleScope.launch {
+            store.note(Moment.APP_LEFT, value = seconds)
+            // And refresh the study file, so nobody has to remember to export
+            // it. See data/StudyFile - it writes to this app's own folder and
+            // sends nothing anywhere.
+            StudyFile.refresh(applicationContext, store)
+        }
     }
 
     private enum class Screen(val tab: HarborTab?, val title: String?) {

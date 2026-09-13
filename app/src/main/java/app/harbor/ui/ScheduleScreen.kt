@@ -48,11 +48,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
-import app.harbor.cue.Dialer
 import app.harbor.data.HarborRepository
 import app.harbor.domain.BlockKind
-import app.harbor.domain.FlowerKind
 import app.harbor.domain.Moment
 import app.harbor.domain.WeekBlock
 import app.harbor.domain.Windows
@@ -63,7 +60,6 @@ import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.pageContent
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
-import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
 import java.util.Locale
@@ -104,9 +100,14 @@ import kotlin.math.roundToInt
  * The Figma flow gives the grid two things to place, and they are not
  * opposites. A thorn is busy, and stops a cue. A flower is time you would
  * welcome a call, and stops nothing — see [BlockKind] for why that asymmetry
- * is the whole safety of the feature. What a flower buys is the card at the
- * top of this screen: an hour somebody wrote down as a good hour beats any
- * amount of time that merely happened to be unbooked.
+ * is the whole safety of the feature. A flower is what makes an hour somebody
+ * wrote down beat an hour that merely happened to be unbooked, wherever the
+ * app goes on to offer one.
+ *
+ * The "a little window" card that used to sit above this grid is gone. It
+ * showed your free hours and offered to ring somebody with them, which is the
+ * parent's side of the product rather than this one - a student marking their
+ * timetable is not publishing their availability.
  *
  * The frames show a hand cursor hovering over the thorn to say which one you
  * are holding. A phone has no cursor, so the palette is a pair of chips and
@@ -127,14 +128,6 @@ fun ScheduleScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val contacts by store.contacts.collectAsState()
-
-    // The window card dials, so it needs somebody to dial. The first person
-    // with a number is the one Harbor would have cued anyway.
-    val callable = contacts.firstOrNull { it.phoneE164 != null }
-
     val skin = WeekSkin.specimen()
 
     WeekEditor(
@@ -149,35 +142,77 @@ fun ScheduleScreen(
             Eyebrow("Only the times · no subjects, no locations · nothing leaves this phone")
             TextLink("Back", onDone)
         },
-    ) { live ->
+    ) {
         WeekHeading(skin)
+        WeekPurpose(skin)
+        BringACalendar(skin)
+    }
+}
 
-        // The sheet leads its schedule with this card, and it is the best
-        // thing on the screen. Its copy says "your window" and never
-        // "together": Harbor has no way to know anyone else's evening and
-        // must never look as though it does. See domain/Windows.
-        Windows.next(live, LocalDate.now().dayOfWeek, LocalTime.now())?.let { window ->
-            LittleWindow(
-                headline = timeLabel(window.start) + " – " + timeLabel(window.end),
-                caption = Windows.phrase(window) + (
-                    // A window somebody drew is worth naming as theirs. One
-                    // Harbor worked out is only an absence of anything else.
-                    if (window.chosen) ", which you marked free" else ", free today"
-                    ),
-                flower = FlowerKind.POPPY,
-                container = skin.tile,
-                edge = skin.line.copy(alpha = 0.35f),
-                action = callable?.let { "Call " + it.label },
-                onAction = callable?.takeIf { it.phoneE164 != null }?.let { who ->
-                    // Through Dialer: ACTION_DIAL and never CALL_PHONE
-                    // (ADR-002), and it writes the row that brings the flower
-                    // flow back when you return. Calling from here used to
-                    // leave no trace at all, so nothing followed the call.
-                    { Dialer.handOff(context, store, scope, who) }
-                },
+/**
+ * Why this screen exists, above the thing it is asking you to do.
+ *
+ * The two lines from the frames say what the gesture is and what Harbor does
+ * with it, and testers still asked what the calendar was *for*. It is worth
+ * three sentences: a cue arrives on its own, so the only way it knows to stay
+ * out of a lecture is this.
+ */
+@Composable
+private fun WeekPurpose(skin: WeekSkin) {
+    Text(
+        "Harbor decides on its own when to offer you a call — usually just " +
+            "after a walk. It has no way of knowing you are in a seminar unless " +
+            "you tell it here. Mark the hours you are busy and a cue will not " +
+            "arrive in the middle of them.",
+        style = MaterialTheme.typography.bodyMedium.copy(
+            fontSize = 13.sp,
+            color = skin.muted,
+        ),
+    )
+}
+
+/**
+ * Bringing a week in from a calendar you already keep.
+ *
+ * Drawn and switched off. Reading a calendar means a calendar permission and
+ * an account connection, and the study's whole permission budget is spent on
+ * activity recognition, which is the one the product cannot work without.
+ * Worth showing that it is the plan, worth not pretending it is here.
+ */
+@Composable
+private fun BringACalendar(skin: WeekSkin) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, skin.line.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Bring in a calendar",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = 15.sp,
+                    color = skin.muted,
+                ),
+            )
+            Text(
+                "Outlook or Google, instead of drawing it",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
+                    color = skin.muted,
+                ),
             )
         }
-
+        Text(
+            "Soon",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 11.sp,
+                color = skin.muted,
+            ),
+        )
     }
 }
 

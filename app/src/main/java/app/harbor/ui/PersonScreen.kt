@@ -36,6 +36,9 @@ import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.QuietRow
+import app.harbor.ui.theme.RowDivider
+import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
@@ -136,6 +139,32 @@ fun PersonScreen(
                 }
             }
             TextLink("Leave a line", onLeaveLine)
+
+            // The lines you have left this person, on this person's page.
+            //
+            // They were only ever visible on the screen that writes them,
+            // which meant the one place you would go to think about somebody
+            // - their page - showed their flowers and none of their words.
+            // Same rows, same quotation marks, in front of the person they
+            // were for.
+            val lines = theirs
+                .filter { it.resolution == Resolution.MESSAGE }
+                .sortedByDescending { it.occurredAt }
+            if (lines.isNotEmpty()) {
+                SectionHeader("Lines you have left", "kept on this phone")
+                lines.take(10).forEachIndexed { index, entry ->
+                    if (index > 0) RowDivider()
+                    QuietRow(
+                        // A line left before Harbor kept the words, or a
+                        // picture, has nothing to show but the fact of it.
+                        text = entry.note?.takeIf { it.isNotBlank() }
+                            ?.let { "\u201c$it\u201d" }
+                            ?: "You sent something.",
+                        meta = entry.occurredAt.atZone(ZoneId.systemDefault())
+                            .toLocalDate().toString(),
+                    )
+                }
+            }
 
             if (theirs.isNotEmpty()) {
                 SectionHeading("Lately")
