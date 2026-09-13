@@ -402,10 +402,14 @@ fun SectionHeader(title: String, meta: String, modifier: Modifier = Modifier) = 
     //
     // SpaceBetween puts an unbounded Text at each end and lets them overlap
     // when the two together are wider than the row, which on Account they
-    // were - "What you call yourself" ran straight through "NEVER LEAVES THIS
-    // PHONE". The title gets what it needs up to two thirds, the caption
-    // takes the rest and wraps.
-    SectionHeading(title, Modifier.weight(1f, fill = false))
+    // were - "What you call yourself" ran straight through its caption.
+    //
+    // The split favours the title 1.7 to 1. It used to be even, which was
+    // right while the caption was 10sp capitals; in sentence case at 13sp the
+    // caption grew, and an even split then wrapped every heading on the screen
+    // onto two lines ("What you call / yourself"). The caption is the half
+    // that can afford to wrap.
+    SectionHeading(title, Modifier.weight(1.7f, fill = false))
     Eyebrow(meta, Modifier.weight(1f), textAlign = TextAlign.End)
 }
 
