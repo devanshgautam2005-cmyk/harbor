@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.domain.Tone
@@ -168,9 +169,15 @@ fun SectionHeading(text: String, modifier: Modifier = Modifier) = Text(
  * string, so it is wider than a label would normally want.
  */
 @Composable
-fun Eyebrow(text: String, modifier: Modifier = Modifier) = Text(
+fun Eyebrow(
+    text: String,
+    modifier: Modifier = Modifier,
+    /** End-aligned when it is the right half of a [SectionHeader]. */
+    textAlign: TextAlign? = null,
+) = Text(
     text.uppercase(),
     modifier = modifier,
+    textAlign = textAlign,
     style = MaterialTheme.typography.labelSmall.copy(
         fontSize = 10.sp,
         letterSpacing = 2.0.sp,
@@ -356,11 +363,19 @@ fun QuietAction(
 @Composable
 fun SectionHeader(title: String, meta: String, modifier: Modifier = Modifier) = Row(
     modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.Bottom,
 ) {
-    SectionHeading(title)
-    Eyebrow(meta)
+    // Both halves are given a share of the row rather than pushed to its
+    // ends.
+    //
+    // SpaceBetween puts an unbounded Text at each end and lets them overlap
+    // when the two together are wider than the row, which on Account they
+    // were - "What you call yourself" ran straight through "NEVER LEAVES THIS
+    // PHONE". The title gets what it needs up to two thirds, the caption
+    // takes the rest and wraps.
+    SectionHeading(title, Modifier.weight(1f, fill = false))
+    Eyebrow(meta, Modifier.weight(1f), textAlign = TextAlign.End)
 }
 
 /**
