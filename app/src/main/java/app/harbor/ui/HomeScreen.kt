@@ -140,17 +140,23 @@ fun HomeScreen(
             ) {
                 FieldCanvas(store, Modifier.fillMaxSize(), interactive = false)
 
-                // A scrim at the foot of the sky, so the card that overlaps it
-                // has something to emerge from and the greeting stays readable
-                // whatever the weather is doing behind it.
+                // A scrim at the foot of the sky, to keep the greeting
+                // readable whatever the weather is doing behind it.
+                //
+                // Deliberately weak. The first pass took the bottom 46% of the
+                // sky to 86% of the ground colour, which put a band of
+                // near-black exactly where the card is supposed to be
+                // overlapping a *lit* gradient -- so the two read as stacked
+                // rather than overlapping and the whole move was lost. It only
+                // has to take the edge off the sky behind two lines of text.
                 Box(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(fieldHeight * 0.46f)
+                        .height(fieldHeight * 0.40f)
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color.Transparent, Paper.copy(alpha = 0.86f)),
+                                listOf(Color.Transparent, Paper.copy(alpha = 0.52f)),
                             ),
                         ),
                 )
@@ -175,13 +181,14 @@ fun HomeScreen(
                 }
             }
 
-            // The card climbs back over the sky by 22dp. That overlap is the
+            // The card climbs back over the sky by 40dp. That overlap is the
             // reference's one structural move, and without it the page is two
             // things one after the other instead of one thing in front of
-            // another.
+            // another. It has to be enough to be unmistakable -- at 22 it read
+            // as a gap that had been closed rather than as a card in front.
             Flow(
                 Modifier
-                    .offset(y = (-22).dp)
+                    .offset(y = (-40).dp)
                     .pageContent(),
             ) {
                 // A call Harbor watched you start and never heard about.
