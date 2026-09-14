@@ -72,11 +72,17 @@ fun HarborShell(
     title: String?,
     content: @Composable () -> Unit,
 ) {
+    // No wash here.
+    //
+    // The shell used to paint the dusk behind every screen, which gave
+    // schedule and account a band of sunset above their content and nothing
+    // below it -- a gradient that started nowhere and stopped halfway. The
+    // weather belongs to the screen the field is on; every other screen is
+    // the ground and the glass, and that is enough.
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .drawBehind { drawDusk() },
+            .background(MaterialTheme.colorScheme.background),
     ) {
         Column(Modifier.fillMaxSize()) {
             // No wordmark. It cost 70dp on every screen to tell someone which

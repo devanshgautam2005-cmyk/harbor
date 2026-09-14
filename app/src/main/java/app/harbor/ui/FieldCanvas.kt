@@ -98,6 +98,14 @@ fun FieldCanvas(
      * eaten input nobody meant for it. Tapping the preview opens the real one.
      */
     interactive: Boolean = true,
+    /**
+     * Whether to paint the weather behind the terrain.
+     *
+     * False on home, where the screen already is the weather and the field is
+     * only its dots. Painting a second sky inside a rounded box on top of the
+     * first is exactly the seam this was meant to remove.
+     */
+    sky: Boolean = true,
 ) {
     val contacts by store.contacts.collectAsState()
     val settings by store.settings.collectAsState()
@@ -226,9 +234,10 @@ fun FieldCanvas(
     // Held across frames so drawing allocates nothing.
     val kit = remember(palette.size) { DrawKit(palette.size) }
 
-    Box(modifier.clip(RoundedCornerShape(30.dp))) {
+    // The corner belongs to a panel, and on home this is not a panel.
+    Box(if (sky) modifier.clip(RoundedCornerShape(30.dp)) else modifier) {
 
-        FieldSky(settings.weather, Modifier.fillMaxSize())
+        if (sky) FieldSky(settings.weather, Modifier.fillMaxSize())
 
         Canvas(
             Modifier

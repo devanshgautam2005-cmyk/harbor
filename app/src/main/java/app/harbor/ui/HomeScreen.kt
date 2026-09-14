@@ -31,6 +31,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.draw.drawWithContent
 import app.harbor.ui.theme.Paper
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.graphics.Brush
@@ -102,6 +106,13 @@ fun HomeScreen(
         .sumOf { Flowers.flowerCount(it.callMinutes) }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
+        // The weather, as the ground of the whole screen.
+        //
+        // Home is the screen the field lives on, so home is the screen the
+        // weather owns. Everything below is drawn over it, and the field adds
+        // only its terrain -- no second sky, no box, no seam.
+        FieldSky(settings.weather, Modifier.fillMaxSize())
+
         // How tall the field can be, given how tall the phone actually is.
         //
         // It was a fixed number, and a fixed number cannot be right: the
@@ -140,7 +151,34 @@ fun HomeScreen(
                     .height(fieldHeight)
                     .clickable(onClick = onOpenGarden),
             ) {
-                FieldCanvas(store, Modifier.fillMaxSize(), interactive = false)
+                FieldCanvas(
+                    store,
+                    Modifier
+                        .fillMaxSize()
+                        // The field is erased into the page, not covered by it.
+                        //
+                        // A scrim painted over the bottom of the terrain only
+                        // works while the thing behind it is a known colour.
+                        // Behind this is now the weather, which is five
+                        // different colours and changes on a slider -- so any
+                        // fixed scrim shows up as a smudge the moment the
+                        // slider moves. DstIn removes the field's own pixels
+                        // instead, so whatever the sky happens to be that day
+                        // is what the terrain fades into.
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0.58f to Color.Black,
+                                    1.00f to Color.Transparent,
+                                ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        },
+                    interactive = false,
+                    sky = false,
+                )
 
                 // A scrim at the foot of the sky, to keep the greeting
                 // readable whatever the weather is doing behind it.
@@ -155,34 +193,14 @@ fun HomeScreen(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(fieldHeight * 0.40f)
+                        .height(fieldHeight * 0.34f)
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color.Transparent, Paper.copy(alpha = 0.52f)),
+                                listOf(Color.Transparent, Paper.copy(alpha = 0.34f)),
                             ),
                         ),
                 )
 
-                // And the edge itself, dissolved.
-                //
-                // The field is a canvas with a hard bottom, and against the
-                // page it drew a visible rule across the screen -- the one
-                // thing on home that said "this is a picture pasted here".
-                // The last stretch of it goes to the ground colour so the sky
-                // ends by running out rather than by stopping.
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(fieldHeight * 0.17f)
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Color.Transparent,
-                                0.55f to Paper.copy(alpha = 0.55f),
-                                1f to Paper,
-                            ),
-                        ),
-                )
 
                 Column(
                     Modifier
