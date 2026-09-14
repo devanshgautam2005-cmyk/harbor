@@ -1,6 +1,10 @@
 package app.harbor.data
 
 import android.content.Context
+import android.provider.MediaStore
+import android.os.Build
+import android.content.ContentValues
+import android.content.ContentUris
 import app.harbor.domain.StudyExport
 import app.harbor.sensing.Sensing
 import kotlinx.coroutines.Dispatchers
@@ -16,10 +20,23 @@ import java.time.Instant
  * asks the person being studied to do the study's own admin, and a week of
  * somebody's data is lost every time one of them forgets.
  *
- * So the file writes itself. It is refreshed whenever Harbor goes to the back,
- * into the app's own external files directory, where it can be collected over
- * USB or from the phone's Files app without any permission and without the
- * participant doing a thing.
+ * So the file writes itself, whenever Harbor goes to the back, and it writes
+ * itself twice.
+ *
+ * ## Why twice
+ *
+ * The first copy goes to the app's own external files directory. That was
+ * meant to be collectable "over USB or from the Files app", and on Android 11
+ * and later it is neither: `Android/data/<package>` is hidden from the Files
+ * app and from MTP, so a phone handed back at the end of a week looks empty to
+ * anybody without adb and a cable. A study whose data can only be recovered by
+ * a developer with the handset in front of them is not a study with five
+ * participants, it is five appointments.
+ *
+ * The second copy goes to the shared Downloads collection, which needs no
+ * permission on API 29+, is the first place anybody looks, and can be sent on
+ * from the Files app in two taps. Same bytes, same name, rewritten in place
+ * rather than accumulating one file per pause.
  *
  * ## This is not a network
  *
@@ -62,10 +79,54 @@ object StudyFile {
                 // participant id is in the name so a folder of them collected
                 // from several phones can still be told apart.
                 val file = File(dir, StudyExport.filename(bundle))
-                file.writeText(StudyExport.json(bundle))
+                val json = StudyExport.json(bundle)
+                file.writeText(json)
+                publish(context, file.name, json)
                 file
             }.getOrNull()
         }
+
+    /**
+     * The copy somebody can actually find.
+     *
+     * Downloads, via MediaStore, which on API 29+ an app may write to without
+     * asking for anything. Failure is swallowed for the same reason the rest
+     * of this file swallows it: the private copy has already been written, and
+     * a phone that will not take the second one is not a reason to crash.
+     *
+     * Updates the existing row rather than inserting, or a week of pauses
+     * leaves a Downloads folder with four hundred files in it called
+     * harbor-2026-09-14-b56e3d24 (1) … (400).
+     */
+    private fun publish(context: Context, name: String, json: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        runCatching {
+            val resolver = context.contentResolver
+            val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+
+            val existing = resolver.query(
+                collection,
+                arrayOf(MediaStore.Downloads._ID),
+                "${MediaStore.Downloads.DISPLAY_NAME} = ?",
+                arrayOf(name),
+                null,
+            )?.use { if (it.moveToFirst()) it.getLong(0) else null }
+
+            val uri = if (existing != null) {
+                ContentUris.withAppendedId(collection, existing)
+            } else {
+                resolver.insert(
+                    collection,
+                    ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, name)
+                        put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                    },
+                )
+            } ?: return
+
+            resolver.openOutputStream(uri, "wt")?.use { it.write(json.toByteArray()) }
+        }
+    }
 
     /** Which build produced a file, so an odd export can be traced to a version. */
     private fun versionOf(context: Context): String = runCatching {
