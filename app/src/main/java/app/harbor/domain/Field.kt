@@ -79,15 +79,24 @@ object Field {
     // largest surface in the app to apply that to: the ground is quiet so a
     // patch of somebody's flowers reads from across the valley.
     //
-    // The dark pass took the same ladder down rather than replacing it. That
-    // matters more here than anywhere else in the reskin -- the sky above this
-    // is now a dusk gradient (see `FieldSky`), and pale terrain under a dusk
-    // sky does not read as an evening field. It reads as a lit lawn at night,
-    // which is a stranger thing to look at than either.
+    // Taken down twice, and the second time is the one that mattered.
+    //
+    // The first dark pass lowered this ladder to sit under a dusk sky painted
+    // inside the field's own box. Then the sky became the whole screen and got
+    // genuinely bright, and measuring the render showed the land arriving at
+    // 1.15 to 1.38 luminance contrast against it -- which is to say the ground
+    // and the sky were the same brightness and only hue was telling them
+    // apart. The horizon stopped being a horizon.
+    //
+    // These are dark enough to silhouette, which is both what the reference
+    // does and what an evening actually looks like: at dusk the sky is the
+    // bright thing and the land in front of it is nearly black. It also gives
+    // a flower somewhere to be luminous, which on a field of thousands of
+    // cells is the only way one bloom reads at all.
     //
     // Order is preserved: index 0 is still the lightest step.
-    val VEG = listOf(0xFF485B3D, 0xFF3F5136, 0xFF37472F, 0xFF2F3D28, 0xFF273322)
-    val WATER = listOf(0xFF2E4658, 0xFF26384A)
+    val VEG = listOf(0xFF2A3626, 0xFF232E20, 0xFF1D271B, 0xFF182016, 0xFF141B13)
+    val WATER = listOf(0xFF1B2C3A, 0xFF16242F)
 
     /**
      * Sparse ground, drawn faintly.
@@ -98,7 +107,7 @@ object Field {
      * mock with four fixed people; in Harbor the ground would change colour
      * when a contact is added. This is the constant that was meant.
      */
-    const val BARE = 0xFF2B2724
+    const val BARE = 0xFF1A1714
 
     /** Where per-patch colours start in the palette. Two each: deep, then petal. */
     const val PATCH_PAINT_FROM = 8
