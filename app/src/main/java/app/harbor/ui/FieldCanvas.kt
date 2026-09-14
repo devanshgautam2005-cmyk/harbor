@@ -116,6 +116,26 @@ fun FieldCanvas(
      * sits. The rest of the time the camera is simply already there.
      */
     arriving: Boolean = false,
+    /**
+     * Open standing at a flower rather than looking at the whole island.
+     *
+     * Separate from [interactive] because those two used to be the same
+     * question and are not: home wants the close shot *and* the gestures, so
+     * you can push the field back with two fingers and see the whole garden
+     * without leaving the screen. Only the opening frame is fixed.
+     */
+    standClose: Boolean = false,
+    /**
+     * What a tap means, when it should not mean "select a patch".
+     *
+     * Home's field is now pinchable and pannable like the garden's, and the
+     * moment it became so it swallowed the tap that used to open the garden --
+     * a gesture handler consumes taps whether or not it does anything with
+     * them, so the clickable wrapped around it stopped firing and there was no
+     * way off home into the field at all. Given here, a tap calls this instead
+     * of choosing a patch.
+     */
+    onTap: (() -> Unit)? = null,
 ) {
     val contacts by store.contacts.collectAsState()
     val settings by store.settings.collectAsState()
@@ -200,7 +220,7 @@ fun FieldCanvas(
     // one's overview zoom and the island then sat at a third of the width it
     // should have filled. Re-aiming until the first gesture also means a
     // rotation reframes instead of leaving the world off-centre.
-    LaunchedEffect(base, frame, planted, homeSpot, interactive, arriving) {
+    LaunchedEffect(base, frame, planted, homeSpot, standClose, arriving) {
         // While a flower is arriving the camera is being flown deliberately;
         // re-aiming underneath it would cut the flight short. homeSpot also
         // changes the instant the new flower lands, which is exactly when this
@@ -210,11 +230,11 @@ fun FieldCanvas(
             val here = homeSpot
             cam = when {
                 // Home, with something to show: stand at the newest patch.
-                !interactive && here != null ->
+                standClose && here != null ->
                     Field.Camera(here.x, here.y, base * Field.EMPTY_ZOOM)
 
                 // The garden screen, which is the one that shows the island.
-                planted && interactive ->
+                planted && !standClose ->
                     Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
 
                 // Nothing planted anywhere, on either screen. Down among the
@@ -290,9 +310,13 @@ fun FieldCanvas(
                         )
                     }
                 }
-                .pointerInput(patches, base, interactive) {
+                .pointerInput(patches, base, interactive, onTap) {
                     if (!interactive) return@pointerInput
                     detectTapGestures { at ->
+                        if (onTap != null) {
+                            onTap()
+                            return@detectTapGestures
+                        }
                         if (base <= 0 || frame.height == 0) return@detectTapGestures
                         val lens = Field.buildLens(cam, base, frame.height.toDouble())
                         val point = Field.Point()

@@ -1,6 +1,7 @@
 package app.harbor.ui
 
 import android.Manifest
+import androidx.core.app.NotificationManagerCompat
 import android.content.Context
 import android.os.Build
 import android.content.Intent
@@ -84,10 +85,13 @@ fun CuesSetupScreen(
     // in Settings, so the interesting moment is the return from there.
     val lifecycleOwner = LocalLifecycleOwner.current
     var canTakeScreen by remember { mutableStateOf(true) }
+    var canNotify by remember { mutableStateOf(true) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 canTakeScreen = CueNotifier.canTakeTheScreen(context)
+                canNotify = NotificationManagerCompat.from(context).areNotificationsEnabled()
+                hasPermission = ActivityTransitions.hasPermission(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -104,12 +108,17 @@ fun CuesSetupScreen(
     val request = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
-        // Activity recognition is the one that decides whether sensing can run
-        // at all. Notifications are asked for in the same breath because a cue
-        // nobody can see is not a cue, but refusing them does not stop sensing.
+        // Activity recognition decides whether sensing can run at all, so it
+        // is the one that decides whether cues are "on". Notifications are
+        // asked for in the same breath and do not gate sensing -- but a cue
+        // posted without them is dropped by the system in silence, which looks
+        // from the inside exactly like a trigger that never fired. That is why
+        // the answer is kept rather than discarded: the screen has to be able
+        // to say so afterwards.
         val granted = results[Manifest.permission.ACTIVITY_RECOGNITION] ?: hasPermission
         hasPermission = granted
         refused = !granted
+        canNotify = NotificationManagerCompat.from(context).areNotificationsEnabled()
         if (granted) {
             scope.launch { failed = !Sensing.enable(context, store) }
         }
@@ -274,28 +283,44 @@ fun CuesSetupScreen(
                 }
             }
 
-            // Whether a cue can actually take the screen.
+            // Everything a cue needs that is not "cues are on".
             //
-            // Worth its own card because it is the difference between the cue
-            // working and the cue not working, and nothing else in the app
-            // would ever say so: from Android 14 the system quietly downgrades
-            // a full-screen intent to a heads-up notification unless this is
-            // granted by hand, so Harbor rings, posts, and never opens -- and
-            // a participant who was not looking at their phone at that moment
-            // simply never sees the cue at all.
-            if (settings.cuesEnabled && hasPermission && !canTakeScreen) {
+            // Three separate things have to be true before a cue reaches
+            // somebody, and turning cues on only settles the first. The other
+            // two fail silently, which is the whole problem: Harbor senses the
+            // walk, writes the beat, posts the cue, and the person sees
+            // nothing. Reading "moving, 3 minutes ago" on this screen while
+            // never having seen a cue is what that looks like from the
+            // outside, and nothing anywhere said why.
+            if (settings.cuesEnabled && hasPermission && (!canNotify || !canTakeScreen)) {
                 Surface {
-                    SectionHeading("Cues can ring, but not open")
-                    SmallCopy(
-                        "Android only lets an app take over the screen if you " +
-                            "allow it by hand. Without it a cue arrives as a " +
-                            "notification that fades on its own, so if your " +
-                            "phone is in your pocket you will miss it.",
-                        size = 14,
-                    )
-                    CueNotifier.fullScreenSettings(context)?.let { intent ->
-                        PrimaryAction("Let a cue open the screen") {
-                            context.startActivity(intent)
+                    SectionHeading("A cue would not reach you yet")
+                    if (!canNotify) {
+                        SmallCopy(
+                            "Notifications are off for Harbor. A cue is posted " +
+                                "as one, so with these off it is thrown away " +
+                                "the moment it is made and nothing appears.",
+                            size = 14,
+                        )
+                        PrimaryAction("Allow notifications") {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                            )
+                        }
+                    }
+                    if (!canTakeScreen) {
+                        SmallCopy(
+                            "Android only lets an app take over the screen if " +
+                                "you allow it by hand. Without it a cue arrives " +
+                                "as a banner that fades on its own, so if your " +
+                                "phone is in your pocket you will miss it.",
+                            size = 14,
+                        )
+                        CueNotifier.fullScreenSettings(context)?.let { intent ->
+                            PrimaryAction("Let a cue open the screen") {
+                                context.startActivity(intent)
+                            }
                         }
                     }
                 }

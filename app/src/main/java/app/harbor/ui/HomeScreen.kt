@@ -158,8 +158,7 @@ fun HomeScreen(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(fieldHeight)
-                    .clickable(onClick = onOpenGarden),
+                    .height(fieldHeight),
             ) {
                 FieldCanvas(
                     store,
@@ -186,9 +185,15 @@ fun HomeScreen(
                                 blendMode = BlendMode.DstIn,
                             )
                         },
-                    interactive = false,
+                    // Pinchable and pannable, but it always opens standing at
+                    // the same flower. Pushing the field back with two fingers
+                    // is how you see the whole garden without leaving home,
+                    // which is what the close opening shot costs otherwise.
+                    interactive = true,
+                    standClose = true,
                     sky = false,
                     arriving = growing != null,
+                    onTap = onOpenGarden,
                 )
 
                 // The flower you just chose, opening where the camera lands.
