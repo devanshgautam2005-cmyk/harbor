@@ -80,7 +80,13 @@ fun CuesSetupScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val settings by store.settings.collectAsState()
+    val contact by store.contacts.collectAsState()
 
+    var hasPermission by remember { mutableStateOf(ActivityTransitions.hasPermission(context)) }
+    var refused by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
     // Re-read on every resume rather than once: the only way to grant this is
     // in Settings, so the interesting moment is the return from there.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -97,13 +103,6 @@ fun CuesSetupScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    val scope = rememberCoroutineScope()
-    val settings by store.settings.collectAsState()
-    val contact by store.contacts.collectAsState()
-
-    var hasPermission by remember { mutableStateOf(ActivityTransitions.hasPermission(context)) }
-    var refused by remember { mutableStateOf(false) }
-    var failed by remember { mutableStateOf(false) }
 
     val request = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
