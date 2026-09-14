@@ -142,6 +142,15 @@ fun ScheduleScreen(
         skin = skin,
         modifier = modifier,
         footer = {
+            // Importing a calendar sits under the grid, not over it.
+            //
+            // It was the third thing on the screen, above the grid it is an
+            // alternative to -- so the first offer Harbor made was a way not
+            // to do the thing it had just asked for, and the offer is not even
+            // available yet. Below the week it reads as what it is: something
+            // coming later, for people who would rather not draw this.
+            BringACalendar(skin)
+
             // The promise moves to the foot rather than disappearing. It is
             // the one line on this screen that is not about times, and the
             // screen where somebody types their week is the screen where it
@@ -152,7 +161,6 @@ fun ScheduleScreen(
     ) {
         WeekHeading(skin)
         WeekPurpose(skin)
-        BringACalendar(skin)
     }
 }
 

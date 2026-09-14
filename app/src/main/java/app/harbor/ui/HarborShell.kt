@@ -180,11 +180,18 @@ internal fun DrawScope.drawDusk() {
     // and that is the proportion this matches.
     drawRect(
         brush = Brush.radialGradient(
+            // Seven stops rather than five. The reference is a photograph
+            // and its sky never steps -- blue holds, turns through a band of
+            // haze, warms, and only then burns. Four stops crossing that whole
+            // distance banded visibly on a tall screen and made the wash read
+            // as a printed gradient rather than as light.
             colorStops = arrayOf(
-                0.00f to Color(0xFF3C7FA8),
-                0.30f to Color(0xFFB4602C),
-                0.52f to Color(0xFF7A3420),
-                0.74f to Color(0xFF2A1618),
+                0.00f to Color(0xFF2F7FB8),
+                0.14f to Color(0xFF4C82AE),
+                0.28f to Color(0xFFA8703C),
+                0.40f to Color(0xFFCC6A2C),
+                0.54f to Color(0xFF9E3A20),
+                0.72f to Color(0xFF35191A),
                 0.96f to Color(0x000D0E11),
             ),
             center = Offset(size.width / 2f, -size.height * 0.12f),

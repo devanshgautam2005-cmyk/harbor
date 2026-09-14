@@ -120,7 +120,9 @@ fun HomeScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                // No ground of its own: HarborShell paints the ground and the
+                // dusk over it, and a second opaque background here covered
+                // that gradient -- which is what made every screen read flat.
                 .verticalScroll(rememberScrollState()),
         ) {
             // The field, full bleed, with the greeting standing on it.
@@ -157,6 +159,27 @@ fun HomeScreen(
                         .background(
                             Brush.verticalGradient(
                                 listOf(Color.Transparent, Paper.copy(alpha = 0.52f)),
+                            ),
+                        ),
+                )
+
+                // And the edge itself, dissolved.
+                //
+                // The field is a canvas with a hard bottom, and against the
+                // page it drew a visible rule across the screen -- the one
+                // thing on home that said "this is a picture pasted here".
+                // The last stretch of it goes to the ground colour so the sky
+                // ends by running out rather than by stopping.
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(fieldHeight * 0.17f)
+                        .background(
+                            Brush.verticalGradient(
+                                0f to Color.Transparent,
+                                0.55f to Paper.copy(alpha = 0.55f),
+                                1f to Paper,
                             ),
                         ),
                 )

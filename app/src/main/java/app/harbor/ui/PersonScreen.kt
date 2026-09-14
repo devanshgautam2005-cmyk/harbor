@@ -93,7 +93,9 @@ fun PersonScreen(
     Column(
         modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // No ground of its own: HarborShell paints the ground and the
+            // dusk over it, and a second opaque background here covered
+            // that gradient -- which is what made every screen read flat.
             .verticalScroll(rememberScrollState()),
     ) {
         Flow(Modifier.pageContent()) {

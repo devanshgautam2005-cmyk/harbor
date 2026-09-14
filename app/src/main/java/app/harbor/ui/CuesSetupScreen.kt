@@ -38,6 +38,10 @@ import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.PrimaryAction
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
+import androidx.compose.runtime.DisposableEffect
 import app.harbor.ui.theme.QuietAction
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
@@ -75,6 +79,20 @@ fun CuesSetupScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+
+    // Re-read on every resume rather than once: the only way to grant this is
+    // in Settings, so the interesting moment is the return from there.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var canTakeScreen by remember { mutableStateOf(true) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                canTakeScreen = CueNotifier.canTakeTheScreen(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val scope = rememberCoroutineScope()
     val settings by store.settings.collectAsState()
     val contact by store.contacts.collectAsState()
@@ -120,7 +138,9 @@ fun CuesSetupScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // No ground of its own: HarborShell paints the ground and the
+            // dusk over it, and a second opaque background here covered
+            // that gradient -- which is what made every screen read flat.
             .verticalScroll(rememberScrollState()),
     ) {
         Flow(Modifier.pageContent()) {
@@ -251,6 +271,33 @@ fun CuesSetupScreen(
                             "can always start a moment yourself.",
                         size = 13,
                     )
+                }
+            }
+
+            // Whether a cue can actually take the screen.
+            //
+            // Worth its own card because it is the difference between the cue
+            // working and the cue not working, and nothing else in the app
+            // would ever say so: from Android 14 the system quietly downgrades
+            // a full-screen intent to a heads-up notification unless this is
+            // granted by hand, so Harbor rings, posts, and never opens -- and
+            // a participant who was not looking at their phone at that moment
+            // simply never sees the cue at all.
+            if (settings.cuesEnabled && hasPermission && !canTakeScreen) {
+                Surface {
+                    SectionHeading("Cues can ring, but not open")
+                    SmallCopy(
+                        "Android only lets an app take over the screen if you " +
+                            "allow it by hand. Without it a cue arrives as a " +
+                            "notification that fades on its own, so if your " +
+                            "phone is in your pocket you will miss it.",
+                        size = 14,
+                    )
+                    CueNotifier.fullScreenSettings(context)?.let { intent ->
+                        PrimaryAction("Let a cue open the screen") {
+                            context.startActivity(intent)
+                        }
+                    }
                 }
             }
 
