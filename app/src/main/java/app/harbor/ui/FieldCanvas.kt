@@ -59,6 +59,7 @@ import app.harbor.domain.Terrain
 import app.harbor.domain.Tone
 import app.harbor.ui.theme.Gold
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.hypot
 
@@ -106,6 +107,15 @@ fun FieldCanvas(
      * first is exactly the seam this was meant to remove.
      */
     sky: Boolean = true,
+    /**
+     * A flower has just been planted, so show the garden it went into.
+     *
+     * Pulls back to the whole island and then flies down to the patch that
+     * gained it, which is the one moment the overview is worth showing on
+     * home: it answers "where did that go" before settling where home always
+     * sits. The rest of the time the camera is simply already there.
+     */
+    arriving: Boolean = false,
 ) {
     val contacts by store.contacts.collectAsState()
     val settings by store.settings.collectAsState()
@@ -190,7 +200,12 @@ fun FieldCanvas(
     // one's overview zoom and the island then sat at a third of the width it
     // should have filled. Re-aiming until the first gesture also means a
     // rotation reframes instead of leaving the world off-centre.
-    LaunchedEffect(base, frame, planted, homeSpot, interactive) {
+    LaunchedEffect(base, frame, planted, homeSpot, interactive, arriving) {
+        // While a flower is arriving the camera is being flown deliberately;
+        // re-aiming underneath it would cut the flight short. homeSpot also
+        // changes the instant the new flower lands, which is exactly when this
+        // would otherwise fire.
+        if (arriving) return@LaunchedEffect
         if (!touched && base > 0 && frame.width > 0) {
             val here = homeSpot
             cam = when {
@@ -212,6 +227,21 @@ fun FieldCanvas(
             }
             goal = cam
         }
+    }
+
+    // The arrival: the whole island, a beat, then down to the new flower.
+    //
+    // No animation of its own -- it sets the camera and then a goal, and the
+    // chase below does the flying. That is why the descent eases: it is the
+    // same motion a tap on a patch makes, which is the point, because this is
+    // the app showing you where the thing you just did ended up.
+    LaunchedEffect(arriving, base, frame, homeSpot) {
+        if (!arriving || base <= 0 || frame.width <= 0) return@LaunchedEffect
+        val here = homeSpot ?: return@LaunchedEffect
+        cam = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
+        goal = cam
+        delay(520)
+        goal = Field.Camera(here.x, here.y, base * Field.EMPTY_ZOOM)
     }
 
     // The camera chases its goal rather than snapping, which is what makes a

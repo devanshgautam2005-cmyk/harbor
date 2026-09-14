@@ -155,6 +155,14 @@ class MainActivity : ComponentActivity() {
                 // The flower on its way into the field, drawn over whatever
                 // is underneath. Null the rest of the time.
                 var landing by remember { mutableStateOf<FlowerKind?>(null) }
+
+                // What happens after the flower has gone into the ground.
+                //
+                // The landing drops it in and stops, which left the reward
+                // finished at the exact moment it became real. This carries it
+                // one step further: home pulls back to the whole field, flies
+                // down to the patch that gained it, and opens it there.
+                var growing by remember { mutableStateOf<FlowerKind?>(null) }
                 var landed by remember { mutableStateOf<java.util.UUID?>(null) }
                 var showing by remember { mutableStateOf<java.util.UUID?>(null) }
                 val scope = rememberCoroutineScope()
@@ -321,6 +329,8 @@ class MainActivity : ComponentActivity() {
                                     screen = Screen.Reflect
                                 },
                                 modifier = homeInset,
+                                growing = growing,
+                                onGrown = { growing = null },
                             )
 
                             Screen.Cues -> CuesSetupScreen(
@@ -455,7 +465,14 @@ class MainActivity : ComponentActivity() {
                             kind = kind,
                             modifier = inset,
                             reducedMotion = store.settings.value.reducedMotion,
-                        ) { landing = null }
+                        ) {
+                            landing = null
+                            growing = kind
+                            // Home, so there is a field to land in. Choosing a
+                            // flower can end on the cue's own screen, and the
+                            // arrival has nowhere to happen there.
+                            screen = Screen.Home
+                        }
                     }
                 }
                 }

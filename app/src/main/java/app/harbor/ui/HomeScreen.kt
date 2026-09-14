@@ -31,6 +31,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
+import app.harbor.ui.theme.LocalReducedMotion
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.BlendMode
@@ -92,8 +97,13 @@ fun HomeScreen(
     onOpenPerson: (java.util.UUID) -> Unit,
     onReflect: (LedgerEntry) -> Unit,
     modifier: Modifier = Modifier,
+    /** The flower just planted, which home opens where the camera lands. */
+    growing: FlowerKind? = null,
+    /** Called when it has finished opening, so home goes back to being home. */
+    onGrown: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val reducedMotion = LocalReducedMotion.current
     val scope = rememberCoroutineScope()
     val settings by store.settings.collectAsState()
     val contacts by store.contacts.collectAsState()
@@ -178,7 +188,54 @@ fun HomeScreen(
                         },
                     interactive = false,
                     sky = false,
+                    arriving = growing != null,
                 )
+
+                // The flower you just chose, opening where the camera lands.
+                //
+                // Drawn over the field rather than into it. The field renders
+                // a patch as a cluster of dots, which is right when you are
+                // looking at a whole island and says nothing at all when you
+                // are standing in front of one bloom -- and one bloom is what
+                // the reference shows and what somebody has just earned.
+                //
+                // The timing is the camera's, not its own: it waits for the
+                // pull-back and the descent to finish before it starts, so the
+                // sequence reads as arrive, look, then open.
+                growing?.let { kind ->
+                    val open = remember(kind) { Animatable(0f) }
+                    LaunchedEffect(kind) {
+                        if (reducedMotion) {
+                            open.snapTo(1f)
+                        } else {
+                            delay(1180)
+                            open.animateTo(
+                                1f,
+                                tween(durationMillis = 2200, easing = FastOutSlowInEasing),
+                            )
+                        }
+                        // A beat with it fully open before home is home again.
+                        delay(900)
+                        onGrown()
+                    }
+                    val t = open.value
+                    if (t > 0f) {
+                        Box(
+                            Modifier
+                                .align(Alignment.Center)
+                                .padding(bottom = fieldHeight * 0.10f),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            FlowerMark(
+                                kind = kind,
+                                modifier = Modifier
+                                    .size(176.dp)
+                                    .graphicsLayer { alpha = (t * 2.2f).coerceAtMost(1f) },
+                                scale = 0.06f + 0.94f * t,
+                            )
+                        }
+                    }
+                }
 
                 // No scrim behind the greeting.
                 //
