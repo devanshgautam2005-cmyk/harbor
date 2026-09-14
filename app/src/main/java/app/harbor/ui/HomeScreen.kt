@@ -261,9 +261,16 @@ fun HomeScreen(
                         style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
                     )
                     Spacer(Modifier.size(5.dp))
+                    // The line under the greeting is the field's caption.
+                    //
+                    // With nothing planted it says so, because an empty field
+                    // needs explaining and "a little closer, every day" is a
+                    // tagline rather than an answer. The field used to print
+                    // this over its own middle, which on home's short canvas
+                    // landed on top of the greeting.
                     Eyebrow(
                         when (grown) {
-                            0 -> "A little closer, every day"
+                            0 -> "Waiting for you to grow a flower"
                             1 -> "One flower has grown here"
                             else -> "$grown flowers have grown here"
                         },

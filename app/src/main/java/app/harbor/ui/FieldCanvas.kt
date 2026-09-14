@@ -384,7 +384,13 @@ fun FieldCanvas(
         // Said on the field itself, because the field is the invitation.
         // Home carries the same line above its own preview, so this one is
         // only for the full screen.
-        if (interactive && !planted) {
+        // The empty-state line belongs to the field screen, not to home.
+        //
+        // It is centred in the canvas, and home's canvas is 46% of a phone
+        // with the greeting already sitting at the foot of it -- so the two
+        // landed on top of each other, white serif through white serif. Home
+        // says the same thing in its own eyebrow, where there is room for it.
+        if (controls && !planted) {
             Column(
                 modifier = Modifier
                     .align(Alignment.Center)
