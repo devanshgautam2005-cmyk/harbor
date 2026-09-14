@@ -1,6 +1,7 @@
 package app.harbor.domain
 
 import java.util.UUID
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
@@ -316,6 +317,26 @@ object Field {
     /** How far in an empty garden stands. Past [TILT_TO], so it is landscape. */
     const val EMPTY_ZOOM = 6.5
 
+    /**
+     * How much of a patch is in bloom: the share of its cells that carry a
+     * flower.
+     *
+     * A patch covers roughly `pi r^2 / cell^2` cells, and a cell is planted
+     * when its own hash falls under this share -- so the count comes out at
+     * about one flower per call, scattered rather than clumped, and identical
+     * on every redraw because the hash is a function of the cell.
+     *
+     * Capped at three quarters rather than one. A patch where every cell is a
+     * flower stops reading as flowers and starts reading as a coloured field,
+     * and somebody with two hundred calls has earned a full patch, not a
+     * solid one.
+     */
+    private fun bloomShare(patch: Patch): Double {
+        if (patch.calls <= 0) return 0.0
+        val covered = max(1.0, PI * patch.radius * patch.radius / (Terrain.CELL * Terrain.CELL))
+        return min(0.75, patch.calls / covered)
+    }
+
     /** Which patch contains a point, or -1. */
     fun patchAt(patches: List<Patch>, px: Double, py: Double): Int {
         for (i in patches.indices) {
@@ -381,12 +402,23 @@ object Field {
                 var size = 0.1
                 var paint = BARE_PAINT
 
-                if (patch >= 0 && z > 0.3) {
+                // One flower for one call, and none for none.
+                //
+                // This used to plant every cell inside a patch, so a patch was
+                // in full bloom from the moment a contact existed -- somebody
+                // who had never called anybody opened the app to a field of
+                // flowers they had not grown. The garden is the whole reward
+                // and that gave it away for nothing.
+                val bloom = patch >= 0 && z > 0.3 &&
+                    chance < bloomShare(patches[patch])
+
+                if (bloom) {
                     // Inside somebody's patch the ground is planted: denser,
                     // larger, and in their flower's colour.
                     kind = Kind.FLOWER
                     size = 0.72 + chance * 0.9 + grove * 0.5
-                    paint = PATCH_PAINT_FROM + patch * 2 + (if (chance > 0.55) 1 else 0)
+                    val tone = Terrain.hash2(col, row, Terrain.SEED + 11)
+                    paint = PATCH_PAINT_FROM + patch * 2 + (if (tone > 0.55) 1 else 0)
                 } else if (z < 0.3) {
                     size = 0.5 + (0.3 - z) * 2.4
                     paint = 5 + (if (chance > 0.5) 1 else 0)
