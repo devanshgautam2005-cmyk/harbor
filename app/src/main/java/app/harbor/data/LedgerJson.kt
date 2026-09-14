@@ -209,7 +209,17 @@ internal object LedgerJson {
             ?.let { FeedbackPulse.entries.fromWire(it) },
         callMinutes = if (o.isNull("call_minutes")) null else o.optInt("call_minutes"),
         feeling = o.optStringOrNull("feeling")?.let { Feeling.entries.fromWire(it) },
-        flower = o.optStringOrNull("flower")?.let { FlowerKind.entries.fromWire(it) },
+        // Tolerant on purpose, and the only field that is.
+        //
+        // Flowers were renamed from species to feelings, so a ledger written
+        // before that holds names this enum has never heard of. fromWire
+        // throws on an unknown value, which is right for every other field --
+        // a resolution or a trigger it cannot read means the row is not what
+        // it claims to be -- but wrong here: FlowerKind.stored maps the old
+        // eighteen across, and returns null for anything from neither era, so
+        // at worst one entry loses its bloom instead of the ledger refusing
+        // to load at all.
+        flower = o.optStringOrNull("flower")?.let { FlowerKind.stored(it) },
         topic = o.optStringOrNull("topic"),
         note = o.optStringOrNull("note"),
         occurredAt = Instant.parse(o.getString("occurred_at")),

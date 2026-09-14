@@ -780,8 +780,8 @@ private fun FieldReadout(relative: Double, tilt: Double, modifier: Modifier = Mo
 
 /** What a patch is planted with before anyone has chosen a flower for it. */
 private fun defaultFlower(tone: Tone): FlowerKind = when (tone) {
-    Tone.GOLD -> FlowerKind.MARIGOLD
-    Tone.GREEN -> FlowerKind.DAISY
-    Tone.ORANGE -> FlowerKind.POPPY
-    Tone.SKY -> FlowerKind.BLUEBELL
+    Tone.GOLD -> FlowerKind.HAPPY
+    Tone.GREEN -> FlowerKind.GROUNDED
+    Tone.ORANGE -> FlowerKind.LOVED
+    Tone.SKY -> FlowerKind.CALM
 }

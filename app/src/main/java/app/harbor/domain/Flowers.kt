@@ -8,13 +8,19 @@ import kotlin.math.sqrt
 /**
  * The flower library, and how a call becomes one.
  *
- * The colours and petal counts are measured off the Harbor specimen sheet,
- * which is the authority on them now. They used to come from the prototype's
- * `lib/harbor/model.ts` and were considerably more muted, with nine to
- * fourteen petals each — which drew a dense little rosette rather than a
- * flower. The sheet's blooms are luminous and carry four to eight broad
- * petals, and at that count the gradient and the overlap of one petal on the
- * next are actually visible, which is where the whole look lives.
+ * The colours, petal counts and names are measured off the flower sheet,
+ * which is the authority on them now.
+ *
+ * Twenty flowers, and each of them is a feeling rather than a species. What a
+ * flower is *called* is the biggest thing this file carries: the screen after
+ * a call asks how it went, so the shelf has to be a list of answers to that
+ * question. "Sunflower — the long, good kind" asked somebody to translate; the
+ * sheet's "Loved · you belong" does not.
+ *
+ * The notes are the sheet's own second line, and they are addressed to the
+ * person planting them. That is why the hard ones are gentle: Lonely says "you
+ * are not alone" and Anxious says "still growing", because the moment somebody
+ * picks one of those is not the moment to be neutral at them.
  *
  * Changing a value here changes every flower in the app at once: the bloom
  * after a call, a person's specimen, the picker, and the field.
@@ -36,44 +42,46 @@ data class FlowerSpec(
 object Flowers {
 
     val LIBRARY: List<FlowerSpec> = listOf(
-        FlowerSpec(FlowerKind.DAISY, "Daisy", "An ordinary, easy call.",
-            0xFFFEF2DC, 0xFFF3DCA8, 0xFFFEBD3A, 6, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.MARIGOLD, "Marigold", "Warm, a little loud, full of news.",
-            0xFFFECA4D, 0xFFE3922B, 0xFF8B5A1C, 7, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.COSMOS, "Cosmos", "Light and drifting. No agenda.",
-            0xFFFEC9BC, 0xFFFD8E8C, 0xFFFEBD3A, 6, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.POPPY, "Poppy", "Something honest got said.",
-            0xFFFE8A6B, 0xFFDE4B3C, 0xFF3B2A22, 5, FlowerSpec.Shape.CUP),
-        FlowerSpec(FlowerKind.TULIP, "Tulip", "Short, and enough.",
-            0xFFE182AD, 0xFF8E3B96, 0xFF5F1687, 4, FlowerSpec.Shape.CUP),
-        FlowerSpec(FlowerKind.BLUEBELL, "Bluebell", "Quiet. Mostly listening.",
-            0xFFA8C0FB, 0xFF5B86F5, 0xFF3F63C4, 5, FlowerSpec.Shape.POINT),
-        FlowerSpec(FlowerKind.ASTER, "Aster", "Tangled, then untangled.",
-            0xFFC9A9F5, 0xFF9366DE, 0xFFFEBD3A, 7, FlowerSpec.Shape.POINT),
-        FlowerSpec(FlowerKind.SUNFLOWER, "Sunflower", "The long, good kind.",
-            0xFFFEDC7A, 0xFFE8A81F, 0xFF6B4A22, 8, FlowerSpec.Shape.POINT),
-        FlowerSpec(FlowerKind.LAVENDER, "Lavender", "Calm, and it lasted.",
-            0xFFD6CBF2, 0xFF8E7BC8, 0xFF574A86, 6, FlowerSpec.Shape.POINT),
-        FlowerSpec(FlowerKind.ZINNIA, "Zinnia", "Bright, and a bit daft.",
-            0xFFFFA9B8, 0xFFE2506F, 0xFFFEBD3A, 8, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.CAMELLIA, "Camellia", "Careful, and worth it.",
-            0xFFFFD9DE, 0xFFE99AA9, 0xFFC4566C, 7, FlowerSpec.Shape.CUP),
-        FlowerSpec(FlowerKind.PERIWINKLE, "Periwinkle", "Easy. Nothing needed saying.",
-            0xFFBFE3F0, 0xFF63AFD4, 0xFF2F6E92, 5, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.BUTTERCUP, "Buttercup", "Small, and it cheered you up.",
-            0xFFFFEBA0, 0xFFF2C441, 0xFFB9862A, 5, FlowerSpec.Shape.CUP),
-        FlowerSpec(FlowerKind.ANEMONE, "Anemone", "A lot at once, and it held.",
-            0xFFE8C6E8, 0xFFA65CA8, 0xFF3B2440, 6, FlowerSpec.Shape.POINT),
-
-        // The four corners the shelf was missing. See [FlowerKind].
-        FlowerSpec(FlowerKind.SNOWDROP, "Snowdrop", "Brief, and it still counted.",
-            0xFFF7FAF6, 0xFFCFE0CC, 0xFF6E9443, 5, FlowerSpec.Shape.CUP),
-        FlowerSpec(FlowerKind.DAHLIA, "Dahlia", "Full, and it went somewhere.",
-            0xFFC8445C, 0xFF8E1F38, 0xFF3B1020, 8, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.IRIS, "Iris", "Long, and it went deep.",
-            0xFF9C8FE8, 0xFF4B3C99, 0xFFF2C441, 6, FlowerSpec.Shape.POINT),
-        FlowerSpec(FlowerKind.HYDRANGEA, "Hydrangea", "Soft, and all of a piece.",
-            0xFFA9DCD6, 0xFF3E8F92, 0xFF1F5B66, 8, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.HAPPY, "Happy", "A brighter you.",
+            0xFFFFD95E, 0xFFF0A81E, 0xFFB9740C, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.UPBEAT, "Upbeat", "Move forward.",
+            0xFFFF7B8A, 0xFFEE3B57, 0xFFFFD1A8, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.LOVED, "Loved", "You belong.",
+            0xFFFF8A5C, 0xFFEF4B3C, 0xFFFFC26E, 6, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.VALUED, "Valued", "You matter.",
+            0xFFC98BE0, 0xFF8E3FB0, 0xFF5E1F7A, 4, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.PEACEFUL, "Peaceful", "Breathe easy.",
+            0xFFFFF3D6, 0xFFF3E0B4, 0xFFE3C98C, 5, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.GROUNDED, "Grounded", "Root yourself.",
+            0xFF9CC47A, 0xFF3E7A46, 0xFF2A5733, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.CALM, "Calm", "Take your time.",
+            0xFF9DBBF8, 0xFF4E76E8, 0xFF2F4FB8, 4, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.CONFIDENT, "Confident", "You got this.",
+            0xFFFFDE72, 0xFFF5B92B, 0xFFD98F12, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.INSPIRED, "Inspired", "Find your spark.",
+            0xFFFF8878, 0xFFE83C3C, 0xFFFFCF9A, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.CURIOUS, "Curious", "Keep exploring.",
+            0xFFC4A6F5, 0xFF8B63DE, 0xFF5F3BA8, 6, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.HOPEFUL, "Hopeful", "Brighter days.",
+            0xFFFFA48C, 0xFFF2604E, 0xFFFFD0A0, 6, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.REFLECTIVE, "Reflective", "Look within.",
+            0xFFFDF6E4, 0xFFEDDCBE, 0xFFCBB48A, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.TENSE, "Tense", "You can unwind.",
+            0xFFA8A6F7, 0xFF5F5BE0, 0xFFE8E4FF, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.MOTIVATED, "Motivated", "Small steps.",
+            0xFF7FB05E, 0xFF2F6B39, 0xFF1F4B2A, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.CONTENT, "Content", "Right here.",
+            0xFFFFA86B, 0xFFF06A38, 0xFFC44A22, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.INSECURE, "Insecure", "It's ok.",
+            0xFFB98CE8, 0xFF7C45C4, 0xFFF0E6FF, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.BRAVE, "Brave", "Take the leap.",
+            0xFFFF9257, 0xFFEE4426, 0xFFFFD08A, 7, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.GRATEFUL, "Grateful", "Notice more.",
+            0xFFFFB3B8, 0xFFF2727F, 0xFFFFD9DC, 8, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.LONELY, "Lonely", "You are not alone.",
+            0xFF9CB6F7, 0xFF5B7DE8, 0xFF3E5BB8, 5, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.ANXIOUS, "Anxious", "Still growing.",
+            0xFFFFE07A, 0xFFF2B62E, 0xFFCF8A12, 5, FlowerSpec.Shape.POINT),
     )
 
     /**

@@ -73,6 +73,47 @@ class FlowersTest {
         }
     }
 
+    // --- the rename, and the gardens it must not lose -----------------------
+
+    @Test
+    fun `every species a phone might have stored still reads`() {
+        // These are the eighteen names FlowerKind used before the sheet
+        // renamed them, and they are still sitting in the ledger of every
+        // phone that has been in the study. If one of them stops mapping,
+        // that participant's garden loses flowers on an update and nothing
+        // anywhere says so.
+        val planted = listOf(
+            "DAISY", "MARIGOLD", "COSMOS", "POPPY", "TULIP", "BLUEBELL",
+            "ASTER", "SUNFLOWER", "LAVENDER", "ZINNIA", "CAMELLIA",
+            "PERIWINKLE", "BUTTERCUP", "ANEMONE", "SNOWDROP", "DAHLIA",
+            "IRIS", "HYDRANGEA",
+        )
+        val lost = planted.filter { FlowerKind.stored(it) == null }
+        assertTrue("no longer readable: $lost", lost.isEmpty())
+    }
+
+    @Test
+    fun `the species map is written the way the ledger stores them`() {
+        // The ledger writes lowercase (see Enum.wire in LedgerJson), so a map
+        // that only answered to upper case would pass the test above and fail
+        // on every real row.
+        assertEquals(FlowerKind.HAPPY, FlowerKind.stored("daisy"))
+        assertEquals(FlowerKind.LOVED, FlowerKind.stored("sunflower"))
+    }
+
+    @Test
+    fun `a name from neither era costs one bloom, not the ledger`() {
+        assertEquals(null, FlowerKind.stored("triffid"))
+    }
+
+    @Test
+    fun `every current name reads back as itself`() {
+        FlowerKind.entries.forEach {
+            assertEquals(it, FlowerKind.stored(it.name))
+            assertEquals(it, FlowerKind.stored(it.name.lowercase()))
+        }
+    }
+
     // --- how a call becomes flowers -----------------------------------------
 
     @Test
