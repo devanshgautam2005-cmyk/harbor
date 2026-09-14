@@ -12,6 +12,14 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import app.harbor.ui.theme.LocalReducedMotion
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -131,6 +139,14 @@ class MainActivity : ComponentActivity() {
             HarborTheme {
                 var screen by remember { mutableStateOf(Screen.Home) }
 
+                // Read once here and handed down, rather than reached for in
+                // each place that moves. Everything that animates has to
+                // honour this -- it is an accessibility setting, not a taste
+                // one, and a screen that still slides for somebody who asked
+                // it not to has ignored them where it matters most.
+                val liveSettings by store.settings.collectAsState()
+                val reduceMotion = liveSettings.reducedMotion
+
                 // Which screens get looked at, and in what order. A category
                 // per screen; nothing about what was on it.
                 LaunchedEffect(screen) { store.note(Moment.SCREEN, screen.name) }
@@ -222,6 +238,7 @@ class MainActivity : ComponentActivity() {
 
                 BackHandler(enabled = onboarded == true && screen != Screen.Home) { home() }
 
+                CompositionLocalProvider(LocalReducedMotion provides reduceMotion) {
                 Scaffold(modifier = Modifier.fillMaxSize()) { padding ->
                     // imePadding here rather than on each screen: the app is
                     // edge to edge, so the window no longer resizes itself
@@ -265,7 +282,27 @@ class MainActivity : ComponentActivity() {
                         onBack = if (screen.tab == null) home else null,
                         title = screen.title,
                     ) {
-                        when (screen) {
+                        // One screen dissolving into the next.
+                        //
+                        // A tab switch used to be a cut: the old screen was
+                        // simply not there and the new one simply was. A
+                        // crossfade is the quietest fix -- no slide, because
+                        // the three tabs are peers and sliding implies an
+                        // order they do not have, and no scale, because the
+                        // field behind them is a photograph and scaling it
+                        // reads as a camera move nobody asked for.
+                        //
+                        // Keyed on the screen, so a redraw within one screen
+                        // does not replay it.
+                        AnimatedContent(
+                            targetState = screen,
+                            transitionSpec = {
+                                val d = if (reduceMotion) 0 else 200
+                                fadeIn(tween(d)) togetherWith fadeOut(tween(d))
+                            },
+                            label = "screen",
+                        ) { showing ->
+                        when (showing) {
                             Screen.Home -> HomeScreen(
                                 store = store,
                                 onOpenGarden = { screen = Screen.Garden },
@@ -403,7 +440,8 @@ class MainActivity : ComponentActivity() {
                                 )
                             } ?: run { screen = Screen.Home }
                         }
-                    }
+                        }
+                        }
 
                     // Over the top of everything, including the shell's nav
                     // pill: the flower is passing in front of the app, not
@@ -415,6 +453,7 @@ class MainActivity : ComponentActivity() {
                             reducedMotion = store.settings.value.reducedMotion,
                         ) { landing = null }
                     }
+                }
                 }
             }
         }

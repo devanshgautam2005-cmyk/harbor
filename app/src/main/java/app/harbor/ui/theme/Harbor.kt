@@ -18,6 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -119,6 +124,7 @@ fun Surface(
     content: @Composable ColumnScope.() -> Unit,
 ) = Flow(
     modifier
+        .entrance()
         .fillMaxWidth()
         .clip(CardShape)
         .background(MaterialTheme.colorScheme.surface)
@@ -500,6 +506,46 @@ fun QuietRow(text: String, meta: String, modifier: Modifier = Modifier) = Row(
         ),
     )
 }
+
+/**
+ * A card arriving, rather than being there already.
+ *
+ * Twelve dp and a fade, once, the first time a card is composed. It is the
+ * cheapest way to make a screen feel like it was dealt rather than switched
+ * on, and at 260ms it is over before anybody could call it an animation.
+ *
+ * Deliberately not staggered. A stagger down a list is lovely on a marketing
+ * page and wrong here: these cards are a schedule and a set of controls, and
+ * making somebody wait 80ms per card to see the last one is a cost paid on
+ * every single visit for an effect that only lands on the first.
+ *
+ * Somebody who has asked for less movement gets the card, in place, with no
+ * animation at all -- that setting exists for people who find movement
+ * genuinely unpleasant, so it has to reach the small things too.
+ */
+@Composable
+fun Modifier.entrance(): Modifier {
+    if (LocalReducedMotion.current) return this
+    val arrived = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        arrived.animateTo(1f, tween(durationMillis = 260, easing = FastOutSlowInEasing))
+    }
+    val t = arrived.value
+    return graphicsLayer {
+        alpha = t
+        translationY = (1f - t) * 12.dp.toPx()
+    }
+}
+
+/**
+ * Whether this app should be still.
+ *
+ * A CompositionLocal because the setting lives in the store and the things
+ * that need to honour it are leaf composables all over the app -- threading a
+ * boolean through every card to reach [entrance] would be a worse cost than
+ * the animation.
+ */
+val LocalReducedMotion = staticCompositionLocalOf { false }
 
 /** A rule inside a card, between one row and the next. */
 @Composable
