@@ -63,7 +63,8 @@ fun FieldSky(weather: Weather, modifier: Modifier = Modifier) {
             // navy and a bright day from washing the text out.
             brush = Brush.verticalGradient(
                 0.00f to sky.top,
-                0.46f to sky.mid,
+                0.30f to sky.mid,
+                0.66f to Paper,
                 1.00f to Paper,
             ),
             size = size,

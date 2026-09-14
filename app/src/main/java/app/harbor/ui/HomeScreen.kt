@@ -180,27 +180,13 @@ fun HomeScreen(
                     sky = false,
                 )
 
-                // A scrim at the foot of the sky, to keep the greeting
-                // readable whatever the weather is doing behind it.
+                // No scrim behind the greeting.
                 //
-                // Deliberately weak. The first pass took the bottom 46% of the
-                // sky to 86% of the ground colour, which put a band of
-                // near-black exactly where the card is supposed to be
-                // overlapping a *lit* gradient -- so the two read as stacked
-                // rather than overlapping and the whole move was lost. It only
-                // has to take the edge off the sky behind two lines of text.
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(fieldHeight * 0.34f)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Paper.copy(alpha = 0.34f)),
-                            ),
-                        ),
-                )
-
+                // There was one, and it ended exactly where the field's height
+                // ended -- so the page was darkened above that line and not
+                // below it, and the join showed as a rule straight across the
+                // screen. The greeting is white serif on a lit sky, which is
+                // what the reference does and is legible on all five weathers.
 
                 Column(
                     Modifier
