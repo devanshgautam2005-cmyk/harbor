@@ -191,6 +191,7 @@ fun HomeScreen(
                     // which is what the close opening shot costs otherwise.
                     interactive = true,
                     standClose = true,
+                    controls = false,
                     sky = false,
                     arriving = growing != null,
                     onTap = onOpenGarden,

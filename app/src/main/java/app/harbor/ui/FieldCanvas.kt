@@ -136,6 +136,17 @@ fun FieldCanvas(
      * of choosing a patch.
      */
     onTap: (() -> Unit)? = null,
+    /**
+     * Whether to draw the field's own chrome: the zoom buttons and the
+     * readout.
+     *
+     * Off on home, where the field is scenery rather than an instrument. You
+     * can still pinch and drag it -- the gestures are [interactive] -- but a
+     * pair of zoom buttons and a magnification readout sitting on the view
+     * turn a window onto a garden into a map application, and home has
+     * somewhere to put a control panel: the field screen.
+     */
+    controls: Boolean = interactive,
 ) {
     val contacts by store.contacts.collectAsState()
     val settings by store.settings.collectAsState()
@@ -350,7 +361,7 @@ fun FieldCanvas(
             drawField(cells, patches, palette, cam, base, kit, tagInk)
         }
 
-        if (interactive) {
+        if (controls) {
             FieldControls(
             onIn = {
                 touched = true
@@ -406,7 +417,7 @@ fun FieldCanvas(
         // Not while a card is open: the two sit in the same corner of the
         // screen and the readout was drawing straight over the third line of
         // the card.
-        if (interactive && base > 0 && showing == null) {
+        if (controls && base > 0 && showing == null) {
             FieldReadout(
                 relative = cam.zoom / base,
                 tilt = Field.tiltFor(cam.zoom, base),
