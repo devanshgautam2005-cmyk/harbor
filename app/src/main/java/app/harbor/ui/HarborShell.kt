@@ -194,8 +194,18 @@ internal fun DrawScope.drawDusk() {
                 0.72f to Color(0xFF35191A),
                 0.96f to Color(0x000D0E11),
             ),
-            center = Offset(size.width / 2f, -size.height * 0.12f),
-            radius = size.height * 1.02f,
+            // Reach matters as much as colour, and this is the second time it
+            // has been wrong in the opposite direction.
+            //
+            // At 1.02 the burn ran to about 60% of the screen, which on a page
+            // whose cards had stopped painting over it flooded everything
+            // below the field in orange. The reference keeps its whole sunset
+            // in the top four-tenths and lets the rest of the page go dark --
+            // the card is meant to be glass over the *end* of the light, not a
+            // pane in the middle of it. At 0.78 the sunset finishes inside the
+            // field's own height and the page below it is night.
+            center = Offset(size.width / 2f, -size.height * 0.10f),
+            radius = size.height * 0.78f,
         ),
         size = size,
     )
@@ -208,8 +218,8 @@ internal fun DrawScope.drawDusk() {
                 0.40f to Color(0x40F0A35F),
                 1.00f to Color(0x00F0783C),
             ),
-            center = Offset(size.width / 2f, size.height * 0.06f),
-            radius = size.width * 0.86f,
+            center = Offset(size.width / 2f, size.height * 0.04f),
+            radius = size.width * 0.74f,
         ),
         size = size,
     )
