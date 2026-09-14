@@ -16,7 +16,7 @@ class CallStatsTest {
     private fun call(
         contactId: UUID = mom,
         minutes: Int? = 10,
-        flower: FlowerKind? = FlowerKind.DAISY,
+        flower: FlowerKind? = FlowerKind.HAPPY,
         resolution: Resolution = Resolution.CALLED,
     ) = LedgerEntry(
         id = UUID.randomUUID(),
@@ -76,11 +76,11 @@ class CallStatsTest {
     @Test
     fun finds_the_flower_a_patch_is_mostly_made_of() {
         val entries = listOf(
-            call(flower = FlowerKind.MARIGOLD),
-            call(flower = FlowerKind.DAISY),
-            call(flower = FlowerKind.MARIGOLD),
+            call(flower = FlowerKind.UPBEAT),
+            call(flower = FlowerKind.HAPPY),
+            call(flower = FlowerKind.UPBEAT),
         )
-        assertEquals(FlowerKind.MARIGOLD, CallStats.dominantFlower(entries, mom))
+        assertEquals(FlowerKind.UPBEAT, CallStats.dominantFlower(entries, mom))
     }
 
     @Test
@@ -153,7 +153,7 @@ class CallStatsTest {
 
     @Test
     fun a_call_already_reflected_on_is_not_offered_again() {
-        val done = call(minutes = 12, flower = FlowerKind.DAISY).copy(feeling = Feeling.WARM)
+        val done = call(minutes = 12, flower = FlowerKind.HAPPY).copy(feeling = Feeling.WARM)
         assertNull(CallStats.pendingReflection(listOf(done), now.plusSeconds(600)))
     }
 

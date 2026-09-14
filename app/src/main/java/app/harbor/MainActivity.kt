@@ -301,8 +301,12 @@ class MainActivity : ComponentActivity() {
                                 fadeIn(tween(d)) togetherWith fadeOut(tween(d))
                             },
                             label = "screen",
-                        ) { showing ->
-                        when (showing) {
+                            // Not `showing` -- that name is already taken in
+                            // this scope by the contact whose page is open,
+                            // and shadowing it compiles into nonsense rather
+                            // than an error at the point of the mistake.
+                        ) { visible ->
+                        when (visible) {
                             Screen.Home -> HomeScreen(
                                 store = store,
                                 onOpenGarden = { screen = Screen.Garden },
