@@ -18,6 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -330,26 +338,64 @@ fun PrimaryAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit,
-) = Box(
-    modifier
-        .fillMaxWidth()
-        .clip(ActionShape)
+) {
+    val press = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .pressScale(press)
+            .fillMaxWidth()
+            .clip(ActionShape)
         .background(
             if (enabled) Brush.verticalGradient(listOf(EmberLight, Ember))
             else SolidColor(MaterialTheme.colorScheme.surfaceVariant),
         )
-        .clickable(enabled = enabled, onClick = onClick)
-        .padding(vertical = 16.dp),
-    contentAlignment = Alignment.Center,
-) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontSize = 15.sp,
-            color = if (enabled) MaterialTheme.colorScheme.onPrimary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+            .clickable(
+                enabled = enabled,
+                interactionSource = press,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = 15.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+    }
+}
+
+/**
+ * A press that gives under the thumb.
+ *
+ * Three percent and a spring, which is small enough that nobody looking at a
+ * screenshot would find it and large enough that the button feels like a
+ * physical thing the moment you touch it. The ripple is turned off wherever
+ * this is used: a ripple is Material announcing that it handled a touch, and
+ * this design has no other Material tell left anywhere in it.
+ *
+ * `indication = null` on the clickable is what makes that true -- without it
+ * the scale and the ripple both play and the button does two things at once.
+ */
+@Composable
+fun Modifier.pressScale(
+    source: MutableInteractionSource,
+    down: Float = 0.97f,
+): Modifier {
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) down else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
         ),
+        label = "press",
     )
+    return graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
 /**
@@ -365,22 +411,31 @@ fun QuietAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit,
-) = Box(
-    modifier
-        .clip(ChipShape)
-        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, ChipShape)
-        .clickable(enabled = enabled, onClick = onClick)
-        .padding(horizontal = 16.dp, vertical = 10.dp),
-    contentAlignment = Alignment.Center,
 ) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontSize = 14.sp,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-    )
+    val press = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .pressScale(press)
+            .clip(ChipShape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, ChipShape)
+            .clickable(
+                enabled = enabled,
+                interactionSource = press,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = 14.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+    }
 }
 
 /**

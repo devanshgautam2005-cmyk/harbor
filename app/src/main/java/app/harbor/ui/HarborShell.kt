@@ -20,6 +20,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import app.harbor.ui.theme.pressScale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import app.harbor.ui.theme.Chalk
@@ -242,37 +252,66 @@ enum class HarborTab(val label: String) {
  * allowed to appear.
  */
 @Composable
-private fun NavItem(tab: HarborTab, current: Boolean, onClick: () -> Unit) = Column(
-    Modifier
-        .width(74.dp)
-        .clip(NavShape)
-        .clickable(onClick = onClick)
-        .padding(top = 6.dp, bottom = 4.dp),
-    horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.spacedBy(3.dp),
-) {
-    val ink =
-        if (current) MaterialTheme.colorScheme.onTertiary
-        else MaterialTheme.colorScheme.onSurfaceVariant
-    Box(
-        Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(
-                if (current) MaterialTheme.colorScheme.tertiary
-                else Color.White.copy(alpha = 0.07f),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Canvas(Modifier.size(19.dp)) { drawTabMark(tab, ink) }
-    }
-    Text(
-        tab.label,
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontSize = 11.sp,
-            color = if (current) Chalk else MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
+private fun NavItem(tab: HarborTab, current: Boolean, onClick: () -> Unit) {
+    val press = remember { MutableInteractionSource() }
+
+    // The amber arrives rather than appears, and the disc it arrives on grows
+    // a little as it does. Switching tabs is the most frequent thing anybody
+    // does in this app, so it is worth the two hundred milliseconds.
+    val disc by animateColorAsState(
+        targetValue = if (current) MaterialTheme.colorScheme.tertiary
+        else Color.White.copy(alpha = 0.07f),
+        animationSpec = tween(220),
+        label = "tab disc",
     )
+    val ink by animateColorAsState(
+        targetValue = if (current) MaterialTheme.colorScheme.onTertiary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(220),
+        label = "tab ink",
+    )
+    val label by animateColorAsState(
+        targetValue = if (current) Chalk else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(220),
+        label = "tab label",
+    )
+    val lift by animateFloatAsState(
+        targetValue = if (current) 1f else 0.92f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "tab lift",
+    )
+
+    Column(
+        Modifier
+            .width(74.dp)
+            .pressScale(press)
+            .clip(NavShape)
+            .clickable(interactionSource = press, indication = null, onClick = onClick)
+            .padding(top = 6.dp, bottom = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Box(
+            Modifier
+                .size(40.dp)
+                .graphicsLayer { scaleX = lift; scaleY = lift }
+                .clip(CircleShape)
+                .background(disc),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.size(19.dp)) { drawTabMark(tab, ink) }
+        }
+        Text(
+            tab.label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = 11.sp,
+                color = label,
+            ),
+        )
+    }
 }
 
 /**

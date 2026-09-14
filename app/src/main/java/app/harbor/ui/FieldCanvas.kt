@@ -154,6 +154,27 @@ fun FieldCanvas(
     // the usual one.
     val planted = remember(patches) { patches.sumOf { it.calls } > 0 }
 
+    /**
+     * Where home stands, which is not where the garden stands.
+     *
+     * The garden screen opens on the whole island, because that screen is for
+     * looking at the whole island. Home is not: it is a window onto one
+     * flower, down among the grass, the way the reference shows a single bloom
+     * on a patch of ground rather than a map of a country. You get the island
+     * by opening it.
+     *
+     * The patch chosen is the one most recently added to, so the flower on
+     * home is the last call you had rather than whichever patch happens to be
+     * biggest.
+     */
+    val homeSpot = remember(patches, entries) {
+        val newest = entries
+            .firstOrNull { it.resolution == Resolution.CALLED && it.flower != null }
+            ?.contactId
+        patches.firstOrNull { it.contactId == newest && it.calls > 0 }
+            ?: patches.filter { it.calls > 0 }.maxByOrNull { it.calls }
+    }
+
     // Frame the whole island, and keep framing it until the user takes over.
     //
     // Latching on the first size that arrived was wrong: layout reports an
@@ -161,15 +182,25 @@ fun FieldCanvas(
     // one's overview zoom and the island then sat at a third of the width it
     // should have filled. Re-aiming until the first gesture also means a
     // rotation reframes instead of leaving the world off-centre.
-    LaunchedEffect(base, frame, planted) {
+    LaunchedEffect(base, frame, planted, homeSpot, interactive) {
         if (!touched && base > 0 && frame.width > 0) {
-            cam = if (planted) {
-                Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
-            } else {
-                // Down among the grass, where there is visibly room, rather
-                // than looking at an empty island from orbit.
-                val spot = Field.emptyStart()
-                Field.Camera(spot.x, spot.y, base * Field.EMPTY_ZOOM)
+            val here = homeSpot
+            cam = when {
+                // Home, with something to show: stand at the newest patch.
+                !interactive && here != null ->
+                    Field.Camera(here.x, here.y, base * Field.EMPTY_ZOOM)
+
+                // The garden screen, which is the one that shows the island.
+                planted && interactive ->
+                    Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
+
+                // Nothing planted anywhere, on either screen. Down among the
+                // grass where there is visibly room, rather than looking at an
+                // empty island from orbit.
+                else -> {
+                    val spot = Field.emptyStart()
+                    Field.Camera(spot.x, spot.y, base * Field.EMPTY_ZOOM)
+                }
             }
             goal = cam
         }
