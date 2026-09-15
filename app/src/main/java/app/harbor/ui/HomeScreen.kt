@@ -52,8 +52,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.cue.Dialer
@@ -437,25 +435,11 @@ private fun PersonTile(
     }
 }
 
-/**
- * `.text-link` — a quiet way onward, never a button competing for attention.
- *
- * [centered] and [underline] exist for the one link the usability pass wants
- * to read as a button without being one — "I have already seen a reminder" on
- * the onboarding preview step. Left-aligned and plain is still the default,
- * so every other use of this — "Not now", "Open system settings" — is
- * unchanged.
- */
+/** `.text-link` — a quiet way onward, never a button competing for attention. */
 @Composable
-internal fun TextLink(
-    text: String,
-    onClick: () -> Unit,
-    centered: Boolean = false,
-    underline: Boolean = false,
-) {
+internal fun TextLink(text: String, onClick: () -> Unit) {
     Text(
         text,
-        textAlign = if (centered) TextAlign.Center else null,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
@@ -464,7 +448,6 @@ internal fun TextLink(
         style = MaterialTheme.typography.labelLarge.copy(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textDecoration = if (underline) TextDecoration.Underline else null,
         ),
     )
 }

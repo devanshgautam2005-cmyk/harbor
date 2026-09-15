@@ -55,7 +55,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
@@ -374,6 +376,35 @@ private fun FlowNote(text: String, modifier: Modifier = Modifier) = Text(
         fontSize = 14.sp,
         lineHeight = 21.sp,
         color = PillInk,
+    ),
+)
+
+/**
+ * A link styled to read as a button without being one — centred and
+ * underlined, for the one place the usability pass wants that: "I have
+ * already seen a reminder".
+ *
+ * Deliberately not a parameter added to the shared `TextLink` in
+ * HomeScreen.kt. `TextLink` is called two ways across the app — positionally
+ * (`TextLink("Back", onDone)`) and with a trailing lambda
+ * (`TextLink("Save") { ... }`) — and those two conventions need `onClick` in
+ * two different positions (second, and last) at once. Extra parameters can
+ * only satisfy one of them, which is what broke every trailing-lambda call
+ * site the first time this was tried here.
+ */
+@Composable
+private fun EmphasisLink(text: String, onClick: () -> Unit) = Text(
+    text,
+    textAlign = TextAlign.Center,
+    modifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(14.dp))
+        .clickable(onClick = onClick)
+        .padding(vertical = 12.dp),
+    style = MaterialTheme.typography.labelLarge.copy(
+        fontWeight = FontWeight.Medium,
+        color = PillInk,
+        textDecoration = TextDecoration.Underline,
     ),
 )
 
@@ -904,7 +935,7 @@ private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
             }
             Spacer(Modifier.height(22.dp))
         }
-        TextLink("I have already seen a reminder", onNext, centered = true, underline = true)
+        EmphasisLink("I have already seen a reminder", onNext)
     }
 }
 
