@@ -63,10 +63,12 @@ import app.harbor.domain.Tone
  *     [Ember] gradient carrying a brown-black label, and the design is strict
  *     that amber appears *only* on the current tab, the primary action and the
  *     selected chip.
- *  3. **Labels are sans, and they are bold.** This reverses the light
- *     specimen. Serif is now reserved for what Harbor *says* -- a name, a
- *     headline -- and anything the interface says about itself is Manrope at
- *     500-700. A serif button label reads as a pull-quote on this ground.
+ *  3. **Labels are bold, everything else is regular.** This reverses the
+ *     light specimen. One typeface carries the whole app now (Manjari, see
+ *     `Type.kt`) rather than a serif-and-sans pairing, so the split that used
+ *     to come from switching faces now comes from weight alone: a name or a
+ *     headline is regular, and anything the interface says about itself --
+ *     a button label, a tab, a chip, a caption -- is bold.
  *  4. **Radii opened back up.** 24dp for a card and a full pill for anything
  *     you press. A piece of glass with a tight corner reads as a dialog.
  *
