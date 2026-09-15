@@ -364,7 +364,9 @@ private fun openAppSettings(context: Context) {
 }
 
 /**
- * Fires a real cue on demand, from here or from onboarding.
+ * Records a manual cue and builds the intent that shows it, without starting
+ * it — split out of [showManualCue] so onboarding can launch it through a
+ * result launcher and find out when the preview closes.
  *
  * Not debug scaffolding: [TriggerSource.MANUAL] is in the model and
  * [CuePolicy] lets a manual request past every gate, on the grounds that
@@ -372,13 +374,13 @@ private fun openAppSettings(context: Context) {
  * most persuasive thing onboarding can do — hearing her ringtone once explains
  * the app better than a screen of copy about it.
  */
-internal suspend fun showManualCue(
+internal suspend fun manualCueIntent(
     context: Context,
     store: HarborRepository,
     who: Contact,
     /** True only for onboarding's own preview — see [CueNotifier.EXTRA_SKIP_PULSE]. */
     skipPulse: Boolean = false,
-) {
+): Intent {
     val now = Instant.now()
     val cue = Cue(
         id = UUID.randomUUID(),
@@ -387,12 +389,20 @@ internal suspend fun showManualCue(
         firedAt = now,
     )
     store.recordCue(cue)
-    context.startActivity(
-        Intent(context, CueActivity::class.java).apply {
-            putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
-            putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
-            putExtra(CueNotifier.EXTRA_SOURCE, TriggerSource.MANUAL.name)
-            putExtra(CueNotifier.EXTRA_SKIP_PULSE, skipPulse)
-        },
-    )
+    return Intent(context, CueActivity::class.java).apply {
+        putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
+        putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
+        putExtra(CueNotifier.EXTRA_SOURCE, TriggerSource.MANUAL.name)
+        putExtra(CueNotifier.EXTRA_SKIP_PULSE, skipPulse)
+    }
+}
+
+/** Fires a real cue on demand and shows it immediately. See [manualCueIntent]. */
+internal suspend fun showManualCue(
+    context: Context,
+    store: HarborRepository,
+    who: Contact,
+    skipPulse: Boolean = false,
+) {
+    context.startActivity(manualCueIntent(context, store, who, skipPulse))
 }

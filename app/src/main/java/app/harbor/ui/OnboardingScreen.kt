@@ -8,6 +8,9 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -53,6 +56,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -730,6 +734,22 @@ private fun AskPermission(
     var granted by remember { mutableStateOf(ActivityTransitions.hasPermission(context)) }
     var refused by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
+    // Set only for the instant between Sensing.enable succeeding and the
+    // LaunchedEffect below moving on -- long enough for "Reminders are on"
+    // to be seen, not long enough to need a tap.
+    var justEnabled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(justEnabled) {
+        if (justEnabled) {
+            delay(900)
+            onNext()
+        }
+    }
+
+    suspend fun enable() {
+        failed = !Sensing.enable(context, store)
+        justEnabled = !failed
+    }
 
     val request = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -737,7 +757,7 @@ private fun AskPermission(
         val ok = results[Manifest.permission.ACTIVITY_RECOGNITION] ?: granted
         granted = ok
         refused = !ok
-        if (ok) scope.launch { failed = !Sensing.enable(context, store) }
+        if (ok) scope.launch { enable() }
     }
 
     fun ask() {
@@ -756,7 +776,7 @@ private fun AskPermission(
             // before. See cue/Dialer.
             add(Manifest.permission.CALL_PHONE)
         }
-        if (wanted.isEmpty()) scope.launch { failed = !Sensing.enable(context, store) }
+        if (wanted.isEmpty()) scope.launch { enable() }
         else request.launch(wanted.toTypedArray())
     }
 
@@ -915,9 +935,14 @@ private fun daily(
  *
  * Seeing one explains the product better than any screen about it, and it
  * costs nothing to show: a manual reminder does not touch the daily
- * allowance, and [showManualCue] is called with `skipPulse = true` so the
+ * allowance, and [manualCueIntent] is built with `skipPulse = true` so the
  * preview does not ask stage 8's "was this a good moment" question — that
  * stays for after a real call, not a walkthrough of one.
+ *
+ * Launched through a result launcher rather than a plain `startActivity` so
+ * onboarding finds out when the preview closes and can move on by itself —
+ * "I have already seen a reminder" stays as the way past this step for
+ * anyone who does not want to watch it again.
  */
 @Composable
 private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
@@ -926,12 +951,16 @@ private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
     val contacts by store.contacts.collectAsState()
     val who = contacts.firstOrNull()
 
+    val showCue = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { onNext() }
+
     FlowPage(petal = 4) {
         Question("Our flower is almost complete")
         Spacer(Modifier.height(34.dp))
         if (who != null) {
             FlowPill("show me a reminder") {
-                scope.launch { showManualCue(context, store, who, skipPulse = true) }
+                scope.launch { showCue.launch(manualCueIntent(context, store, who, skipPulse = true)) }
             }
             Spacer(Modifier.height(22.dp))
         }
@@ -943,23 +972,33 @@ private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
  * The flower, whole — the reward, not a form to submit.
  *
  * Used to hold a Continue button under it. Usability testing wanted it
- * centred with nothing to press: it fades on its own after about five
- * seconds, and a tap anywhere moves on sooner for anyone who does not want to
- * wait. [LocalReducedMotion] skips the wait entirely rather than shortening
- * it — there is no animation left to justify the pause once it is gone.
+ * centred with nothing to press: it fades in, holds for a moment, fades out
+ * and moves on by itself — under two seconds in total, not the five the
+ * first pass used, which read as the screen having stalled. A tap anywhere
+ * moves on sooner for anyone who does not want to wait. [LocalReducedMotion]
+ * skips straight to the next step rather than playing a shortened version of
+ * the same fade.
  */
 @Composable
 private fun GoodJob(onNext: () -> Unit) {
     val reducedMotion = LocalReducedMotion.current
+    val alpha = remember { Animatable(if (reducedMotion) 1f else 0f) }
 
     LaunchedEffect(Unit) {
-        if (!reducedMotion) delay(5_000)
+        if (reducedMotion) {
+            onNext()
+            return@LaunchedEffect
+        }
+        alpha.animateTo(1f, tween(350, easing = FastOutSlowInEasing))
+        delay(1_100)
+        alpha.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
         onNext()
     }
 
     Box(
         Modifier
             .fillMaxSize()
+            .graphicsLayer { this.alpha = alpha.value }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

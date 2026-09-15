@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,8 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -495,6 +498,17 @@ private val DAYS = listOf(
 private enum class Grab { Move, ResizeEnd }
 
 /**
+ * The system long-press timeout (usually ~500ms) with everything but its
+ * length left alone. `detectDragGesturesAfterLongPress` has no parameter for
+ * this -- it reads `ViewConfiguration.longPressTimeoutMillis` off whatever
+ * is ambient -- so shortening it means providing a different one for this
+ * subtree rather than writing a custom gesture detector.
+ */
+private class QuickLongPress(base: ViewConfiguration) : ViewConfiguration by base {
+    override val longPressTimeoutMillis: Long = 120L
+}
+
+/**
  * The week, as something you draw on.
  *
  * Everything on it is painted onto one canvas rather than laid out as boxes,
@@ -670,6 +684,13 @@ private fun WeekGrid(
                 )
             }
 
+            // A shorter long-press than the system default (usually ~500ms).
+            // Press-and-drag still exists so a vertical swipe can scroll the
+            // page instead of dragging a block -- see the class doc -- but
+            // usability testing found the system timeout read as the grid
+            // simply not responding to a drag at all. This keeps the
+            // scroll/drag split and just makes the drag side of it quick.
+            CompositionLocalProvider(LocalViewConfiguration provides QuickLongPress(LocalViewConfiguration.current)) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -786,6 +807,7 @@ private fun WeekGrid(
                         )
                     },
             )
+            }
         }
 
         // The bin, directly under the foot of the week.

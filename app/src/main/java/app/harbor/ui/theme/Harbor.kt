@@ -191,12 +191,25 @@ fun PageIntro(title: String, subtitle: String? = null, eyebrow: String? = null) 
     }
 }
 
-/** A section's serif heading. Regular weight -- the size is the emphasis. */
+/**
+ * A section's serif heading. Regular weight -- the size is the emphasis.
+ *
+ * Explicit colour, unlike most of this file's other leaf text ([SmallCopy],
+ * [Eyebrow] both set their own too) -- nothing in this app wraps content in
+ * a real `androidx.compose.material3.Surface`, so `LocalContentColor` never
+ * gets set away from Material's own default of black. Every other text here
+ * routes around that by setting colour explicitly; this one did not, which
+ * made it render as black text on this app's near-black ground everywhere
+ * it appears -- invisible rather than merely low-contrast.
+ */
 @Composable
 fun SectionHeading(text: String, modifier: Modifier = Modifier) = Text(
     text,
     modifier = modifier,
-    style = MaterialTheme.typography.titleLarge.copy(fontSize = 19.sp),
+    style = MaterialTheme.typography.titleLarge.copy(
+        fontSize = 19.sp,
+        color = MaterialTheme.colorScheme.onBackground,
+    ),
 )
 
 /**
