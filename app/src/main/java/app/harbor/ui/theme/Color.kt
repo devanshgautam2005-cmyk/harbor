@@ -105,11 +105,13 @@ val Hairline = Color(0x2EFFFFFF)
 /**
  * The stripe down every other day column on the week grid.
  *
- * White at three percent. It has to be nearly nothing — seven narrow columns
- * on a near-black ground are already legible, and the banding only needs to
- * make them countable without reading the labels.
+ * White at eight percent, translucent like every other piece of glass in this
+ * design — it used to be an opaque near-black that read as almost nothing on
+ * the specimen's own near-black ground, which usability testing flagged: the
+ * seven columns were not actually countable without reading the labels. This
+ * is the same alpha tier as [Cream], and it is meant to be seen.
  */
-val BandWarm = Color(0xFF141519)
+val BandWarm = Color(0x14FFFFFF)
 
 // --- the one accent -----------------------------------------------------
 //
