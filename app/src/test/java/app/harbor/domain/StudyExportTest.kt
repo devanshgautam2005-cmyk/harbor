@@ -77,7 +77,7 @@ class StudyExportTest {
                 feedbackPulse = FeedbackPulse.GOOD_TIME,
                 callMinutes = 15,
                 feeling = Feeling.WARM,
-                flower = FlowerKind.MARIGOLD,
+                flower = FlowerKind.LIGHTER_NOW,
                 topic = topic,
                 note = note,
                 occurredAt = at,
@@ -176,7 +176,7 @@ class StudyExportTest {
     fun `enum names match the wire names Postgres uses`() {
         val json = StudyExport.json(bundle())
         assertTrue(json.contains("\"feeling\":\"warm\""))
-        assertTrue(json.contains("\"flower\":\"marigold\""))
+        assertTrue(json.contains("\"flower\":\"lighter_now\""))
     }
 
     @Test

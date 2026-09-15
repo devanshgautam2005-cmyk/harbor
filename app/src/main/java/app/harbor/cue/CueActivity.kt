@@ -92,6 +92,7 @@ class CueActivity : ComponentActivity() {
      */
     private var source: TriggerSource = TriggerSource.WALKING_STOP
     private var entryId: UUID? = null
+    private var skipPulse = false
 
     /** The row as last written, so a partial amendment can build on it. */
     private var lastEntry: LedgerEntry? = null
@@ -147,6 +148,7 @@ class CueActivity : ComponentActivity() {
         source = intent.getStringExtra(CueNotifier.EXTRA_SOURCE)
             ?.let { runCatching { TriggerSource.valueOf(it) }.getOrNull() }
             ?: TriggerSource.WALKING_STOP
+        skipPulse = intent.getBooleanExtra(CueNotifier.EXTRA_SKIP_PULSE, false)
         val contact = store.contacts.value.firstOrNull { it.id == contactId }
 
         lifecycleScope.launch { store.note(Moment.CUE_SHOWN, source.name) }
@@ -182,6 +184,7 @@ class CueActivity : ComponentActivity() {
                             measuredMinutes = measuredMinutes,
                             initialTopic = chosenTopic,
                             reducedMotion = store.settings.value.reducedMotion,
+                            askPulse = !skipPulse,
                             onPlant = { minutes, flower, topic ->
                                 record(
                                     resolution = Resolution.CALLED,

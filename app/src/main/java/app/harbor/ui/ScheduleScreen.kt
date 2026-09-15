@@ -54,6 +54,13 @@ import app.harbor.domain.Moment
 import app.harbor.domain.WeekBlock
 import app.harbor.domain.Windows
 import app.harbor.ui.theme.BandWarm
+import app.harbor.ui.theme.Chalk
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Hairline
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Muted
+import app.harbor.ui.theme.Paper
+import app.harbor.ui.theme.Sand
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.SmallCopy
@@ -135,6 +142,15 @@ fun ScheduleScreen(
         skin = skin,
         modifier = modifier,
         footer = {
+            // Importing a calendar sits under the grid, not over it.
+            //
+            // It was the third thing on the screen, above the grid it is an
+            // alternative to -- so the first offer Harbor made was a way not
+            // to do the thing it had just asked for, and the offer is not even
+            // available yet. Below the week it reads as what it is: something
+            // coming later, for people who would rather not draw this.
+            BringACalendar(skin)
+
             // The promise moves to the foot rather than disappearing. It is
             // the one line on this screen that is not about times, and the
             // screen where somebody types their week is the screen where it
@@ -145,7 +161,6 @@ fun ScheduleScreen(
     ) {
         WeekHeading(skin)
         WeekPurpose(skin)
-        BringACalendar(skin)
     }
 }
 
@@ -162,7 +177,7 @@ private fun WeekPurpose(skin: WeekSkin) {
     Text(
         "Harbor decides on its own when to offer you a call — usually just " +
             "after a walk. It has no way of knowing you are in a seminar unless " +
-            "you tell it here. Mark the hours you are busy and a cue will not " +
+            "you tell it here. Mark the hours you are busy and a reminder will not " +
             "arrive in the middle of them.",
         style = MaterialTheme.typography.bodyMedium.copy(
             fontSize = 13.sp,
@@ -296,9 +311,10 @@ internal data class WeekSkin(
         @Composable
         fun specimen() = WeekSkin(
             ground = MaterialTheme.colorScheme.background,
-            // Warmer than surfaceVariant, which is a cool grey that all but
-            // vanishes on the bone ground. The frames' band is warm, and the
-            // banding is what makes seven narrow columns countable.
+            // Its own colour rather than surfaceVariant, which sits too close
+            // to a card to read as banding. This is barely anything -- white at
+            // three percent -- and it only has to make seven narrow columns
+            // countable without anybody reading the day labels.
             band = BandWarm,
             line = MaterialTheme.colorScheme.outlineVariant,
             ink = MaterialTheme.colorScheme.onSurface,
@@ -306,15 +322,22 @@ internal data class WeekSkin(
             tile = MaterialTheme.colorScheme.secondaryContainer,
         )
 
-        /** Measured off the frames. */
+        /**
+         * The onboarding flow's grid.
+         *
+         * This used to be a second, lighter palette, because the flow was
+         * drawn on white while the app was drawn on bone. Both are the dusk
+         * ground now, so the two skins differ only in the tile -- the flow
+         * wants a plainer one, without the theme's warmth behind it.
+         */
         @Composable
         fun flow() = WeekSkin(
-            ground = Color.White,
-            band = Color(0xFFFCF3E9),
-            line = Color(0xFFB3B3B3),
-            ink = Color.Black,
-            muted = Color(0x99000000),
-            tile = Color(0xFFF3EDE4),
+            ground = Paper,
+            band = BandWarm,
+            line = Hairline,
+            ink = Chalk,
+            muted = Muted,
+            tile = Color(0xFF202124),
         )
     }
 }
@@ -819,20 +842,26 @@ private fun WeekGrid(
     }
 }
 
-/** The flow's grey pill, so the last step matches the ten before it. */
+/**
+ * The flow's pill, so the last step matches the ten before it.
+ *
+ * Named for the grey it used to be. It is amber now, like every other enabled
+ * control in onboarding, and the name is kept only because this is the step
+ * that closes that flow and the two files are read together.
+ */
 @Composable
 private fun GreyPill(label: String, enabled: Boolean, onClick: () -> Unit) = Box(
     Modifier
         .clip(RoundedCornerShape(29.dp))
-        .background(if (enabled) Color(0xFFD9D9D9) else Color(0x8FD9D9D9))
+        .background(if (enabled) Gold else Sand)
         .clickable(enabled = enabled, onClick = onClick)
         .padding(horizontal = 26.dp, vertical = 8.dp),
 ) {
     Text(
         label,
-        style = MaterialTheme.typography.titleLarge.copy(
-            fontSize = 18.sp,
-            color = if (enabled) Color.Black else Color(0x47000000),
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontSize = 17.sp,
+            color = if (enabled) Ink else Muted,
         ),
     )
 }

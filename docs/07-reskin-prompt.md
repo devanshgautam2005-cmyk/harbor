@@ -104,8 +104,22 @@ permissions it asks for.
   Restyle it freely; do not rewrite what it claims.
 - **Dismissing costs nothing.** No streaks, no scores, no progress bars toward
   a call.
-- Harbor is light-only by decision. If the images imply a dark UI, stop and ask
-  rather than inventing a dark theme.
+- ~~Harbor is light-only by decision. If the images imply a dark UI, stop and
+  ask rather than inventing a dark theme.~~
+
+  **Reversed 2026-09-14.** Harbor is dark-only. The "Harbor Reskin" design was
+  adopted and the app now wears it: a near-black ground, glass cards, one
+  amber. The rule survives with its sign flipped -- there is still exactly one
+  skin, and the app still does not follow the system light/dark setting,
+  because a design that flips is two designs and only one of them has been
+  drawn. If a reference implies a *light* UI, stop and ask.
+
+  Note what this costs, so nobody pays it twice: the window background in
+  `res/values/colors.xml`, the parent theme in `res/values/themes.xml` and the
+  `enableEdgeToEdge()` bar style in `MainActivity` are all part of the skin and
+  none of them are Compose. A skin change that touches only Kotlin leaves a
+  white launch flash, invisible text-selection handles, and a clock the wrong
+  colour on any phone whose system setting disagrees with the app.
 
 ## Things that are drawn, not styled
 

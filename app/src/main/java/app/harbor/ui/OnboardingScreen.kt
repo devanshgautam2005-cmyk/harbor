@@ -1,10 +1,18 @@
 package app.harbor.ui
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,26 +45,41 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.Contact
-import app.harbor.domain.CueSound
 import app.harbor.domain.Moment
 import app.harbor.sensing.ActivityTransitions
 import app.harbor.sensing.Sensing
 import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
+import app.harbor.ui.theme.Chalk
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.LocalReducedMotion
+import app.harbor.ui.theme.Muted
+import app.harbor.ui.theme.Paper
+import app.harbor.ui.theme.Sand
 import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -66,31 +89,51 @@ import java.util.UUID
  * Ported from the Figma flow. The spine of it is [PetalProgress] — each answer
  * earns a petal, so setting the app up *is* the first thing you grow, rather
  * than a form standing between you and the app. The five petals are your name,
- * who you would call, their picture, their sound, and when you are free.
+ * who you would call, their sound, their picture, and when you are free.
  *
  * ## What the design did not include, and why it is still here
  *
  * Two screens in this file have no frame in Figma and must not be dropped.
  *
  * **The permission ask.** Harbor cannot notice a walk without
- * `ACTIVITY_RECOGNITION`, and cannot show a cue without `POST_NOTIFICATIONS`.
- * The design's "while walking" screen chooses the *behaviour* but never asks
- * Android for the right, so on its own it would produce an app that looks set
- * up and never fires. It sits straight after that choice, which is the moment
- * the ask makes sense.
+ * `ACTIVITY_RECOGNITION`, and cannot show a reminder without
+ * `POST_NOTIFICATIONS`. The design's "while walking" screen chooses the
+ * *behaviour* but never asks Android for the right, so on its own it would
+ * produce an app that looks set up and never fires. It sits straight after
+ * that choice, which is the moment the ask makes sense.
  *
  * **What Harbor will never do.** The promise that your family install nothing
  * and are told nothing used to be made before any permission was mentioned,
  * because it is the worry the permission dialog raises on its own. It is kept
- * on the welcome screen for the same reason.
+ * on the welcome screen for the same reason, and said again, plainly, in the
+ * first-run tutorial at the end.
+ *
+ * ## Usability pass, 2026-09-15
+ *
+ * The order changed: name and number used to lead into a photo and a free-time
+ * question before reaching sound, three screens after the person who owns it
+ * was named. It now goes straight from the number to the sound, because that
+ * is the thing that makes the preview reminder feel like somebody rather than
+ * a system alert. The photo and free-time questions follow it instead of
+ * leading it.
+ *
+ * "One last thing" — the transition screen between the finished flower and the
+ * calendar — is gone. The calendar already has its own skip link, so the
+ * screen it used to lead into was a tap in front of a tap.
+ *
+ * A first-run tutorial now runs after the calendar, once, covering the four
+ * things testers asked about mid-flow: the weather metaphor, the two sliders,
+ * what a reminder is, and what the family sees.
  *
  * ## Not yet wired
  *
- * Searching your contacts, a contact's photo, and Spotify are drawn as the
- * design has them but are disabled, pending the integrations. Each says so
- * rather than failing silently when tapped. Google Fit is deliberately absent:
- * Harbor already detects walking on-device, without an account or a network
- * (ADR-008), and routing that through Fit would give up both.
+ * Searching your contacts and Spotify are drawn as the design has them but are
+ * disabled, pending the integrations. Each says so rather than failing
+ * silently when tapped. A contact's picture and their sound both work without
+ * either: the system contact picker and photo picker need no permission, and
+ * neither does the sound. Google Fit is deliberately absent: Harbor already
+ * detects walking on-device, without an account or a network (ADR-008), and
+ * routing that through Fit would give up both.
  */
 @Composable
 fun OnboardingScreen(
@@ -123,19 +166,29 @@ fun OnboardingScreen(
     // suspending on the prefs lock. The name you typed on the first question
     // simply never arrived, and the contact only arrived when it won the
     // race. This scope belongs to the flow and outlives every step in it.
-    Box(modifier.fillMaxSize().background(FlowGround)) {
+    // The same dusk the app stands in.
+    //
+    // Onboarding is not inside HarborShell -- it runs before there is a shell
+    // -- so it has to draw the ground itself or it opens on flat near-black
+    // and then the first real screen lights up behind the person's back.
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(FlowGround)
+            .drawBehind { drawDusk() },
+    ) {
         when (step) {
             0 -> Welcome(::next)
             1 -> YourName(store, scope, ::next)
             2 -> WhoToCall(store, scope, ::next)
-            3 -> TheirPicture(store, ::next)
-            4 -> WhenFree(::next)
-            5 -> TheirSound(store, scope, ::next)
+            3 -> TheirSound(store, scope, ::next)
+            4 -> TheirPicture(store, ::next)
+            5 -> WhenFree(::next)
             6 -> AskPermission(store, scope, ::next)
             7 -> AlmostComplete(store, ::next)
             8 -> GoodJob(::next)
-            9 -> OneLastThing(onSetUp = ::next, onSkip = ::finish)
-            10 -> WeekSetupScreen(store, onFinish = ::finish, onSkip = ::finish)
+            9 -> WeekSetupScreen(store, onFinish = ::next, onSkip = ::next)
+            10 -> FirstRunTutorial(::finish)
             else -> finish()
         }
     }
@@ -143,16 +196,46 @@ fun OnboardingScreen(
 
 // --- the flow's own surface -----------------------------------------------
 //
-// Measured off the Figma frames rather than taken from the app's theme: this
-// flow is drawn on white with its own grey pill controls, and runs once before
-// the person ever reaches the app proper.
+// Still measured off the Figma frames -- the shapes, sizes and placements are
+// the frames' -- but the frames were drawn on white, and the app they open
+// into is not. These are those controls restated on the dusk ground.
+//
+// The one thing the dark pass had to pull apart is the grey the frames used
+// for everything. A single #D9D9D9 served as the text field, the enabled
+// button and the selected chip, because on white all three can be the same
+// grey. On this ground they cannot: a field is a hole you type into and wants
+// to be glass, while a button and a chosen chip are the thing being asked for
+// and want to be amber. Hence three fills where the frames had one.
 
-private val FlowGround = Color.White
-private val FlowInk = Color.Black
-private val FieldFill = Color(0xFFD9D9D9)
-private val PillIdle = Color(0x8FD9D9D9)
-private val PillInk = Color(0x47000000)
-private val MutedInk = Color(0x99000000)
+/** The ground, and the app's ground -- the flow no longer changes it. */
+private val FlowGround = Paper
+
+/** What the flow says: a question, an answer being typed, a label. */
+private val FlowInk = Chalk
+
+/** A hole you type into. White at eight percent, composited. */
+private val FieldGlass = Color(0xFF202124)
+
+/** The enabled button and the chosen chip. The design's one accent. */
+private val ActionFill = Gold
+
+/** What sits on [ActionFill]. Brown-black, never white. */
+private val ActionInk = Ink
+
+/**
+ * A card that is chosen, rather than a chip that is.
+ *
+ * Amber at eight percent with a rim at twenty, which is the design's own way
+ * of marking a whole card as live -- it does the same on the cues screen. A
+ * card filled solid amber would shout down the question above it.
+ */
+private val SelectedCard = Color(0xFF1F1C15)
+private val SelectedEdge = Color(0x33F0BD3E)
+
+/** Not yet, or not available. */
+private val PillIdle = Sand
+private val PillInk = Muted
+private val MutedInk = Muted
 
 /** Every question is set the same way: serif, centred, unhurried. */
 @Composable
@@ -203,7 +286,7 @@ private fun FlowField(
             .width(236.dp)
             .height(40.dp)
             .clip(RoundedCornerShape(29.dp))
-            .background(FieldFill)
+            .background(FieldGlass)
             .padding(horizontal = 18.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -235,7 +318,7 @@ private fun FlowNext(enabled: Boolean, label: String = "Next", onClick: () -> Un
         Box(
             Modifier
                 .clip(RoundedCornerShape(29.dp))
-                .background(if (enabled) FieldFill else PillIdle)
+                .background(if (enabled) ActionFill else PillIdle)
                 .clickable(enabled = enabled, onClick = onClick)
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
@@ -243,7 +326,7 @@ private fun FlowNext(enabled: Boolean, label: String = "Next", onClick: () -> Un
                 label,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontSize = 18.sp,
-                    color = if (enabled) FlowInk else PillInk,
+                    color = if (enabled) ActionInk else PillInk,
                 ),
             )
         }
@@ -260,7 +343,7 @@ private fun FlowPill(
 ) = Box(
     modifier
         .clip(RoundedCornerShape(29.dp))
-        .background(if (enabled) FieldFill else PillIdle)
+        .background(if (enabled) ActionFill else PillIdle)
         .clickable(enabled = enabled, onClick = onClick)
         .padding(horizontal = 26.dp, vertical = 11.dp),
 ) {
@@ -268,7 +351,7 @@ private fun FlowPill(
         label,
         style = MaterialTheme.typography.titleLarge.copy(
             fontSize = 18.sp,
-            color = if (enabled) FlowInk else PillInk,
+            color = if (enabled) ActionInk else PillInk,
         ),
     )
 }
@@ -282,6 +365,48 @@ private fun ComingSoon(label: String, note: String, modifier: Modifier = Modifie
         Text(note, style = MaterialTheme.typography.labelSmall.copy(color = PillInk))
     }
 }
+
+/** A muted line of explanation, the flow's own voice for it. */
+@Composable
+private fun FlowNote(text: String, modifier: Modifier = Modifier) = Text(
+    text,
+    modifier = modifier.fillMaxWidth(),
+    textAlign = TextAlign.Center,
+    style = MaterialTheme.typography.bodyMedium.copy(
+        fontSize = 14.sp,
+        lineHeight = 21.sp,
+        color = PillInk,
+    ),
+)
+
+/**
+ * A link styled to read as a button without being one — centred and
+ * underlined, for the one place the usability pass wants that: "I have
+ * already seen a reminder".
+ *
+ * Deliberately not a parameter added to the shared `TextLink` in
+ * HomeScreen.kt. `TextLink` is called two ways across the app — positionally
+ * (`TextLink("Back", onDone)`) and with a trailing lambda
+ * (`TextLink("Save") { ... }`) — and those two conventions need `onClick` in
+ * two different positions (second, and last) at once. Extra parameters can
+ * only satisfy one of them, which is what broke every trailing-lambda call
+ * site the first time this was tried here.
+ */
+@Composable
+private fun EmphasisLink(text: String, onClick: () -> Unit) = Text(
+    text,
+    textAlign = TextAlign.Center,
+    modifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(14.dp))
+        .clickable(onClick = onClick)
+        .padding(vertical = 12.dp),
+    style = MaterialTheme.typography.labelLarge.copy(
+        fontWeight = FontWeight.Medium,
+        color = PillInk,
+        textDecoration = TextDecoration.Underline,
+    ),
+)
 
 // --- the five questions ---------------------------------------------------
 
@@ -331,7 +456,13 @@ private fun YourName(
     }
 }
 
-/** Petal two. Contacts search is drawn but not wired, so the number is typed. */
+/**
+ * Petal two. Contacts search is drawn but not wired, so the number is typed.
+ *
+ * Used to lead into a picture and a free-time question before the person's
+ * sound was ever asked about — three screens between naming somebody and
+ * hearing what they sound like. It leads straight into [TheirSound] now.
+ */
 @Composable
 private fun WhoToCall(
     store: HarborRepository,
@@ -355,12 +486,6 @@ private fun WhoToCall(
         FlowField(name, "their name") { name = it.take(40) }
         Spacer(Modifier.height(12.dp))
         FlowField(number, "their number") { number = it.take(20) }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Harbor only ever hands this to your dialler. It never places a call.",
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.labelSmall.copy(color = PillInk),
-        )
 
         Spacer(Modifier.height(36.dp))
         FlowNext(enabled = name.isNotBlank() && number.isNotBlank()) {
@@ -375,17 +500,72 @@ private fun WhoToCall(
     }
 }
 
-/** Petal three. Both ways to get a picture wait on reading your contacts. */
+/**
+ * Petal three, now straight after the number. Spotify waits on the
+ * integration; the system ringtone picker does not.
+ *
+ * The built-in chimes are gone. They set [app.harbor.domain.UserSettings.sound],
+ * a value [app.harbor.cue.Ringer] never actually reads — it only ever plays a
+ * contact's own [Contact.cueSoundRef], falling back to the phone's default
+ * ringtone. So the picker below writes the same field [ContactScreen] does,
+ * which is the one that was ever real, rather than removing the only control
+ * on this screen and leaving it empty.
+ */
+@Composable
+private fun TheirSound(
+    store: HarborRepository,
+    scope: CoroutineScope,
+    onNext: () -> Unit,
+) {
+    val contacts by store.contacts.collectAsState()
+    val who = contacts.firstOrNull()
+
+    val pickSound = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && who != null) {
+            val uri = result.data
+                ?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                ?.toString()
+            scope.launch { store.upsertContact(who.copy(cueSoundRef = uri)) }
+        }
+    }
+
+    FlowPage(petal = 2) {
+        Question("What sound do you associate\nwith this person?")
+        Spacer(Modifier.height(30.dp))
+
+        ComingSoon("search Spotify", "Spotify comes later")
+        Spacer(Modifier.height(16.dp))
+
+        FlowPill(if (who?.cueSoundRef == null) "Choose a sound from this phone" else "Change their sound") {
+            pickSound.launch(
+                Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Their sound")
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                    putExtra(
+                        RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,
+                        who?.cueSoundRef?.let(Uri::parse),
+                    )
+                },
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        FlowNote("Leave it, and Harbor rings with your phone's own ringtone instead.")
+
+        Spacer(Modifier.height(40.dp))
+        FlowNext(enabled = true) { onNext() }
+    }
+}
+
+/** Still petal three: the second half of choosing somebody, not a question of its own. */
 @Composable
 private fun TheirPicture(store: HarborRepository, onNext: () -> Unit) {
     val contacts by store.contacts.collectAsState()
     val who = contacts.firstOrNull()
 
-    // Petal one still: the frames give the picture the same petal as the
-    // question before it, because it is the second half of choosing somebody
-    // rather than a question of its own. The heading is not repeated here —
-    // it was asked one screen ago and the answer is on this one.
-    FlowPage(petal = 1) {
+    FlowPage(petal = 2) {
         Spacer(Modifier.height(20.dp))
         if (who != null) {
             Avatar(who.label, who.tone, size = AvatarSize.XL)
@@ -401,63 +581,8 @@ private fun TheirPicture(store: HarborRepository, onNext: () -> Unit) {
     }
 }
 
-/** Petal four. Spotify and the file picker wait; the built-in sounds work. */
-@Composable
-private fun TheirSound(
-    store: HarborRepository,
-    scope: CoroutineScope,
-    onNext: () -> Unit,
-) {
-    val settings by store.settings.collectAsState()
-
-    FlowPage(petal = 3) {
-        Question("What sound do you associate\nwith this person?")
-        Spacer(Modifier.height(30.dp))
-
-        ComingSoon("search Spotify", "Spotify comes later")
-        Spacer(Modifier.height(10.dp))
-        ComingSoon("add your own", "a sound off this phone, later")
-        Spacer(Modifier.height(26.dp))
-
-        // The two ways of choosing a sound that actually means something to
-        // you both wait on an integration, so what is left has to be offered
-        // as a stand-in rather than as the point. These used to read "chime",
-        // "soft" and "silent" - the enum's own names, which say what the file
-        // is rather than what it is for.
-        Question("Until then, one of these", size = 17)
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CueSound.entries.forEach { option ->
-                val chosen = option == settings.sound
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(29.dp))
-                        .background(if (chosen) FieldFill else PillIdle)
-                        .clickable {
-                            scope.launch { store.setSettings(settings.copy(sound = option)) }
-                        }
-                        .padding(horizontal = 16.dp, vertical = 9.dp),
-                ) {
-                    Text(
-                        option.label,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 16.sp,
-                            color = if (chosen) FlowInk else PillInk,
-                        ),
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-        ComingSoon("browse files", "picking a file comes later")
-        Spacer(Modifier.height(40.dp))
-        FlowNext(enabled = true) { onNext() }
-    }
-}
-
 /**
- * Petal five.
+ * Petal four.
  *
  * The design attributes walking to Google Fit. Harbor reads it on-device
  * through the Activity Recognition Transition API instead, which needs no
@@ -468,7 +593,7 @@ private fun TheirSound(
  */
 @Composable
 private fun WhenFree(onNext: () -> Unit) {
-    FlowPage(petal = 2) {
+    FlowPage(petal = 3) {
         Question("When should Harbor catch you?")
         Spacer(Modifier.height(10.dp))
         Question("Pick the moment you would not mind being asked", size = 16)
@@ -478,18 +603,23 @@ private fun WhenFree(onNext: () -> Unit) {
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(FieldFill)
+                .background(SelectedCard)
+                .border(1.dp, SelectedEdge, RoundedCornerShape(20.dp))
                 .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(Modifier.width(210.dp)) {
-                Question("While walking", size = 18)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "noticed on this phone, never sent anywhere",
-                    style = MaterialTheme.typography.labelSmall.copy(color = PillInk),
-                )
+            Row(Modifier.width(210.dp), verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.size(26.dp)) { drawOptionMark(OptionMark.WALKING, FlowInk) }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Question("While walking", size = 18)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "noticed on this phone, never sent anywhere",
+                        style = MaterialTheme.typography.labelSmall.copy(color = PillInk),
+                    )
+                }
             }
             Box(
                 Modifier.size(24.dp).clip(CircleShape).background(FlowGround),
@@ -505,10 +635,14 @@ private fun WhenFree(onNext: () -> Unit) {
                 .background(PillIdle)
                 .padding(horizontal = 18.dp, vertical = 16.dp),
         ) {
-            Text(
-                "While doomscrolling",
-                style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp, color = PillInk),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.size(26.dp)) { drawOptionMark(OptionMark.DOOMSCROLL, PillInk) }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    "While doomscrolling",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp, color = PillInk),
+                )
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 "would mean Harbor watching which apps you open. Not yet, and not quietly.",
@@ -518,6 +652,43 @@ private fun WhenFree(onNext: () -> Unit) {
 
         Spacer(Modifier.height(40.dp))
         FlowNext(enabled = true) { onNext() }
+    }
+}
+
+/**
+ * Two marks, drawn rather than imported — see [app.harbor.ui.drawTabMark] for
+ * the pattern this follows and why: no icon library, no bitmaps, everything
+ * geometry so it restyles with the palette for free.
+ */
+private enum class OptionMark { WALKING, DOOMSCROLL }
+
+private fun DrawScope.drawOptionMark(mark: OptionMark, colour: Color) {
+    val u = size.minDimension / 100f
+    val line = Stroke(width = 9f * u, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    fun path(build: Path.() -> Unit) = drawPath(Path().apply(build), colour, style = line)
+    when (mark) {
+        OptionMark.WALKING -> {
+            drawCircle(colour, radius = 9f * u, center = Offset(40f * u, 16f * u))
+            path {
+                moveTo(40f * u, 27f * u)
+                lineTo(46f * u, 52f * u)
+                lineTo(32f * u, 86f * u)
+            }
+            path { moveTo(46f * u, 52f * u); lineTo(70f * u, 62f * u) }
+            path { moveTo(43f * u, 42f * u); lineTo(18f * u, 50f * u) }
+        }
+
+        OptionMark.DOOMSCROLL -> {
+            path {
+                moveTo(32f * u, 8f * u)
+                lineTo(68f * u, 8f * u)
+                lineTo(68f * u, 92f * u)
+                lineTo(32f * u, 92f * u)
+                close()
+            }
+            path { moveTo(50f * u, 28f * u); lineTo(50f * u, 68f * u) }
+            path { moveTo(37f * u, 57f * u); lineTo(50f * u, 71f * u); lineTo(63f * u, 57f * u) }
+        }
     }
 }
 
@@ -534,6 +705,12 @@ private fun WhenFree(onNext: () -> Unit) {
  * It sits here, right after the walking choice, because that is the moment the
  * ask reads as *so I can catch a good moment to call her* rather than *so I can
  * watch you walk*.
+ *
+ * Gated on a terms pop-up, added in the usability pass: scrollable terms and
+ * an Agree button, over the screen that sets the limits (walk-before-a-reminder,
+ * reminders-a-day). It is also the new home for the load-bearing privacy
+ * sentences that used to sit as subtext under half a dozen buttons through the
+ * rest of the flow — saying it once here beats repeating it under each one.
  */
 @Composable
 private fun AskPermission(
@@ -541,6 +718,12 @@ private fun AskPermission(
     scope: CoroutineScope,
     onNext: () -> Unit,
 ) {
+    var agreedToTerms by remember { mutableStateOf(false) }
+    if (!agreedToTerms) {
+        TermsPopup(onAgree = { agreedToTerms = true })
+        return
+    }
+
     val context = LocalContext.current
     val settings by store.settings.collectAsState()
 
@@ -562,8 +745,8 @@ private fun AskPermission(
         failed = false
         val wanted = buildList {
             if (!granted) add(Manifest.permission.ACTIVITY_RECOGNITION)
-            // Without this the cue is posted and silently dropped, which looks
-            // exactly like a trigger that never fired.
+            // Without this the reminder is posted and silently dropped, which
+            // looks exactly like a trigger that never fired.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -580,65 +763,42 @@ private fun AskPermission(
     FlowPage {
         Question("May Harbor notice when\nyou stop walking?")
         Spacer(Modifier.height(10.dp))
-        Question("This is the part that makes a cue arrive on its own.", size = 16)
+        Question("This is the part that makes a reminder arrive on its own.", size = 16)
         Spacer(Modifier.height(26.dp))
 
         Surface {
-            SectionHeading("What Harbor reads")
-            SmallCopy(
-                "Whether your phone thinks you are walking or still. Not where " +
-                    "you are, not what you are doing, not which apps you use.",
-            )
-            SectionHeading("What it does with it")
-            SmallCopy(
-                "Offers you one person, and dials them if you say yes. It asks " +
-                    "for the phone permission so the call button rings instead " +
-                    "of dropping you in the dialer. Say no and it still works, " +
-                    "with the extra tap.",
-            )
-            SectionHeading("Where it stays")
-            SmallCopy(
-                "On this phone. Your movement is never sent to us and never " +
-                    "shared with your family — not as a summary, not ever.",
-            )
-            // These three used to be a sentence describing numbers set
-            // somewhere else, on a screen nobody had been to: onboarding
-            // turned cues on and left their shape to a second setup flow under
-            // Account. They are the cue's configuration, so this is where they
-            // belong — and a claim about what Harbor will not do is worth a
-            // great deal more when it is the control that decides it.
             SectionHeading("What you keep control of")
             Stepper(
-                label = "Walk before a cue",
+                label = "Walk before a reminder",
                 value = settings.thresholds.walkingMinutes.toString() + " min",
                 onDown = { walking(store, scope, settings, -1) },
                 onUp = { walking(store, scope, settings, +1) },
             )
             Stepper(
-                label = "Most cues a day",
+                label = "Most reminders a day",
                 value = settings.thresholds.dailyCap.toString(),
                 onDown = { daily(store, scope, settings, -1) },
                 onUp = { daily(store, scope, settings, +1) },
             )
             SmallCopy(
-                "Suggestions, not rules — move them now or later. Every cue can " +
-                    "be dismissed, dismissing costs nothing, and you can turn " +
-                    "these off whenever you like.",
+                "Suggestions, not rules — move them now or later. You already " +
+                    "agreed nothing about this leaves your phone; this is just " +
+                    "how often it asks.",
             )
         }
         Spacer(Modifier.height(26.dp))
 
         when {
             Sensing.isActive(context, store) -> {
-                Notice("Cues are on. Harbor will wait for a real walk.")
+                Notice("Reminders are on. Harbor will wait for a real walk.")
                 Spacer(Modifier.height(18.dp))
                 FlowPill("Continue", onClick = onNext)
             }
 
             refused -> {
                 SmallCopy(
-                    "That is completely fine. Cues stay off and nothing else " +
-                        "changes — you can still start a moment yourself, and " +
+                    "That is completely fine. Reminders stay off and nothing " +
+                        "else changes — you can still start a moment yourself, and " +
                         "turn these on later under Account. Android may not ask " +
                         "again, so from here it would have to be system settings.",
                 )
@@ -648,13 +808,13 @@ private fun AskPermission(
                     if (granted) ask()
                 }
                 Spacer(Modifier.height(10.dp))
-                FlowPill("Continue without cues", onClick = onNext)
+                FlowPill("Continue without reminders", onClick = onNext)
             }
 
             failed -> {
                 SmallCopy(
                     "Harbor could not start listening. Google Play services may " +
-                        "be unavailable on this phone. Cues stay off rather than " +
+                        "be unavailable on this phone. Reminders stay off rather than " +
                         "pretending to work.",
                 )
                 Spacer(Modifier.height(14.dp))
@@ -668,6 +828,51 @@ private fun AskPermission(
             }
         }
     }
+}
+
+/**
+ * Once, before the limits screen: everything the flow used to repeat as
+ * subtext under half a dozen buttons, said plainly and agreed to once.
+ *
+ * Two lines were deleted rather than moved. "You asked for this one" was
+ * filler under the preview-reminder button — it explained nothing a reader
+ * could not already see. "Harbor only ever hands this to your dialler" was
+ * moved here too, except it turned out to describe a version of the app that
+ * no longer exists: ADR-002 was amended 2026-09-13 so Harbor places the call
+ * itself. This screen states the current behaviour instead of the old one.
+ */
+@Composable
+private fun TermsPopup(onAgree: () -> Unit) = FlowPage {
+    Question("A few things, once", size = 20)
+    Spacer(Modifier.height(22.dp))
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SectionHeading("What Harbor reads")
+        FlowNote(
+            "Whether your phone thinks you're walking or still. Not where " +
+                "you are, not what you're doing, not which apps you use.",
+        )
+        SectionHeading("Where it stays")
+        FlowNote(
+            "On this phone. Your walking never leaves it and is never shared " +
+                "with your family — not as a summary, not ever.",
+        )
+        SectionHeading("What a reminder does")
+        FlowNote(
+            "Offers you one person, and rings them if you say yes. It asks " +
+                "for the phone permission so the call button rings instead of " +
+                "opening your dialler — say no and it still works, with one " +
+                "extra tap.",
+        )
+        SectionHeading("What costs nothing")
+        FlowNote(
+            "Every reminder can be dismissed. There is no streak to break, " +
+                "and you can turn this off whenever you like.",
+        )
+    }
+
+    Spacer(Modifier.height(30.dp))
+    FlowPill("Agree", onClick = onAgree)
 }
 
 // The three numbers that decide when a cue may arrive, nudged in place.
@@ -706,10 +911,13 @@ private fun daily(
 }
 
 /**
- * Four petals in, and a real cue to look at.
+ * Four petals in, and a real reminder to look at.
  *
  * Seeing one explains the product better than any screen about it, and it
- * costs nothing to show: a manual cue does not touch the daily allowance.
+ * costs nothing to show: a manual reminder does not touch the daily
+ * allowance, and [showManualCue] is called with `skipPulse = true` so the
+ * preview does not ask stage 8's "was this a good moment" question — that
+ * stays for after a real call, not a walkthrough of one.
  */
 @Composable
 private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
@@ -722,37 +930,93 @@ private fun AlmostComplete(store: HarborRepository, onNext: () -> Unit) {
         Question("Our flower is almost complete")
         Spacer(Modifier.height(34.dp))
         if (who != null) {
-            FlowPill("show me a cue") {
-                scope.launch { showManualCue(context, store, who) }
+            FlowPill("show me a reminder") {
+                scope.launch { showManualCue(context, store, who, skipPulse = true) }
             }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "It never says anyone is calling you, because nobody is.",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelSmall.copy(color = PillInk),
-            )
             Spacer(Modifier.height(22.dp))
         }
-        TextLink("I’ve already seen one", onNext)
+        EmphasisLink("I have already seen a reminder", onNext)
     }
 }
 
-/** The flower, whole. */
+/**
+ * The flower, whole — the reward, not a form to submit.
+ *
+ * Used to hold a Continue button under it. Usability testing wanted it
+ * centred with nothing to press: it fades on its own after about five
+ * seconds, and a tap anywhere moves on sooner for anyone who does not want to
+ * wait. [LocalReducedMotion] skips the wait entirely rather than shortening
+ * it — there is no animation left to justify the pause once it is gone.
+ */
 @Composable
-private fun GoodJob(onNext: () -> Unit) = FlowPage(bloom = true) {
-    Question("Good job!", size = 22)
-    Spacer(Modifier.height(36.dp))
-    FlowPill("Continue", onClick = onNext)
+private fun GoodJob(onNext: () -> Unit) {
+    val reducedMotion = LocalReducedMotion.current
+
+    LaunchedEffect(Unit) {
+        if (!reducedMotion) delay(5_000)
+        onNext()
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onNext,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            PetalProgress(step = 5, modifier = Modifier.size(230.dp))
+            Spacer(Modifier.height(36.dp))
+            Question("Good job!", size = 22)
+        }
+    }
 }
 
-/** The one thing left, and a way past it. */
+/**
+ * After the calendar, once: the four things testers asked about mid-flow
+ * rather than reading a screen about — the weather metaphor, the two
+ * sliders, what a reminder is, and what the family sees.
+ *
+ * The last page is the one that matters most. Nothing here may leave it
+ * vague: a tutorial that hints at reciprocity is the single most damaging
+ * sentence this app could contain (ADR-007).
+ */
 @Composable
-private fun OneLastThing(onSetUp: () -> Unit, onSkip: () -> Unit) = FlowPage(bloom = true) {
-    Question("One last thing,", size = 20)
-    Spacer(Modifier.height(18.dp))
-    Question("tell us when you are busy\nand we will not bother you then.")
-    Spacer(Modifier.height(30.dp))
-    FlowPill("Set Up", onClick = onSetUp)
-    Spacer(Modifier.height(18.dp))
-    TextLink("Skip for now", onSkip)
+private fun FirstRunTutorial(onDone: () -> Unit) {
+    var page by remember { mutableIntStateOf(0) }
+    val pages = listOf(
+        "The weather is how you're doing" to
+            "Set it yourself on Home, clear to stormy. Nothing reads it off " +
+                "you — it's yours to change whenever your week does.",
+        "Two numbers you set, not Harbor" to
+            "Walk before a reminder, and reminders a day. What you saw on the " +
+                "last screen was a suggestion, not a rule — move either one, " +
+                "any time, under Account.",
+        "A reminder is not a call" to
+            "It looks and sounds like one on purpose — that's what gets " +
+                "noticed — but it never claims to be one. Dismissing it costs " +
+                "nothing, every time.",
+        "What your family sees" to
+            "Nothing. They install nothing, and Harbor never contacts them — " +
+                "not a summary, not a notification, not once. This is one-sided " +
+                "by design.",
+    )
+    val last = page == pages.lastIndex
+
+    FlowPage {
+        Question(pages[page].first, size = 21)
+        Spacer(Modifier.height(20.dp))
+        FlowNote(pages[page].second)
+        Spacer(Modifier.height(34.dp))
+        FlowPill(if (last) "Start using Harbor" else "Next") {
+            if (last) onDone() else page++
+        }
+        if (!last) {
+            Spacer(Modifier.height(14.dp))
+            TextLink("Skip", onDone)
+        }
+    }
 }

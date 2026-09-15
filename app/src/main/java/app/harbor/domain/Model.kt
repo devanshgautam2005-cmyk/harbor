@@ -98,39 +98,114 @@ enum class FeedbackPulse { GOOD_TIME, BAD_TIME }
  * garden a record of the calls rather than a scoreboard of them.
  */
 enum class Feeling(val flower: FlowerKind) {
-    LIGHT(FlowerKind.COSMOS),
-    WARM(FlowerKind.MARIGOLD),
-    STEADY(FlowerKind.DAISY),
-    TENDER(FlowerKind.POPPY),
+    LIGHT(FlowerKind.GLAD_WE_TALKED),
+    WARM(FlowerKind.FELT_LOVED),
+    STEADY(FlowerKind.STEADIER_NOW),
+    TENDER(FlowerKind.GLAD_SHE_PICKED_UP),
 }
 
 /**
  * What a call becomes.
  *
- * Eighteen kinds, and the user picks from all of them. The garden is the
- * reward surface — there is no score, no streak, and nothing that can be lost;
- * a flower that grew stays grown.
+ * Twenty of them, named for the specific feeling a call leaves rather than for
+ * a mood in general or a species before that. That is the change the flower
+ * sheet makes, and it is not cosmetic: the screen after a call asks how it
+ * felt, and the answer used to be translated into a botanical name nobody had
+ * chosen, then into a mood untethered from the call that produced it. Now the
+ * thing you pick *is* the answer, and the garden is a record of a year of
+ * calls rather than a catalogue of plants or a generic mood board.
+ *
+ * The garden is the reward surface — there is no score, no streak, and nothing
+ * that can be lost; a flower that grew stays grown. Note that the darker ones
+ * are here on purpose. A week where somebody plants "wished it was longer"
+ * four times is a week the study needs to be able to see, and an app that only
+ * lets you say the call went great is an app people quietly stop telling the
+ * truth to.
  */
 enum class FlowerKind {
-    DAISY, MARIGOLD, COSMOS, POPPY, TULIP, BLUEBELL, ASTER, SUNFLOWER,
+    GLAD_WE_TALKED, LIGHTER_NOW, FELT_LOVED, SHE_REMEMBERED, EASY_SILENCE,
+    STEADIER_NOW, WORTH_SLOWING_DOWN, SAID_WHAT_I_MEANT, WANT_TO_TRY_SOMETHING, ASKED_MORE_THAN_USUAL,
+    LOOKING_FORWARD, STILL_THINKING_ABOUT_IT, HARD_TO_SHAKE_OFF, TIME_TO_ACTUALLY_DO_IT, NOTHING_LEFT_UNSAID,
+    WONDERING_IF_THAT_LANDED, SAID_THE_HARD_THING, GLAD_SHE_PICKED_UP, WISHED_IT_WAS_LONGER, DREADED_THIS_ONE,
+    ;
 
-    // Added when the picker became something you scroll through rather than a
-    // grid of four. Eight was the right number for a grid and too few for a
-    // shelf; these widen the range of colour rather than adding more of what
-    // was already there.
-    LAVENDER, ZINNIA, CAMELLIA, PERIWINKLE, BUTTERCUP, ANEMONE,
+    companion object {
+        /**
+         * What the eighteen species, and then the twenty moods, became.
+         *
+         * Flowers are stored by name, in the ledger on the phone and as a
+         * Postgres enum in the backend, so renaming them is a data change
+         * rather than a rename. Anything already planted was planted under an
+         * earlier name, and this is the only thing standing between those rows
+         * and a reader that throws on the first one it does not recognise.
+         *
+         * Two generations deep now. The species (left column, added when the
+         * sheet had eighteen plants) point at the mood each became a day
+         * later; those moods (right column of the second block) point at the
+         * call-specific feeling each became today. `stored` only ever does one
+         * hop, so a species has to point at the *current* name directly, not
+         * at the mood that no longer exists as a constant — that is why the
+         * species entries below were repointed rather than left alone.
+         *
+         * Keep this forever. It costs nothing and it is the difference between
+         * a participant's garden surviving an update and not.
+         */
+        private val LEGACY = mapOf(
+            // The eighteen species, repointed straight at today's name.
+            "DAISY" to GLAD_WE_TALKED,
+            "MARIGOLD" to LIGHTER_NOW,
+            "COSMOS" to WORTH_SLOWING_DOWN,
+            "POPPY" to SAID_THE_HARD_THING,
+            "TULIP" to NOTHING_LEFT_UNSAID,
+            "BLUEBELL" to STILL_THINKING_ABOUT_IT,
+            "ASTER" to STEADIER_NOW,
+            "SUNFLOWER" to FELT_LOVED,
+            "LAVENDER" to EASY_SILENCE,
+            "ZINNIA" to WANT_TO_TRY_SOMETHING,
+            "CAMELLIA" to SHE_REMEMBERED,
+            "PERIWINKLE" to ASKED_MORE_THAN_USUAL,
+            "BUTTERCUP" to SAID_WHAT_I_MEANT,
+            "ANEMONE" to LOOKING_FORWARD,
+            "SNOWDROP" to GLAD_SHE_PICKED_UP,
+            "DAHLIA" to TIME_TO_ACTUALLY_DO_IT,
+            "IRIS" to HARD_TO_SHAKE_OFF,
+            "HYDRANGEA" to DREADED_THIS_ONE,
+            // Yesterday's twenty moods, one hop to today's feeling.
+            "HAPPY" to GLAD_WE_TALKED,
+            "UPBEAT" to LIGHTER_NOW,
+            "LOVED" to FELT_LOVED,
+            "VALUED" to SHE_REMEMBERED,
+            "PEACEFUL" to EASY_SILENCE,
+            "GROUNDED" to STEADIER_NOW,
+            "CALM" to WORTH_SLOWING_DOWN,
+            "CONFIDENT" to SAID_WHAT_I_MEANT,
+            "INSPIRED" to WANT_TO_TRY_SOMETHING,
+            "CURIOUS" to ASKED_MORE_THAN_USUAL,
+            "HOPEFUL" to LOOKING_FORWARD,
+            "REFLECTIVE" to STILL_THINKING_ABOUT_IT,
+            "TENSE" to HARD_TO_SHAKE_OFF,
+            "MOTIVATED" to TIME_TO_ACTUALLY_DO_IT,
+            "CONTENT" to NOTHING_LEFT_UNSAID,
+            "INSECURE" to WONDERING_IF_THAT_LANDED,
+            "BRAVE" to SAID_THE_HARD_THING,
+            "GRATEFUL" to GLAD_SHE_PICKED_UP,
+            "LONELY" to WISHED_IT_WAS_LONGER,
+            "ANXIOUS" to DREADED_THIS_ONE,
+        )
 
-    // Four more, chosen by what the shelf did not have rather than by what
-    // would be nice to draw. Fourteen blooms sounds like plenty and came out
-    // clustered: everything was a warm pastel or a mid violet, so scrolling
-    // the shelf went past a lot that looked alike. These are the corners that
-    // were empty - a true white, a deep red, an indigo, and a teal.
-    //
-    // The teal is deliberate. The flower the first run builds petal by petal
-    // is teal, and until now that flower existed nowhere in the garden it was
-    // introducing.
-    SNOWDROP, DAHLIA, IRIS, HYDRANGEA,
+        /**
+         * Read a stored flower, whatever era it was written in.
+         *
+         * Returns null rather than throwing for a name from neither era. A
+         * flower nobody can identify should cost that one entry its bloom, not
+         * the whole ledger — and the ledger is the study.
+         */
+        fun stored(value: String): FlowerKind? =
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+                ?: LEGACY[value.uppercase()]
+    }
 }
+
 
 /**
  * How life feels at the moment, on a scale the user sets themselves.

@@ -65,7 +65,7 @@ import kotlin.math.abs
  * and every answer grows something — the garden records that calls happened,
  * it does not score them.
  *
- * ## Why it no longer asks how the call felt
+ * ## Why the feeling and the flower are one screen, not two
  *
  * There used to be a screen in front of this one: four feelings, a stepper for
  * how many minutes, and a box for what it was about. It was three questions
@@ -74,10 +74,12 @@ import kotlin.math.abs
  * the feeling — which existed to narrow the library down to four.
  *
  * Picking the flower answers that question better than a menu of adjectives
- * does, so the menu is gone and all of them are offered. The length of the
- * call is the gap between the cue appearing and this screen appearing, which
- * Harbor already knows and no longer needs anyone to type; it is stated here
- * rather than asked, so it can still be seen to be wrong.
+ * does, so the menu is gone and all of them are offered — the headline still
+ * asks how the call felt, but the flower itself is the answer rather than a
+ * label attached afterwards. The length of the call is the gap between the
+ * cue appearing and this screen appearing, which Harbor already knows and no
+ * longer needs anyone to type; it is stated here rather than asked, so it can
+ * still be seen to be wrong.
  *
  * What survives from that screen is the way out — "we did not get to talk" —
  * because the ledger row is written the moment the dialer opens, and without
@@ -91,6 +93,13 @@ fun CallFlow(
     measuredMinutes: Int,
     initialTopic: String?,
     reducedMotion: Boolean = false,
+    /**
+     * False only for onboarding's preview cue. "Was this a good moment to be
+     * asked?" is the reflection after a real call; asking it again before any
+     * real call has happened would double the same study question rather than
+     * add a second real answer to it.
+     */
+    askPulse: Boolean = true,
     onPlant: (minutes: Int, flower: FlowerKind, topic: String?) -> Unit,
     onPulse: (FeedbackPulse) -> Unit,
     /** They went to call and no conversation happened. */
@@ -131,12 +140,13 @@ fun CallFlow(
             Step.Flower -> {
                 Text("$who's patch", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.size(8.dp))
-                Text("Which flower was it?", style = MaterialTheme.typography.headlineMedium)
+                // The headline asks the feeling; the flower is how you answer
+                // it, not a fact being reported. "Which flower was it?" read as
+                // a memory test the first time somebody saw it.
+                Text("How did that call leave you feeling?", style = MaterialTheme.typography.headlineMedium)
                 Spacer(Modifier.size(8.dp))
-                // Stated, not asked. Harbor timed it from the cue to this
-                // screen; saying so is what lets somebody notice it is wrong.
                 Text(
-                    "About ${CallStats.formatDuration(minutes)}, by the look of it.",
+                    "Choose the flower that matches.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                 )
@@ -183,7 +193,15 @@ fun CallFlow(
                     textAlign = TextAlign.Center,
                 )
 
-                Spacer(Modifier.size(22.dp))
+                Spacer(Modifier.size(14.dp))
+                // Stated, not asked. Harbor timed it from the cue to this
+                // screen; saying so is what lets somebody notice it is wrong.
+                Text(
+                    "About ${CallStats.formatDuration(minutes)}, by the look of it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.size(8.dp))
                 PrimaryAction("Grow ${Flowers.spec(chosen).name.lowercase()}") {
                     onPlant(minutes, chosen, initialTopic)
                     step = Step.Bloom
@@ -237,7 +255,7 @@ fun CallFlow(
 
                 // Stage 8, for calls. Asked after the reward rather than
                 // before it, so it never reads as the price of the flower.
-                if (!pulsed) {
+                if (!pulsed && askPulse) {
                     Text(
                         "Was this a good moment to be asked?",
                         style = MaterialTheme.typography.bodyMedium,

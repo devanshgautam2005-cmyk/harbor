@@ -59,6 +59,7 @@ import app.harbor.domain.Terrain
 import app.harbor.domain.Tone
 import app.harbor.ui.theme.Gold
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.hypot
 
@@ -98,6 +99,54 @@ fun FieldCanvas(
      * eaten input nobody meant for it. Tapping the preview opens the real one.
      */
     interactive: Boolean = true,
+    /**
+     * Whether to paint the weather behind the terrain.
+     *
+     * False on home, where the screen already is the weather and the field is
+     * only its dots. Painting a second sky inside a rounded box on top of the
+     * first is exactly the seam this was meant to remove.
+     */
+    sky: Boolean = true,
+    /**
+     * A flower has just been planted, so show the garden it went into.
+     *
+     * Pulls back to the whole island and then flies down to the patch that
+     * gained it, which is the one moment the overview is worth showing on
+     * home: it answers "where did that go" before settling where home always
+     * sits. The rest of the time the camera is simply already there.
+     */
+    arriving: Boolean = false,
+    /**
+     * Open standing at a flower rather than looking at the whole island.
+     *
+     * Separate from [interactive] because those two used to be the same
+     * question and are not: home wants the close shot *and* the gestures, so
+     * you can push the field back with two fingers and see the whole garden
+     * without leaving the screen. Only the opening frame is fixed.
+     */
+    standClose: Boolean = false,
+    /**
+     * What a tap means, when it should not mean "select a patch".
+     *
+     * Home's field is now pinchable and pannable like the garden's, and the
+     * moment it became so it swallowed the tap that used to open the garden --
+     * a gesture handler consumes taps whether or not it does anything with
+     * them, so the clickable wrapped around it stopped firing and there was no
+     * way off home into the field at all. Given here, a tap calls this instead
+     * of choosing a patch.
+     */
+    onTap: (() -> Unit)? = null,
+    /**
+     * Whether to draw the field's own chrome: the zoom buttons and the
+     * readout.
+     *
+     * Off on home, where the field is scenery rather than an instrument. You
+     * can still pinch and drag it -- the gestures are [interactive] -- but a
+     * pair of zoom buttons and a magnification readout sitting on the view
+     * turn a window onto a garden into a map application, and home has
+     * somewhere to put a control panel: the field screen.
+     */
+    controls: Boolean = interactive,
 ) {
     val contacts by store.contacts.collectAsState()
     val settings by store.settings.collectAsState()
@@ -154,6 +203,27 @@ fun FieldCanvas(
     // the usual one.
     val planted = remember(patches) { patches.sumOf { it.calls } > 0 }
 
+    /**
+     * Where home stands, which is not where the garden stands.
+     *
+     * The garden screen opens on the whole island, because that screen is for
+     * looking at the whole island. Home is not: it is a window onto one
+     * flower, down among the grass, the way the reference shows a single bloom
+     * on a patch of ground rather than a map of a country. You get the island
+     * by opening it.
+     *
+     * The patch chosen is the one most recently added to, so the flower on
+     * home is the last call you had rather than whichever patch happens to be
+     * biggest.
+     */
+    val homeSpot = remember(patches, entries) {
+        val newest = entries
+            .firstOrNull { it.resolution == Resolution.CALLED && it.flower != null }
+            ?.contactId
+        patches.firstOrNull { it.contactId == newest && it.calls > 0 }
+            ?: patches.filter { it.calls > 0 }.maxByOrNull { it.calls }
+    }
+
     // Frame the whole island, and keep framing it until the user takes over.
     //
     // Latching on the first size that arrived was wrong: layout reports an
@@ -161,18 +231,48 @@ fun FieldCanvas(
     // one's overview zoom and the island then sat at a third of the width it
     // should have filled. Re-aiming until the first gesture also means a
     // rotation reframes instead of leaving the world off-centre.
-    LaunchedEffect(base, frame, planted) {
+    LaunchedEffect(base, frame, planted, homeSpot, standClose, arriving) {
+        // While a flower is arriving the camera is being flown deliberately;
+        // re-aiming underneath it would cut the flight short. homeSpot also
+        // changes the instant the new flower lands, which is exactly when this
+        // would otherwise fire.
+        if (arriving) return@LaunchedEffect
         if (!touched && base > 0 && frame.width > 0) {
-            cam = if (planted) {
-                Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
-            } else {
-                // Down among the grass, where there is visibly room, rather
-                // than looking at an empty island from orbit.
-                val spot = Field.emptyStart()
-                Field.Camera(spot.x, spot.y, base * Field.EMPTY_ZOOM)
+            val here = homeSpot
+            cam = when {
+                // Home, with something to show: stand at the newest patch.
+                standClose && here != null ->
+                    Field.Camera(here.x, here.y, base * Field.EMPTY_ZOOM)
+
+                // The garden screen, which is the one that shows the island.
+                planted && !standClose ->
+                    Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
+
+                // Nothing planted anywhere, on either screen. Down among the
+                // grass where there is visibly room, rather than looking at an
+                // empty island from orbit.
+                else -> {
+                    val spot = Field.emptyStart()
+                    Field.Camera(spot.x, spot.y, base * Field.EMPTY_ZOOM)
+                }
             }
             goal = cam
         }
+    }
+
+    // The arrival: the whole island, a beat, then down to the new flower.
+    //
+    // No animation of its own -- it sets the camera and then a goal, and the
+    // chase below does the flying. That is why the descent eases: it is the
+    // same motion a tap on a patch makes, which is the point, because this is
+    // the app showing you where the thing you just did ended up.
+    LaunchedEffect(arriving, base, frame, homeSpot) {
+        if (!arriving || base <= 0 || frame.width <= 0) return@LaunchedEffect
+        val here = homeSpot ?: return@LaunchedEffect
+        cam = Field.Camera(Terrain.FIELD_W / 2, Terrain.FIELD_H / 2, base)
+        goal = cam
+        delay(520)
+        goal = Field.Camera(here.x, here.y, base * Field.EMPTY_ZOOM)
     }
 
     // The camera chases its goal rather than snapping, which is what makes a
@@ -195,9 +295,10 @@ fun FieldCanvas(
     // Held across frames so drawing allocates nothing.
     val kit = remember(palette.size) { DrawKit(palette.size) }
 
-    Box(modifier.clip(RoundedCornerShape(30.dp))) {
+    // The corner belongs to a panel, and on home this is not a panel.
+    Box(if (sky) modifier.clip(RoundedCornerShape(30.dp)) else modifier) {
 
-        FieldSky(settings.weather, Modifier.fillMaxSize())
+        if (sky) FieldSky(settings.weather, Modifier.fillMaxSize())
 
         Canvas(
             Modifier
@@ -220,9 +321,13 @@ fun FieldCanvas(
                         )
                     }
                 }
-                .pointerInput(patches, base, interactive) {
+                .pointerInput(patches, base, interactive, onTap) {
                     if (!interactive) return@pointerInput
                     detectTapGestures { at ->
+                        if (onTap != null) {
+                            onTap()
+                            return@detectTapGestures
+                        }
                         if (base <= 0 || frame.height == 0) return@detectTapGestures
                         val lens = Field.buildLens(cam, base, frame.height.toDouble())
                         val point = Field.Point()
@@ -256,7 +361,7 @@ fun FieldCanvas(
             drawField(cells, patches, palette, cam, base, kit, tagInk)
         }
 
-        if (interactive) {
+        if (controls) {
             FieldControls(
             onIn = {
                 touched = true
@@ -279,7 +384,13 @@ fun FieldCanvas(
         // Said on the field itself, because the field is the invitation.
         // Home carries the same line above its own preview, so this one is
         // only for the full screen.
-        if (interactive && !planted) {
+        // The empty-state line belongs to the field screen, not to home.
+        //
+        // It is centred in the canvas, and home's canvas is 46% of a phone
+        // with the greeting already sitting at the foot of it -- so the two
+        // landed on top of each other, white serif through white serif. Home
+        // says the same thing in its own eyebrow, where there is room for it.
+        if (controls && !planted) {
             Column(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -312,7 +423,7 @@ fun FieldCanvas(
         // Not while a card is open: the two sit in the same corner of the
         // screen and the readout was drawing straight over the third line of
         // the card.
-        if (interactive && base > 0 && showing == null) {
+        if (controls && base > 0 && showing == null) {
             FieldReadout(
                 relative = cam.zoom / base,
                 tilt = Field.tiltFor(cam.zoom, base),
@@ -624,7 +735,7 @@ private fun drawTags(
         // unreadable anyway.
         if (kit.point.x > w - 80 * unit && kit.point.y < 210 * unit) continue
         tags += Tag(
-            patch.label.uppercase() + " · " + patch.calls,
+            patch.label + " · " + patch.calls,
             kit.point.x.toFloat(),
             kit.point.y.toFloat(),
             kit.point.y.toFloat(),
@@ -740,8 +851,8 @@ private fun FieldReadout(relative: Double, tilt: Double, modifier: Modifier = Mo
 
 /** What a patch is planted with before anyone has chosen a flower for it. */
 private fun defaultFlower(tone: Tone): FlowerKind = when (tone) {
-    Tone.GOLD -> FlowerKind.MARIGOLD
-    Tone.GREEN -> FlowerKind.DAISY
-    Tone.ORANGE -> FlowerKind.POPPY
-    Tone.SKY -> FlowerKind.BLUEBELL
+    Tone.GOLD -> FlowerKind.GLAD_WE_TALKED
+    Tone.GREEN -> FlowerKind.STEADIER_NOW
+    Tone.ORANGE -> FlowerKind.FELT_LOVED
+    Tone.SKY -> FlowerKind.WORTH_SLOWING_DOWN
 }

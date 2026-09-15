@@ -41,8 +41,8 @@ import app.harbor.domain.DailyQuestion
 import app.harbor.domain.Moment
 import app.harbor.domain.Weather
 import app.harbor.ui.theme.Eyebrow
-import app.harbor.ui.theme.Gold
-import app.harbor.ui.theme.Hairline
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Chalk
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
 import kotlinx.coroutines.launch
@@ -137,15 +137,21 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                     detectHorizontalDragGestures { change, _ -> chooseFromX(change.position.x) }
                 },
         ) {
-            // the rail
+            // The rail.
+            //
+            // 26dp, not 10. The design draws this as a fat pill with the
+            // gradient running the whole way along it and the thumb riding
+            // *inside* its height -- closer to a sunset strip than to a
+            // slider. At 10dp it read as a hairline with a bead on it, which
+            // is the one thing on home that looked like a stock control.
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
                     .padding(horizontal = 22.dp)
                     .fillMaxWidth()
-                    .height(10.dp)
+                    .height(26.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
             )
 
             // A notch per weather.
@@ -166,28 +172,42 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                 steps.forEachIndexed { i, _ ->
                     Box(
                         Modifier
-                            .size(5.dp)
+                            .size(4.dp)
                             .clip(CircleShape)
                             .background(
-                                if (i <= index) MaterialTheme.colorScheme.primary
-                                    .copy(alpha = 0.45f)
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                                    .copy(alpha = 0.3f),
+                                if (i <= index) Ink.copy(alpha = 0.30f)
+                                else Chalk.copy(alpha = 0.28f),
                             ),
                     )
                 }
             }
 
-            // how far along the scale we are, sky through to gold
+            // How far along the scale we are: dusk through to ember.
+            //
+            // The design draws this rail as a five-stop gradient rather than
+            // the two it had -- cool blue, a hazy middle, warm sand, ember,
+            // and a burnt red at the far end. It is the one place in the app
+            // where a whole spectrum appears, and it is what makes the rail
+            // read as a sky going over rather than as a volume slider.
             val fraction = if (last == 0) 0f else index.toFloat() / last
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 22.dp)
                     .fillMaxWidth(fraction.coerceAtLeast(0.001f))
-                    .height(10.dp)
+                    .height(26.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF9DC6E8), Gold))),
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF2B4F6B),
+                                Color(0xFF6F8FA8),
+                                Color(0xFFE8D6A8),
+                                Color(0xFFF0A35F),
+                                Color(0xFFC9542C),
+                            ),
+                        ),
+                    ),
             )
 
             // the thumb
@@ -198,21 +218,17 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                 Modifier
                     .align(Alignment.CenterStart)
                     .offset(x = thumbX)
-                    .size(34.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    // The card is nearly the same white as the thumb, so
-                    // without a rim the thumb reads as a bare dot floating on
-                    // the rail rather than as something you can take hold of.
-                    .border(1.dp, Hairline, CircleShape),
+                    // Solid white, which in this design is the brightest thing
+                    // on the page and is spent here on purpose: the thumb is
+                    // the one part of the rail you are meant to grab.
+                    .background(Chalk),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
-                )
+                // The design's thumb is a plain white disc. It used to carry
+                // an amber pip, which on a white disc on a coloured rail was
+                // a third colour in a 30dp circle.
             }
         }
 

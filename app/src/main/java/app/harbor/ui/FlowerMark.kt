@@ -91,7 +91,7 @@ internal fun DrawScope.drawFlower(spec: FlowerSpec, radius: Float) {
                     path = spearPath(p),
                     brush = brush,
                     alpha = PETAL_ALPHA,
-                    blendMode = BlendMode.Multiply,
+                    blendMode = PETAL_BLEND,
                 )
             } else {
                 drawOval(
@@ -99,7 +99,7 @@ internal fun DrawScope.drawFlower(spec: FlowerSpec, radius: Float) {
                     topLeft = Offset(-p.rx, top),
                     size = Size(p.rx * 2f, p.ry * 2f),
                     alpha = PETAL_ALPHA,
-                    blendMode = BlendMode.Multiply,
+                    blendMode = PETAL_BLEND,
                 )
             }
         }
@@ -116,7 +116,26 @@ internal fun DrawScope.drawFlower(spec: FlowerSpec, radius: Float) {
 }
 
 /** Petals are laid at 80%, so where they cross they darken. */
-private const val PETAL_ALPHA = 0.8f
+private const val PETAL_ALPHA = 0.92f
+
+/**
+ * How one petal sits on the next.
+ *
+ * Multiply, which is what this was, is the right answer on paper: overlapping
+ * translucent petals get *darker* where they cross, the way pigment does, and
+ * on the light specimen's bone page that is exactly what the sheet shows.
+ *
+ * On a near-black ground it is catastrophic and quiet about it. Multiplying
+ * anything by a near-black backdrop gives near-black, so every bloom in the
+ * app -- the picker, a person's specimen, the patch, the field -- came out a
+ * dim smudge with a faint rim, and nothing about it looked broken enough to
+ * read as a bug rather than as a small flower.
+ *
+ * Screen is multiply's opposite: overlaps get lighter. The petals stop being
+ * pigment and start being light, which is what a flower has to be when the
+ * page behind it is the night.
+ */
+private val PETAL_BLEND = BlendMode.Screen
 
 private fun heartOf(shape: FlowerSpec.Shape): Float = when (shape) {
     FlowerSpec.Shape.ROUND -> 0.22f
