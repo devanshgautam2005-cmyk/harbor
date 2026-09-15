@@ -76,29 +76,37 @@ class FlowersTest {
     // --- the rename, and the gardens it must not lose -----------------------
 
     @Test
-    fun `every species a phone might have stored still reads`() {
-        // These are the eighteen names FlowerKind used before the sheet
-        // renamed them, and they are still sitting in the ledger of every
-        // phone that has been in the study. If one of them stops mapping,
-        // that participant's garden loses flowers on an update and nothing
-        // anywhere says so.
+    fun `every species or mood a phone might have stored still reads`() {
+        // The eighteen species FlowerKind used originally, and the twenty
+        // moods it was renamed to the day before this one, are both still
+        // sitting in the ledger of every phone that has been in the study.
+        // If one of them stops mapping, that participant's garden loses
+        // flowers on an update and nothing anywhere says so.
         val planted = listOf(
+            // The eighteen species.
             "DAISY", "MARIGOLD", "COSMOS", "POPPY", "TULIP", "BLUEBELL",
             "ASTER", "SUNFLOWER", "LAVENDER", "ZINNIA", "CAMELLIA",
             "PERIWINKLE", "BUTTERCUP", "ANEMONE", "SNOWDROP", "DAHLIA",
             "IRIS", "HYDRANGEA",
+            // Yesterday's twenty moods.
+            "HAPPY", "UPBEAT", "LOVED", "VALUED", "PEACEFUL",
+            "GROUNDED", "CALM", "CONFIDENT", "INSPIRED", "CURIOUS",
+            "HOPEFUL", "REFLECTIVE", "TENSE", "MOTIVATED", "CONTENT",
+            "INSECURE", "BRAVE", "GRATEFUL", "LONELY", "ANXIOUS",
         )
         val lost = planted.filter { FlowerKind.stored(it) == null }
         assertTrue("no longer readable: $lost", lost.isEmpty())
     }
 
     @Test
-    fun `the species map is written the way the ledger stores them`() {
+    fun `both generations of the map are written the way the ledger stores them`() {
         // The ledger writes lowercase (see Enum.wire in LedgerJson), so a map
         // that only answered to upper case would pass the test above and fail
         // on every real row.
-        assertEquals(FlowerKind.HAPPY, FlowerKind.stored("daisy"))
-        assertEquals(FlowerKind.LOVED, FlowerKind.stored("sunflower"))
+        assertEquals(FlowerKind.GLAD_WE_TALKED, FlowerKind.stored("daisy"))
+        assertEquals(FlowerKind.FELT_LOVED, FlowerKind.stored("sunflower"))
+        assertEquals(FlowerKind.GLAD_WE_TALKED, FlowerKind.stored("happy"))
+        assertEquals(FlowerKind.FELT_LOVED, FlowerKind.stored("loved"))
     }
 
     @Test

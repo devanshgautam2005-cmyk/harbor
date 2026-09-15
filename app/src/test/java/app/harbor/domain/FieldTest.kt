@@ -191,7 +191,7 @@ class FieldTest {
     @Test
     fun `every person gets a place, however many there are`() {
         val many = Field.patches(List(12) {
-            Field.Person(UUID.randomUUID(), "P$it", 3, FlowerKind.HAPPY)
+            Field.Person(UUID.randomUUID(), "P$it", 3, FlowerKind.GLAD_WE_TALKED)
         })
         assertEquals(12, many.size)
         many.forEach {

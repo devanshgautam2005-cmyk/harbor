@@ -77,7 +77,7 @@ class StudyExportTest {
                 feedbackPulse = FeedbackPulse.GOOD_TIME,
                 callMinutes = 15,
                 feeling = Feeling.WARM,
-                flower = FlowerKind.UPBEAT,
+                flower = FlowerKind.LIGHTER_NOW,
                 topic = topic,
                 note = note,
                 occurredAt = at,
