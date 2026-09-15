@@ -153,8 +153,8 @@ fun CuesSetupScreen(
     ) {
         Flow(Modifier.pageContent()) {
             PageIntro(
-                eyebrow = "Gentle cues",
-                title = "A cue, never a demand.",
+                eyebrow = "Gentle reminders",
+                title = "A reminder, never a demand.",
                 subtitle = "Harbor can notice the quiet moment just after a walk " +
                     "ends, and offer you the chance to call home. That is the " +
                     "whole of it.",
@@ -173,12 +173,12 @@ fun CuesSetupScreen(
                     "On this phone. Your movement is never sent to us and never " +
                         "shared with your family — not as a summary, not ever. " +
                         "The only things that leave are the ones you chose: that " +
-                        "a cue appeared, and what you decided to do about it.",
+                        "a reminder appeared, and what you decided to do about it.",
                 )
 
                 SectionHeading("What you keep control of")
                 SmallCopy(
-                    "Every cue can be dismissed, and dismissing costs nothing — " +
+                    "Every reminder can be dismissed, and dismissing costs nothing — " +
                         "there is no streak to break. At most " +
                         "${settings.thresholds.dailyCap} a day, with at least " +
                         "${settings.thresholds.cooldownMinutes} minutes between " +
@@ -199,7 +199,7 @@ fun CuesSetupScreen(
                     }
                     SmallCopy(
                         who?.let { "${it.label} — ${it.phoneE164}" }
-                            ?: "Nobody yet. A cue needs someone to be about.",
+                            ?: "Nobody yet. A reminder needs someone to be about.",
                     )
                 }
                 QuietAction(if (who == null) "Choose someone" else "Change") {
@@ -213,7 +213,7 @@ fun CuesSetupScreen(
                     // and CuePolicy already lets a manual request past every
                     // gate, on the grounds that someone standing there asking
                     // for the prompt should get it.
-                    QuietAction("Show me a cue now") {
+                    QuietAction("Show me a reminder now") {
                         scope.launch { showManualCue(context, store, who) }
                     }
                     SmallCopy(
@@ -227,7 +227,7 @@ fun CuesSetupScreen(
             when {
                 Sensing.isActive(context, store) -> {
                     SmallCopy(
-                        "Cues are on. Harbor will wait for a walk of at least " +
+                        "Reminders are on. Harbor will wait for a walk of at least " +
                             "${settings.thresholds.walkingMinutes} minutes.",
                         size = 15,
                     )
@@ -255,7 +255,7 @@ fun CuesSetupScreen(
                                 "then keeps it awake.",
                         )
                     }
-                    QuietAction("Turn cues off") {
+                    QuietAction("Turn reminders off") {
                         scope.launch { Sensing.disable(context, store) }
                     }
                 }
@@ -265,7 +265,7 @@ fun CuesSetupScreen(
                 // the user has no way to catch.
                 settings.cuesEnabled && !hasPermission -> {
                     SmallCopy(
-                        "Cues are paused. Harbor no longer has permission to " +
+                        "Reminders are paused. Harbor no longer has permission to " +
                             "notice when you stop walking.",
                         size = 15,
                     )
@@ -273,7 +273,7 @@ fun CuesSetupScreen(
                 }
 
                 else -> {
-                    PrimaryAction("Turn on gentle cues", onClick = ::turnOn)
+                    PrimaryAction("Turn on gentle reminders", onClick = ::turnOn)
                     SmallCopy(
                         "You can do this later. Harbor works without it — you " +
                             "can always start a moment yourself.",
@@ -293,10 +293,10 @@ fun CuesSetupScreen(
             // outside, and nothing anywhere said why.
             if (settings.cuesEnabled && hasPermission && (!canNotify || !canTakeScreen)) {
                 Surface {
-                    SectionHeading("A cue would not reach you yet")
+                    SectionHeading("A reminder would not reach you yet")
                     if (!canNotify) {
                         SmallCopy(
-                            "Notifications are off for Harbor. A cue is posted " +
+                            "Notifications are off for Harbor. A reminder is posted " +
                                 "as one, so with these off it is thrown away " +
                                 "the moment it is made and nothing appears.",
                             size = 14,
@@ -311,13 +311,13 @@ fun CuesSetupScreen(
                     if (!canTakeScreen) {
                         SmallCopy(
                             "Android only lets an app take over the screen if " +
-                                "you allow it by hand. Without it a cue arrives " +
+                                "you allow it by hand. Without it a reminder arrives " +
                                 "as a banner that fades on its own, so if your " +
                                 "phone is in your pocket you will miss it.",
                             size = 14,
                         )
                         CueNotifier.fullScreenSettings(context)?.let { intent ->
-                            PrimaryAction("Let a cue open the screen") {
+                            PrimaryAction("Let a reminder open the screen") {
                                 context.startActivity(intent)
                             }
                         }
@@ -328,7 +328,7 @@ fun CuesSetupScreen(
             if (refused) {
                 Surface {
                     SmallCopy(
-                        "That is completely fine. Cues stay off, and nothing " +
+                        "That is completely fine. Reminders stay off, and nothing " +
                             "else changes. If you change your mind, Android may " +
                             "not ask again — you can grant it from system settings.",
                     )
@@ -345,7 +345,7 @@ fun CuesSetupScreen(
             if (failed) {
                 Notice(
                     "Harbor could not start listening. Google Play services may " +
-                        "be unavailable on this phone. Cues stay off rather than " +
+                        "be unavailable on this phone. Reminders stay off rather than " +
                         "pretending to work.",
                 )
             }

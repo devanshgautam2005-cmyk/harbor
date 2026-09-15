@@ -177,7 +177,7 @@ private fun WeekPurpose(skin: WeekSkin) {
     Text(
         "Harbor decides on its own when to offer you a call — usually just " +
             "after a walk. It has no way of knowing you are in a seminar unless " +
-            "you tell it here. Mark the hours you are busy and a cue will not " +
+            "you tell it here. Mark the hours you are busy and a reminder will not " +
             "arrive in the middle of them.",
         style = MaterialTheme.typography.bodyMedium.copy(
             fontSize = 13.sp,

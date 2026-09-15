@@ -103,16 +103,16 @@ fun SettingsScreen(
             }
 
             Surface {
-                SectionHeader("When a cue can come", "suggestions, not rules")
+                SectionHeader("When a reminder can come", "suggestions, not rules")
                 SmallCopy(
-                    "A cue is Harbor offering you one person, on its own, at a " +
+                    "A reminder is Harbor offering you one person, on its own, at a " +
                         "moment it thinks you have room - usually just after a " +
                         "walk ends. It shows their face and plays their sound, " +
                         "and the only thing it ever does is offer. Ignoring one " +
                         "costs nothing and there is no streak to break.",
                 )
                 Stepper(
-                    label = "Walk before a cue",
+                    label = "Walk before a reminder",
                     value = settings.thresholds.walkingMinutes.toString() + " min",
                     onDown = {
                         thresholds(
@@ -132,7 +132,7 @@ fun SettingsScreen(
                     },
                 )
                 Stepper(
-                    label = "Most cues a day",
+                    label = "Most reminders a day",
                     value = settings.thresholds.dailyCap.toString(),
                     onDown = {
                         thresholds(

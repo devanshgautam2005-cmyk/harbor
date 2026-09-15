@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
         Home(HarborTab.Home, null),
         Schedule(HarborTab.Schedule, null),
         Settings(HarborTab.Account, null),
-        Cues(null, "Cues"),
+        Cues(null, "Reminders"),
         Contact(null, "Your person"),
         Garden(null, "Your garden"),
         Notes(null, "A petal"),

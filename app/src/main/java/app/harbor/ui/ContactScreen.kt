@@ -146,7 +146,7 @@ fun ContactScreen(
             PageIntro(
                 eyebrow = "The person, not the app",
                 title = "Who would you call?",
-                subtitle = "Their ringtone and their face are what make a cue feel " +
+                subtitle = "Their ringtone and their face are what make a reminder feel " +
                     "like them.",
             )
         }
@@ -268,7 +268,7 @@ fun ContactScreen(
                 val trimmedPhone = phone.trim()
                 when {
                     trimmedLabel.isEmpty() ->
-                        error = "A name helps — it is what the cue will say."
+                        error = "A name helps — it is what the reminder will say."
                     !PHONE.matches(trimmedPhone) ->
                         error = "That does not look like a full number. Include the " +
                             "country code, like +919876543210."

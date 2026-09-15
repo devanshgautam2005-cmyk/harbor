@@ -98,7 +98,7 @@ fun StudyExportCard(store: HarborRepository) {
         )
 
         SmallCopy(
-            "${counted.cues} cues · ${counted.calls} calls · " +
+            "${counted.cues} reminders · ${counted.calls} calls · " +
                 "${counted.messages} lines · ${counted.dismissed} dismissed, " +
                 "across ${counted.days} days.",
             size = 13,

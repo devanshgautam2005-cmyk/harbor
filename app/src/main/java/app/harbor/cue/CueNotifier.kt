@@ -151,7 +151,7 @@ object CueNotifier {
         if (manager.getNotificationChannel(id) == null) {
             val channel = NotificationChannel(
                 id,
-                "Gentle cues",
+                "Gentle reminders",
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = "The moment after a walk, when calling home is easy."
