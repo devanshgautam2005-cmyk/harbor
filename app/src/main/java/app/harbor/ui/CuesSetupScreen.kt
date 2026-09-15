@@ -376,6 +376,8 @@ internal suspend fun showManualCue(
     context: Context,
     store: HarborRepository,
     who: Contact,
+    /** True only for onboarding's own preview — see [CueNotifier.EXTRA_SKIP_PULSE]. */
+    skipPulse: Boolean = false,
 ) {
     val now = Instant.now()
     val cue = Cue(
@@ -390,6 +392,7 @@ internal suspend fun showManualCue(
             putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
             putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
             putExtra(CueNotifier.EXTRA_SOURCE, TriggerSource.MANUAL.name)
+            putExtra(CueNotifier.EXTRA_SKIP_PULSE, skipPulse)
         },
     )
 }

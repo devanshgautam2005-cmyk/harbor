@@ -39,6 +39,16 @@ object CueNotifier {
     const val EXTRA_CONTACT_ID = "contact_id"
     const val EXTRA_SOURCE = "trigger_source"
 
+    /**
+     * Set only by onboarding's preview cue.
+     *
+     * "Was this a good moment to be asked?" is stage 8, asked after a real
+     * call — asking it again during the walkthrough, before any real call has
+     * happened, doubles the same study question without adding a second real
+     * answer to it.
+     */
+    const val EXTRA_SKIP_PULSE = "skip_pulse"
+
     /** One id, so a second cue replaces rather than stacks. */
     private const val NOTIFICATION_ID = 1
 
