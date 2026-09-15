@@ -137,14 +137,16 @@ fun ContactScreen(
     Column(
         modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // No ground of its own: HarborShell paints the ground and the
+            // dusk over it, and a second opaque background here covered
+            // that gradient -- which is what made every screen read flat.
             .verticalScroll(rememberScrollState()),
     ) {
         Box(Modifier.padding(horizontal = 28.dp)) {
             PageIntro(
                 eyebrow = "The person, not the app",
                 title = "Who would you call?",
-                subtitle = "Their ringtone and their face are what make a cue feel " +
+                subtitle = "Their ringtone and their face are what make a reminder feel " +
                     "like them.",
             )
         }
@@ -266,7 +268,7 @@ fun ContactScreen(
                 val trimmedPhone = phone.trim()
                 when {
                     trimmedLabel.isEmpty() ->
-                        error = "A name helps — it is what the cue will say."
+                        error = "A name helps — it is what the reminder will say."
                     !PHONE.matches(trimmedPhone) ->
                         error = "That does not look like a full number. Include the " +
                             "country code, like +919876543210."

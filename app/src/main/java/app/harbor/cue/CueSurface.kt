@@ -37,7 +37,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -55,6 +54,8 @@ import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
+import androidx.compose.ui.graphics.Brush
+import app.harbor.ui.theme.Paper
 import app.harbor.ui.theme.SmallCopy
 import java.time.Duration
 import java.time.Instant
@@ -79,7 +80,6 @@ internal fun CueSurface(
     onDismiss: () -> Unit,
 ) {
     var step by remember { mutableStateOf(CueStep.Cue) }
-    var topic by remember { mutableStateOf<String?>(null) }
     var line by remember { mutableStateOf("") }
     var settled by remember { mutableStateOf(false) }
 
@@ -96,12 +96,21 @@ internal fun CueSurface(
     Column(
         Modifier
             .fillMaxSize()
-            // .cue-screen — a sky that warms from green through paper to sand
+            // .cue-screen — the ground.
+            //
+            // The one screen the design gives a gradient of its own, and it
+            // gives it the strongest one in the app: a straight fall from
+            // evening blue through ember to the ground, no radial softening.
+            // This is the screen somebody sees when their phone lights up in
+            // their hand, and it is meant to look like a time of day.
             .background(
-                Brush.linearGradient(
-                    0f to Color(0xFFE7F0DF),
-                    0.52f to Color(0xFFFBF1DE),
-                    1f to Color(0xFFF5E7C9),
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.00f to Color(0xFF1F4560),
+                        0.38f to Color(0xFF8D5230),
+                        0.66f to Color(0xFF3B1F18),
+                        0.92f to Paper,
+                    ),
                 ),
             )
             .verticalScroll(rememberScrollState())
@@ -159,7 +168,9 @@ internal fun CueSurface(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(13.dp),
             ) {
-                CueTitle("Looks like you're free.")
+                // No headline. "Looks like you're free." was Harbor telling
+                // somebody how their own afternoon was going, and the line
+                // under it already says the true, smaller thing.
                 CueSub(source.opening)
 
                 // .cue-length — the ask, with a stated size
@@ -178,17 +189,6 @@ internal fun CueSurface(
                     )
                 }
 
-                // .cue-topics — give the call a shape before it starts
-                TOPICS.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { option ->
-                            TopicChip(option, option == topic) {
-                                topic = if (topic == option) null else option
-                            }
-                        }
-                    }
-                }
-
                 Spacer(Modifier.size(2.dp))
 
                 // .cue-paths — three ways through, equal weight, no default
@@ -199,18 +199,19 @@ internal fun CueSurface(
                     enabled = contact?.phoneE164 != null,
                 ) {
                     settled = true
-                    onCall(topic, contact?.phoneE164)
+                    // No topic any more. The parameter stays because the
+                    // ledger and the study's beats both carry it, and a call
+                    // placed from home never had one either.
+                    onCall(null, contact?.phoneE164)
                 }
                 CuePath(
                     main = "Send a reaction",
-                    sub = "one line, nothing owed",
                     mark = PathMark.Heart,
                 ) {
                     step = CueStep.React
                 }
                 CuePath(
                     main = "Propose a later time",
-                    sub = "becomes today's next nudge",
                     mark = PathMark.Clock,
                 ) {
                     step = CueStep.Later
@@ -313,9 +314,6 @@ internal fun CueSurface(
 
 private enum class CueStep { Cue, React, Later, Pulse }
 
-/** The shapes a call can be given beforehand. Ported from the prototype. */
-private val TOPICS = listOf("Catch up", "Ask for help", "Share news", "Just because")
-
 /** `.cue-title` — serif, large, centred, tight. Harbor's own voice. */
 @Composable
 private fun CueTitle(text: String, small: Boolean = false) = Text(
@@ -341,31 +339,6 @@ private fun CueSub(text: String) = Text(
     ),
 )
 
-/** `.cue-topic` — a pill that fills in when chosen. */
-@Composable
-private fun TopicChip(text: String, selected: Boolean, onClick: () -> Unit) = Text(
-    text,
-    modifier = Modifier
-        .clip(RoundedCornerShape(99.dp))
-        .background(
-            if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        )
-        .border(
-            width = 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.outlineVariant,
-            shape = RoundedCornerShape(99.dp),
-        )
-        .clickable(onClick = onClick)
-        .padding(horizontal = 15.dp, vertical = 10.dp),
-    style = MaterialTheme.typography.labelLarge.copy(
-        fontSize = 13.5.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = if (selected) MaterialTheme.colorScheme.onPrimary
-        else MaterialTheme.colorScheme.onSurface,
-    ),
-)
-
 /**
  * `.cue-path` — one of the three ways through.
  *
@@ -376,7 +349,7 @@ private fun TopicChip(text: String, selected: Boolean, onClick: () -> Unit) = Te
 @Composable
 private fun CuePath(
     main: String,
-    sub: String,
+    sub: String? = null,
     mark: PathMark? = null,
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -411,13 +384,15 @@ private fun CuePath(
                     fontWeight = FontWeight.Bold,
                 ),
             )
-            Text(
-                sub,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            )
+            sub?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+            }
         }
     }
 }

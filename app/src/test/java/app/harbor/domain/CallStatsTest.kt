@@ -16,7 +16,7 @@ class CallStatsTest {
     private fun call(
         contactId: UUID = mom,
         minutes: Int? = 10,
-        flower: FlowerKind? = FlowerKind.DAISY,
+        flower: FlowerKind? = FlowerKind.GLAD_WE_TALKED,
         resolution: Resolution = Resolution.CALLED,
     ) = LedgerEntry(
         id = UUID.randomUUID(),
@@ -76,11 +76,11 @@ class CallStatsTest {
     @Test
     fun finds_the_flower_a_patch_is_mostly_made_of() {
         val entries = listOf(
-            call(flower = FlowerKind.MARIGOLD),
-            call(flower = FlowerKind.DAISY),
-            call(flower = FlowerKind.MARIGOLD),
+            call(flower = FlowerKind.LIGHTER_NOW),
+            call(flower = FlowerKind.GLAD_WE_TALKED),
+            call(flower = FlowerKind.LIGHTER_NOW),
         )
-        assertEquals(FlowerKind.MARIGOLD, CallStats.dominantFlower(entries, mom))
+        assertEquals(FlowerKind.LIGHTER_NOW, CallStats.dominantFlower(entries, mom))
     }
 
     @Test
@@ -123,21 +123,24 @@ class CallStatsTest {
         assertEquals(Flowers.bloomScale(8), Flowers.bloomScale(null), 0.001)
     }
 
-    // --- suggestions ------------------------------------------------------
+    // --- how much a call grows ---------------------------------------------
 
     @Test
-    fun the_feelings_own_flower_is_offered_first() {
-        val suggestions = Flowers.suggestions(Feeling.WARM)
-        assertEquals(FlowerKind.MARIGOLD, suggestions.first())
-        assertEquals(4, suggestions.size)
+    fun a_call_grows_a_flower_for_every_minute_of_it() {
+        assertEquals(12, Flowers.flowerCount(12))
+        assertEquals(1, Flowers.flowerCount(1))
     }
 
     @Test
-    fun suggestions_never_repeat_the_primary() {
-        for (feeling in Feeling.entries) {
-            val suggestions = Flowers.suggestions(feeling)
-            assertEquals(suggestions.size, suggestions.toSet().size)
-        }
+    fun a_call_of_unknown_length_still_grows_something() {
+        // It happened. One flower is the floor, never nothing.
+        assertEquals(1, Flowers.flowerCount(null))
+        assertEquals(1, Flowers.flowerCount(0))
+    }
+
+    @Test
+    fun a_mistaken_marathon_cannot_flood_a_patch() {
+        assertEquals(180, Flowers.flowerCount(999))
     }
 
     // --- reflections waiting to be offered --------------------------------
@@ -150,7 +153,7 @@ class CallStatsTest {
 
     @Test
     fun a_call_already_reflected_on_is_not_offered_again() {
-        val done = call(minutes = 12, flower = FlowerKind.DAISY).copy(feeling = Feeling.WARM)
+        val done = call(minutes = 12, flower = FlowerKind.GLAD_WE_TALKED).copy(feeling = Feeling.WARM)
         assertNull(CallStats.pendingReflection(listOf(done), now.plusSeconds(600)))
     }
 

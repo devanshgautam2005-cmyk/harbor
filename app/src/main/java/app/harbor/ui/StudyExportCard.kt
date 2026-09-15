@@ -46,13 +46,13 @@ fun StudyExportCard(store: HarborRepository) {
     val scope = rememberCoroutineScope()
     val settings by store.settings.collectAsState()
     val contacts by store.contacts.collectAsState()
-    val busy by store.busyWindows.collectAsState()
+    val blocks by store.weekBlocks.collectAsState()
 
     var bundle by remember { mutableStateOf<StudyExport.Bundle?>(null) }
     var saved by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(settings, contacts, busy) {
+    LaunchedEffect(settings, contacts, blocks) {
         bundle = withContext(Dispatchers.IO) {
             StudyExport.Bundle(
                 participant = store.participantId(),
@@ -60,7 +60,8 @@ fun StudyExportCard(store: HarborRepository) {
                 appVersion = versionOf(context),
                 settings = settings,
                 contacts = contacts,
-                busy = busy,
+                blocks = blocks,
+                beats = store.beats(),
                 cues = store.allCues(),
                 entries = store.recentEntries(),
                 lastTransitionAt = Sensing.lastTransition(context),
@@ -97,7 +98,7 @@ fun StudyExportCard(store: HarborRepository) {
         )
 
         SmallCopy(
-            "${counted.cues} cues · ${counted.calls} calls · " +
+            "${counted.cues} reminders · ${counted.calls} calls · " +
                 "${counted.messages} lines · ${counted.dismissed} dismissed, " +
                 "across ${counted.days} days.",
             size = 13,

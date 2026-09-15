@@ -46,6 +46,23 @@ telecom role (`ROLE_DIALER`), which Harbor can request directly.
 
 ### What we build instead
 
+**Amended 2026-09-13: Harbor places the call itself.** The button rings the
+number rather than filling it into the dialer for the user to press. That
+costs `CALL_PHONE`, a dangerous permission, and it is requested alongside
+activity recognition during the first run. A refusal is not an error: the
+button falls back to `ACTION_DIAL`, which is the behaviour described below,
+so the flow still works with one extra tap.
+
+What this gives up is the confirmation step. There used to be a dialer
+between a tap and a ringing phone, and on a cue shown over the lock screen
+that step was doing real work — a pocket tap landed on the dialer and stopped
+there. It now rings. That is a deliberate trade for a call flow that is one
+tap instead of two, made 2026-09-13.
+
+`READ_PHONE_STATE` is still not requested and should stay that way. Harbor
+does not watch the call; `CallStats.minutesAway` times how long the user was
+away from the app, which is what the reflection screen states back to them.
+
 **Amended 2026-09-10.** Harbor hands off to the phone's own dialer and asks
 the user how it went. `Intent(Intent.ACTION_DIAL)` with the contact's number
 opens the dialer with it filled in; the user presses the call button
@@ -384,8 +401,14 @@ exactly the wrong moment to act on it.
 
 ### The rule is source-agnostic on purpose
 
-`CuePolicy.DayState` carries a single `busyNow: Boolean`, and `BusyWindow` is
+`CuePolicy.DayState` carries a single `busyNow: Boolean`, and `WeekBlock` is
 a plain weekly time range. The policy has no idea where those times came from.
+
+A `WeekBlock` gained a `kind` on 2026-09-12, when the schedule screen learned
+to place free time as well as busy time. Only `BlockKind.BUSY` reaches this
+rule: a block marked free changes what the schedule screen *offers* and
+suppresses nothing. If marking time free also marked everything else busy,
+somebody who planted two flowers would have silently turned their cues off.
 
 That is deliberate. The obvious integration — DigiCampus, the campus system in
 use here — publishes no API that could be found, and several unrelated

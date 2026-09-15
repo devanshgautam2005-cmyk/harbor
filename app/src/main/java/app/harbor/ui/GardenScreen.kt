@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,6 +47,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import app.harbor.data.HarborRepository
+import app.harbor.domain.CallStats
 import app.harbor.domain.Contact
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.Flowers
@@ -52,6 +56,10 @@ import app.harbor.domain.LedgerEntry
 import app.harbor.domain.Resolution
 import app.harbor.domain.Tone
 import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.QuietRow
+import app.harbor.ui.theme.RowDivider
+import app.harbor.ui.theme.SectionHeader
+import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.SurfaceGreen
 import app.harbor.ui.theme.SurfaceOrange
 import app.harbor.ui.theme.SurfaceSky
@@ -67,17 +75,95 @@ import app.harbor.ui.theme.SurfaceSky
  * prototype's own JavaScript. This file only draws.
  */
 /**
- * The garden as a page of its own.
+ * The garden as a page of its own: the field, and the same thing in words.
  *
- * The field, full bleed. There is no 2D/3D switch any more: the camera tips
- * from overhead to landscape as you zoom, so the plan view is what you get by
- * pulling back, and every framing in between is a real one. A toggle asked
- * people to classify what they wanted before they could look, and the honest
- * answer is usually "somewhere between".
+ * The field is full bleed at the top and there is no 2D/3D switch — the camera
+ * tips from overhead to landscape as you zoom, so the plan view is what you
+ * get by pulling back, and every framing in between is a real one. A toggle
+ * asked people to classify what they wanted before they could look, and the
+ * honest answer is usually "somewhere between".
+ *
+ * ## Why the list is on the same screen
+ *
+ * The design had two of these: a scattered meadow, and a plain list of what
+ * had happened, split between a young person's view and a parent's. That split
+ * does not survive contact with the product — there is no parent side (ADR-007)
+ * — and it was never really about who was looking. A field answers "is it
+ * growing"; a list answers "what was that one". People want both, usually
+ * within a few seconds of each other.
+ *
+ * So they are one screen, in that order: the field first because it is the
+ * reward, the list under it because a scroll is a cheaper question than a
+ * toggle. Neither is a mode, and there is only one screen to keep.
+ *
+ * The field keeps its own pan and zoom, so the two occupy separate bands
+ * rather than nesting — a pinch inside a vertical scroller fights itself.
  */
 @Composable
-fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) =
-    FieldCanvas(store, modifier.fillMaxSize())
+fun GardenScreen(store: HarborRepository, modifier: Modifier = Modifier) {
+    val contacts by store.contacts.collectAsState()
+    var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
+
+    LaunchedEffect(Unit) { entries = store.recentEntries() }
+
+    val grown = entries
+        .filter { it.resolution == Resolution.CALLED && it.flower != null }
+        .sortedByDescending { it.occurredAt }
+
+    Column(modifier.fillMaxSize()) {
+        FieldCanvas(store, Modifier.fillMaxWidth().weight(1f))
+
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(0.85f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            // One row per call, but the count is of flowers, which is what
+            // the field above is showing.
+            val bloomed = grown.sumOf { Flowers.flowerCount(it.callMinutes) }
+            SectionHeader(
+                "Every flower",
+                if (grown.isEmpty()) "nothing yet" else "$bloomed so far",
+            )
+            if (grown.isEmpty()) {
+                SmallCopy(
+                    "When you have a call and say how it felt, it grows something " +
+                        "here — and what it grew is written out underneath.",
+                )
+            }
+            grown.forEachIndexed { index, entry ->
+                if (index > 0) RowDivider()
+                val who = contacts.firstOrNull { it.id == entry.contactId }?.label
+                QuietRow(
+                    text = inWords(entry, who),
+                    meta = CallStats.formatDuration(entry.callMinutes),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One flower, said out loud.
+ *
+ * The list's whole job: a row here has to mean something to somebody who has
+ * never been told what a cosmos stands for.
+ */
+private fun inWords(entry: LedgerEntry, who: String?): String {
+    val spec = entry.flower?.let { Flowers.spec(it) }
+    val name = spec?.name ?: "Something"
+    // The flower's own note, not a feeling. Nothing asks how a call felt any
+    // more — picking the flower is that answer — and the note is what the
+    // person was choosing when they picked it.
+    val meaning = spec?.note?.removeSuffix(".")?.replaceFirstChar { it.lowercase() }
+        ?: "a call"
+    val date = entry.occurredAt.atZone(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("d MMM"))
+    return "$name — $meaning" + (who?.let { ", with $it" } ?: "") + ". $date"
+}
 
 @Composable
 fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
@@ -189,7 +275,14 @@ fun GardenCanvas(store: HarborRepository, modifier: Modifier = Modifier) {
                         drawPlot(
                             plot = plot,
                             contact = contact,
-                            flowers = flowersByContact[contact.id].orEmpty().mapNotNull { it.flower },
+                            // One flower a minute here as well, so the plot
+                            // view and the field agree about how much grew.
+                            flowers = flowersByContact[contact.id].orEmpty()
+                                .flatMap { entry ->
+                                    val kind = entry.flower
+                                    if (kind == null) emptyList()
+                                    else List(Flowers.flowerCount(entry.callMinutes)) { kind }
+                                },
                             detailed = camera.k >= Garden.DETAIL_ZOOM,
                         )
                     }

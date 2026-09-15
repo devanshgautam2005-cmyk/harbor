@@ -1,7 +1,5 @@
 package app.harbor.ui
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,12 +19,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.harbor.cue.Dialer
 import app.harbor.data.HarborRepository
 import app.harbor.domain.CallStats
 import app.harbor.domain.Flowers
@@ -36,6 +36,9 @@ import app.harbor.ui.theme.Avatar
 import app.harbor.ui.theme.AvatarSize
 import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
+import app.harbor.ui.theme.QuietRow
+import app.harbor.ui.theme.RowDivider
+import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
@@ -64,6 +67,7 @@ fun PersonScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val contacts by store.contacts.collectAsState()
     var entries by remember { mutableStateOf<List<LedgerEntry>>(emptyList()) }
 
@@ -89,7 +93,9 @@ fun PersonScreen(
     Column(
         modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // No ground of its own: HarborShell paints the ground and the
+            // dusk over it, and a second opaque background here covered
+            // that gradient -- which is what made every screen read flat.
             .verticalScroll(rememberScrollState()),
     ) {
         Flow(Modifier.pageContent()) {
@@ -129,12 +135,38 @@ fun PersonScreen(
             // Two ways to reach them, and Harbor does neither itself: the
             // dialer places the call, and whatever they already use carries
             // the line.
-            person.phoneE164?.let { number ->
+            if (person.phoneE164 != null) {
                 TextLink("Call " + person.label) {
-                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + number)))
+                    Dialer.handOff(context, store, scope, person)
                 }
             }
             TextLink("Leave a line", onLeaveLine)
+
+            // The lines you have left this person, on this person's page.
+            //
+            // They were only ever visible on the screen that writes them,
+            // which meant the one place you would go to think about somebody
+            // - their page - showed their flowers and none of their words.
+            // Same rows, same quotation marks, in front of the person they
+            // were for.
+            val lines = theirs
+                .filter { it.resolution == Resolution.MESSAGE }
+                .sortedByDescending { it.occurredAt }
+            if (lines.isNotEmpty()) {
+                SectionHeader("Lines you have left", "kept on this phone")
+                lines.take(10).forEachIndexed { index, entry ->
+                    if (index > 0) RowDivider()
+                    QuietRow(
+                        // A line left before Harbor kept the words, or a
+                        // picture, has nothing to show but the fact of it.
+                        text = entry.note?.takeIf { it.isNotBlank() }
+                            ?.let { "\u201c$it\u201d" }
+                            ?: "You sent something.",
+                        meta = entry.occurredAt.atZone(ZoneId.systemDefault())
+                            .toLocalDate().toString(),
+                    )
+                }
+            }
 
             if (theirs.isNotEmpty()) {
                 SectionHeading("Lately")

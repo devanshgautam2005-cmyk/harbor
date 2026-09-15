@@ -1,6 +1,7 @@
 package app.harbor.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -37,9 +38,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.domain.DailyQuestion
+import app.harbor.domain.Moment
 import app.harbor.domain.Weather
 import app.harbor.ui.theme.Eyebrow
-import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Chalk
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
 import kotlinx.coroutines.launch
@@ -72,14 +75,27 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
 
+    // The one-word question is not on the page until the mood has been set.
+    //
+    // It used to hold its own row whether or not anyone was going to answer
+    // it, and this card sits above the thing people open Harbor to do. Naming
+    // how the day feels is the follow-on thought to setting the weather, so it
+    // arrives when that thought does - as an extension of this card, never a
+    // popup. Already answered today counts as having asked.
+    var moodSet by remember { mutableStateOf(false) }
+
     var trackWidth by remember { mutableStateOf(0) }
     val density = LocalDensity.current
     val inset = with(density) { 22.dp.toPx() }
 
     fun choose(next: Int) {
         val clamped = next.coerceIn(0, last)
+        moodSet = true
         if (steps[clamped] != settings.weather) {
-            scope.launch { store.setSettings(settings.copy(weather = steps[clamped])) }
+            scope.launch {
+                store.setSettings(settings.copy(weather = steps[clamped]))
+                store.note(Moment.WEATHER_SET, steps[clamped].name.lowercase())
+            }
         }
     }
 
@@ -90,17 +106,29 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
     }
 
     Surface(modifier) {
-        Eyebrow("How is life right now")
-        Text(
-            settings.weather.label,
-            style = MaterialTheme.typography.titleLarge,
-        )
-        SmallCopy(settings.weather.caption)
+        // Label and answer on one line rather than three stacked.
+        //
+        // This card sits between the field and the call button now, so every
+        // row it takes is a row of somebody's people pushed off the screen.
+        // The caption under the weather word was the first to go: it said
+        // "Room to breathe. Nothing pressing." under the word "Clear", which
+        // is the same thought twice.
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Eyebrow("How is life right now")
+            Text(
+                settings.weather.label,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 17.sp),
+            )
+        }
 
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(40.dp)
                 .onSizeChanged { trackWidth = it.width }
                 .pointerInput(last, trackWidth) {
                     detectTapGestures { chooseFromX(it.x) }
@@ -109,65 +137,104 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                     detectHorizontalDragGestures { change, _ -> chooseFromX(change.position.x) }
                 },
         ) {
-            // the rail
+            // The rail.
+            //
+            // 26dp, not 10. The design draws this as a fat pill with the
+            // gradient running the whole way along it and the thumb riding
+            // *inside* its height -- closer to a sunset strip than to a
+            // slider. At 10dp it read as a hairline with a bead on it, which
+            // is the one thing on home that looked like a stock control.
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
                     .padding(horizontal = 22.dp)
                     .fillMaxWidth()
-                    .height(10.dp)
+                    .height(26.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
             )
 
-            // how far along the scale we are, sky through to gold
+            // A notch per weather.
+            //
+            // The five words used to run underneath, which cost a whole row.
+            // Without them the rail came out as a grey bar with a dot resting
+            // at one end of it — on a clear day, indistinguishable from a
+            // control that was broken or switched off. These say the same
+            // thing (there are five of these, you are at this one) and cost
+            // no height at all.
+            Row(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(horizontal = 22.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                steps.forEachIndexed { i, _ ->
+                    Box(
+                        Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (i <= index) Ink.copy(alpha = 0.30f)
+                                else Chalk.copy(alpha = 0.28f),
+                            ),
+                    )
+                }
+            }
+
+            // How far along the scale we are: dusk through to ember.
+            //
+            // The design draws this rail as a five-stop gradient rather than
+            // the two it had -- cool blue, a hazy middle, warm sand, ember,
+            // and a burnt red at the far end. It is the one place in the app
+            // where a whole spectrum appears, and it is what makes the rail
+            // read as a sky going over rather than as a volume slider.
             val fraction = if (last == 0) 0f else index.toFloat() / last
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 22.dp)
                     .fillMaxWidth(fraction.coerceAtLeast(0.001f))
-                    .height(10.dp)
+                    .height(26.dp)
                     .clip(RoundedCornerShape(99.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF9DC6E8), Gold))),
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF2B4F6B),
+                                Color(0xFF6F8FA8),
+                                Color(0xFFE8D6A8),
+                                Color(0xFFF0A35F),
+                                Color(0xFFC9542C),
+                            ),
+                        ),
+                    ),
             )
 
             // the thumb
             val thumbX = with(density) {
-                (inset + (trackWidth - inset * 2) * fraction).toDp() - 21.dp
+                (inset + (trackWidth - inset * 2) * fraction).toDp() - 17.dp
             }
             Box(
                 Modifier
                     .align(Alignment.CenterStart)
                     .offset(x = thumbX)
-                    .size(42.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface),
+                    // Solid white, which in this design is the brightest thing
+                    // on the page and is spent here on purpose: the thumb is
+                    // the one part of the rail you are meant to grab.
+                    .background(Chalk),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    Modifier
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
-                )
+                // The design's thumb is a plain white disc. It used to carry
+                // an amber pip, which on a white disc on a coloured rail was
+                // a third colour in a 30dp circle.
             }
         }
 
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            steps.forEach { step ->
-                Text(
-                    step.label,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-            }
-        }
+        // The five step labels used to run under the rail, repeating the word
+        // already set in large type directly above it. The rail's shape says
+        // where you are on the scale; the labels only cost a row.
 
         // One word about today, folded into the sky rather than asked again.
         //
@@ -175,7 +242,7 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
         // page asked how life was and then asked how today felt -- the same
         // question twice, a thumb-scroll apart. Setting the weather and
         // naming the day are one thought, so they are one card.
-        Box(
+        if (moodSet || answered != null) Box(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
@@ -204,7 +271,11 @@ fun WeatherBar(store: HarborRepository, modifier: Modifier = Modifier) {
                     Pill(text = "Keep it", selected = draft.isNotBlank()) {
                         val word = draft.trim()
                         if (word.isNotEmpty()) {
-                            scope.launch { store.setDailyAnswer(today, word) }
+                            scope.launch {
+                                store.setDailyAnswer(today, word)
+                                // That they answered, never the word.
+                                store.note(Moment.ANSWER_KEPT)
+                            }
                             expanded = false
                         }
                     }

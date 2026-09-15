@@ -58,7 +58,7 @@ object CuePolicy {
         val lastCueAt: Instant?,
         val hasPendingReminder: Boolean,
         /**
-         * Whether the user is inside a [BusyWindow] right now.
+         * Whether the user is inside a busy block right now.
          *
          * A boolean rather than the windows themselves, so the policy stays
          * indifferent to where a timetable came from — typed in, read from the

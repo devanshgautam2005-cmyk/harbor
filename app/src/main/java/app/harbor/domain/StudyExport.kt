@@ -45,7 +45,7 @@ import java.util.UUID
 object StudyExport {
 
     /** Bump when the shape changes, so an old file is still readable. */
-    const val FORMAT = 1
+    const val FORMAT = 2
 
     /** Everything the export is built from. */
     data class Bundle(
@@ -54,7 +54,7 @@ object StudyExport {
         val appVersion: String,
         val settings: UserSettings,
         val contacts: List<Contact>,
-        val busy: List<BusyWindow>,
+        val blocks: List<WeekBlock>,
         val cues: List<Cue>,
         val entries: List<LedgerEntry>,
         /**
@@ -66,6 +66,18 @@ object StudyExport {
          * were or what they were doing.
          */
         val lastTransitionAt: Instant?,
+
+        /**
+         * What the participant did, as categories and timestamps.
+         *
+         * The ledger says what became of a cue. This says whether anybody
+         * opened the app, how long they stayed, what they looked at, and how
+         * many of their calls Harbor had anything to do with — the questions
+         * the study was otherwise reduced to asking people afterwards.
+         *
+         * Shapes only, never content. See [Moment].
+         */
+        val beats: List<Beat>,
     )
 
     /** What to show someone before they hand the file over. */
@@ -82,7 +94,8 @@ object StudyExport {
         "names, phone numbers, photos and ringtones",
         "the words of any line you left",
         "your answers to the daily question",
-        "what you called your busy blocks",
+        "the words of anything at all: what is recorded is which kind of thing happened, and when",
+        "what you called any block on your week",
         "your own name",
         "anything about where you were or how you moved",
     )
@@ -130,12 +143,29 @@ object StudyExport {
             )
         },
 
-        // Times, never labels.
-        "busy_windows" to arr(bundle.busy) {
+        // Times and which kind, never labels.
+        //
+        // The kind is worth having and costs nothing: a cue that landed in a
+        // stretch the participant had marked as a good time is the closest
+        // thing this study gets to ground truth on question 1, and it cannot
+        // be reconstructed from the times alone.
+        "week_blocks" to arr(bundle.blocks) {
             obj(
                 "day" to str(it.day.name),
                 "start" to str(it.start.toString()),
                 "end" to str(it.end.toString()),
+                "kind" to str(it.kind.name.lowercase()),
+            )
+        },
+
+        // Categories and timestamps. No words, ever - a beat's detail is an
+        // enum name or a screen name and nothing else.
+        "beats" to arr(bundle.beats) {
+            obj(
+                "at" to str(it.at.toString()),
+                "moment" to str(it.moment.name.lowercase()),
+                "detail" to str(it.detail),
+                "value" to num(it.value),
             )
         },
 

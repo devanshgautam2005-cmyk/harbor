@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,10 +34,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
-import app.harbor.ui.theme.Eyebrow
 import app.harbor.ui.theme.Flow
-import app.harbor.ui.theme.Notice
+import app.harbor.ui.theme.Hairline
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Muted
 import app.harbor.ui.theme.PageIntro
+import app.harbor.ui.theme.SectionHeader
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
@@ -72,7 +76,9 @@ fun SettingsScreen(
     Column(
         modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // No ground of its own: HarborShell paints the ground and the
+            // dusk over it, and a second opaque background here covered
+            // that gradient -- which is what made every screen read flat.
             .verticalScroll(rememberScrollState()),
     ) {
         Box(Modifier.padding(horizontal = 28.dp)) {
@@ -85,7 +91,7 @@ fun SettingsScreen(
 
         Flow(Modifier.pageContent()) {
             Surface {
-                SectionHeading("What you call yourself")
+                SectionHeader("What you call yourself", "never leaves this phone")
                 OutlinedTextField(
                     value = settings.name,
                     onValueChange = { save(settings.copy(name = it.take(40))) },
@@ -97,9 +103,16 @@ fun SettingsScreen(
             }
 
             Surface {
-                SectionHeading("When a cue can come")
+                SectionHeader("When a reminder can come", "suggestions, not rules")
+                SmallCopy(
+                    "A reminder is Harbor offering you one person, on its own, at a " +
+                        "moment it thinks you have room - usually just after a " +
+                        "walk ends. It shows their face and plays their sound, " +
+                        "and the only thing it ever does is offer. Ignoring one " +
+                        "costs nothing and there is no streak to break.",
+                )
                 Stepper(
-                    label = "Walk before a cue",
+                    label = "Walk before a reminder",
                     value = settings.thresholds.walkingMinutes.toString() + " min",
                     onDown = {
                         thresholds(
@@ -119,7 +132,7 @@ fun SettingsScreen(
                     },
                 )
                 Stepper(
-                    label = "Most cues a day",
+                    label = "Most reminders a day",
                     value = settings.thresholds.dailyCap.toString(),
                     onDown = {
                         thresholds(
@@ -136,32 +149,18 @@ fun SettingsScreen(
                         )
                     },
                 )
-                Stepper(
-                    label = "Quiet between cues",
-                    value = settings.thresholds.cooldownMinutes.toString() + " min",
-                    onDown = {
-                        thresholds(
-                            settings.thresholds.copy(
-                                cooldownMinutes =
-                                    (settings.thresholds.cooldownMinutes - 30).coerceAtLeast(1),
-                            ),
-                        )
-                    },
-                    onUp = {
-                        thresholds(
-                            settings.thresholds.copy(
-                                cooldownMinutes =
-                                    (settings.thresholds.cooldownMinutes + 30)
-                                        .coerceAtMost(1440),
-                            ),
-                        )
-                    },
-                )
+                // The quiet gap between two cues is not here any more.
+                //
+                // It is still enforced - CuePolicy checks it before anything
+                // else - but it exists to stop two cues landing on top of one
+                // another, which is a rule about how the app behaves rather
+                // than a taste anybody holds. Nobody opened this screen to
+                // decide how many minutes apart their interruptions should be.
                 SmallCopy("Suggested values, always editable.")
             }
 
             Surface {
-                SectionHeading("Your gentle sound")
+                SectionHeader("Your gentle sound", "unless someone has their own")
                 SmallCopy("Someone you have chosen a ringtone for overrides this.")
                 Row(
                     Modifier.fillMaxWidth(),
@@ -185,22 +184,45 @@ fun SettingsScreen(
                 ) {
                     Column(Modifier.weight(1f)) {
                         SectionHeading("A little less movement")
-                        SmallCopy("Reduce animation.")
+                        SmallCopy(
+                            "Accessibility. Flowers appear rather than bloom, " +
+                                "and a petal arrives rather than drifting off. " +
+                                "Nothing is lost; it simply stops moving.",
+                        )
                     }
+                    // Amber, not green.
+                    //
+                    // The light specimen let the interface use exactly one
+                    // colour of its own, and spent it here: a switch that is
+                    // on. The dark design is stricter still -- amber is the
+                    // current tab, the primary action and the selected thing,
+                    // and nothing else gets a colour at all -- so a green
+                    // switch would now be the only green in the whole app and
+                    // would read as a stray rather than as an accent. A switch
+                    // that is on is a selected thing, so it takes the amber.
                     Switch(
                         checked = settings.reducedMotion,
                         onCheckedChange = { save(settings.copy(reducedMotion = it)) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Ink,
+                            checkedTrackColor = Gold,
+                            checkedBorderColor = Gold,
+                            uncheckedThumbColor = Muted,
+                            uncheckedTrackColor = androidx.compose.ui.graphics.Color.Transparent,
+                            uncheckedBorderColor = Hairline,
+                        ),
                     )
                 }
             }
 
-            // Both of these used to sit at the bottom of home, under the
-            // garden, where they competed with the things you open Harbor to
-            // do. They are settings; they live with the settings.
-            StudyExportCard(store)
+            // Handing over the week is no longer something the participant
+            // has to do. Harbor records what the study needs as it happens
+            // (domain/Telemetry) and the file is assembled from that, so the
+            // card that used to ask somebody to remember to export is gone.
+            // The export itself still exists for whoever collects it.
 
             TextLink("When you are busy", onEditSchedule)
-            TextLink("Find a quiet moment", onOpenCues)
+            TextLink("Set up a daily reminder", onOpenCues)
             TextLink("Back", onDone)
         }
     }
@@ -225,7 +247,7 @@ internal fun Stepper(label: String, value: String, onDown: () -> Unit, onUp: () 
                 value,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 10.dp).size(width = 76.dp, height = 20.dp),
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
             )
             StepButton("+", onUp)
         }
@@ -243,9 +265,9 @@ private fun StepButton(glyph: String, onClick: () -> Unit) = Box(
 ) {
     Text(
         glyph,
-        style = MaterialTheme.typography.titleMedium.copy(
+        style = MaterialTheme.typography.titleLarge.copy(
+            fontSize = 17.sp,
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
         ),
     )
 }
@@ -278,14 +300,14 @@ internal fun Pill(
         text,
         style = MaterialTheme.typography.labelLarge.copy(
             fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             color = if (selected) MaterialTheme.colorScheme.onPrimary
             else MaterialTheme.colorScheme.onSurface,
         ),
     )
 }
 
-private val CueSound.label: String
+internal val CueSound.label: String
     get() = when (this) {
         CueSound.CHIME -> "Little chime"
         CueSound.SOFT -> "Soft note"

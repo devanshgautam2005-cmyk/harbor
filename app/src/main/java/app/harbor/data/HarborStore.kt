@@ -2,14 +2,18 @@ package app.harbor.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import app.harbor.domain.BusyWindow
+import app.harbor.domain.Beat
 import app.harbor.domain.Contact
 import app.harbor.domain.Cue
 import app.harbor.domain.CuePolicy
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Moment
 import app.harbor.domain.Resolution
+import app.harbor.domain.Telemetry
 import app.harbor.domain.TriggerSource
 import app.harbor.domain.UserSettings
+import app.harbor.domain.WeekBlock
+import app.harbor.domain.Windows
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +23,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -48,8 +53,8 @@ class HarborStore(context: Context) : HarborRepository {
     private val _contacts = MutableStateFlow(readContacts())
     override val contacts: StateFlow<List<Contact>> = _contacts.asStateFlow()
 
-    private val _busyWindows = MutableStateFlow(readBusyWindows())
-    override val busyWindows: StateFlow<List<BusyWindow>> = _busyWindows.asStateFlow()
+    private val _weekBlocks = MutableStateFlow(readWeekBlocks())
+    override val weekBlocks: StateFlow<List<WeekBlock>> = _weekBlocks.asStateFlow()
 
     private val _dailyAnswers = MutableStateFlow(readDailyAnswers())
     override val dailyAnswers: StateFlow<Map<LocalDate, String>> = _dailyAnswers.asStateFlow()
@@ -91,17 +96,40 @@ class HarborStore(context: Context) : HarborRepository {
         _contacts.value = updated
     }
 
-    // --- busy windows -----------------------------------------------------
+    // --- the week ---------------------------------------------------------
 
-    private fun readBusyWindows(): List<BusyWindow> {
+    private fun readWeekBlocks(): List<WeekBlock> {
         val raw = prefs.getString(KEY_BUSY, null) ?: return emptyList()
-        return runCatching { LedgerJson.busyWindows(JSONArray(raw)) }.getOrDefault(emptyList())
+        return runCatching { LedgerJson.blocks(JSONArray(raw)) }.getOrDefault(emptyList())
     }
 
-    override suspend fun setBusyWindows(windows: List<BusyWindow>) {
-        val sorted = windows.sortedWith(compareBy({ it.day }, { it.start }))
-        write { putString(KEY_BUSY, LedgerJson.busyWindows(sorted).toString()) }
-        _busyWindows.value = sorted
+    override suspend fun setWeekBlocks(blocks: List<WeekBlock>) {
+        val sorted = blocks.sortedWith(compareBy({ it.day }, { it.start }))
+        write { putString(KEY_BUSY, LedgerJson.blocks(sorted).toString()) }
+        _weekBlocks.value = sorted
+    }
+
+    // --- study beats ------------------------------------------------------
+
+    /**
+     * Append one beat, oldest dropped once [Telemetry.KEEP] is reached.
+     *
+     * Read-modify-write under the same lock every other write uses, so two
+     * taps in the same frame cannot lose one another. The list is small and
+     * the write is off the main thread.
+     */
+    override suspend fun note(moment: Moment, detail: String?, value: Int?) {
+        val beat = Beat(Instant.now(), moment, detail, value)
+        writeList(KEY_BEATS) {
+            (readBeats() + beat).takeLast(Telemetry.KEEP).let(LedgerJson::beats)
+        }
+    }
+
+    override suspend fun beats(): List<Beat> = withContext(Dispatchers.IO) { readBeats() }
+
+    private fun readBeats(): List<Beat> {
+        val raw = prefs.getString(KEY_BEATS, null) ?: return emptyList()
+        return runCatching { LedgerJson.beats(JSONArray(raw)) }.getOrDefault(emptyList())
     }
 
     // --- the daily question -----------------------------------------------
@@ -160,7 +188,7 @@ class HarborStore(context: Context) : HarborRepository {
                 hasPendingReminder = ledger.any {
                     it.resolution == Resolution.PROPOSED_LATER && !it.reminderDone
                 },
-                busyNow = _busyWindows.value.any { it.covers(ZonedDateTime.now()) },
+                busyNow = Windows.busyAt(_weekBlocks.value, ZonedDateTime.now()),
             )
         }
 
@@ -282,8 +310,12 @@ class HarborStore(context: Context) : HarborRepository {
         const val PREFS = "harbor"
         const val KEY_SETTINGS = "settings"
         const val KEY_CONTACTS = "contacts"
+        // Still "busy_windows" though it now holds free blocks too. The
+        // key is a storage address, not a description, and changing it would
+        // lose the timetable of every phone that already has Harbor on it.
         const val KEY_BUSY = "busy_windows"
         const val KEY_ANSWERS = "daily_answers"
+        const val KEY_BEATS = "study_beats"
         const val KEY_LEDGER = "ledger"
         const val KEY_CUES = "cues"
         const val KEY_ONBOARDED = "onboarded"
