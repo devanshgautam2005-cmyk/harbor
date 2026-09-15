@@ -18,10 +18,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.domain.Tone
@@ -33,34 +49,55 @@ import app.harbor.domain.Tone
  * becomes a hundred copies of the same padding number. Everything here is
  * layout and colour only; no behaviour lives in this file.
  *
- * ## What the reskin actually changed
+ * ## What the dark pass actually changed
  *
- * The old set was filled-and-rounded: cream cards at 24dp with no edge, bold
- * serif headings, a green pill button. Four moves account for nearly all of
- * the difference:
+ * The light specimen was a printed page: near-white plinths on bone, an ink
+ * button, every radius collapsed to 8-10dp. The dark design is glass on dusk,
+ * and four moves account for nearly all of the difference:
  *
- *  1. **Cards are frosted glass.** Near-white, laid on a grey ground, rimmed
- *     in [CardEdge] -- a line *lighter* than both. See [Surface].
- *  2. **The action is ink.** Every filled button in the specimen is near-black
- *     with ground-coloured text, and its label is serif.
- *  3. **Nothing is bold.** Headings and buttons are regular-weight serif;
- *     emphasis comes from size and air.
- *  4. **Radii collapsed.** 8dp for an action, 10dp for a card. The pill
- *     survives in exactly one place -- a chip -- because the specimen keeps it
- *     there.
+ *  1. **Cards are still glass, held at six percent.** White over near-black,
+ *     rimmed in [CardEdge] -- still a line *lighter* than both, which is what
+ *     makes an edge read as a catch of light rather than a border. There is no
+ *     shadow anywhere in this design. See [Surface].
+ *  2. **The action is amber.** Every filled button is an [EmberLight] to
+ *     [Ember] gradient carrying a brown-black label, and the design is strict
+ *     that amber appears *only* on the current tab, the primary action and the
+ *     selected chip.
+ *  3. **Labels are bold, everything else is regular.** This reverses the
+ *     light specimen. One typeface carries the whole app now (Manjari, see
+ *     `Type.kt`) rather than a serif-and-sans pairing, so the split that used
+ *     to come from switching faces now comes from weight alone: a name or a
+ *     headline is regular, and anything the interface says about itself --
+ *     a button label, a tab, a chip, a caption -- is bold.
+ *  4. **Radii opened back up.** 24dp for a card and a full pill for anything
+ *     you press. A piece of glass with a tight corner reads as a dialog.
  *
  * No screen's structure, order or controls changed. This is the same app in
  * different clothes.
  */
 
-/** A card. The specimen draws them at 10px. */
-private val CardShape = RoundedCornerShape(10.dp)
+/** A card. The design draws them at 24px. */
+private val CardShape = RoundedCornerShape(24.dp)
 
-/** An action. The specimen draws them at 8px. */
-private val ActionShape = RoundedCornerShape(8.dp)
+/**
+ * An action.
+ *
+ * A full pill. In the dark design every single thing you press is one, so the
+ * pill stopped being the exception the light specimen kept for chips and
+ * became the rule.
+ */
+private val ActionShape = RoundedCornerShape(99.dp)
 
-/** A chip, and the only pill left in the design. */
+/** A chip. The same pill, named apart because it means something different. */
 private val ChipShape = RoundedCornerShape(99.dp)
+
+/**
+ * A quiet row, and the reason [ActionShape] cannot just be used everywhere.
+ *
+ * A row of text is not a button, and a pill drawn around two lines of it reads
+ * as a lozenge rather than a card. The design draws these at 20px.
+ */
+private val RowShape = RoundedCornerShape(20.dp)
 
 /** The vertical rhythm every page is built on. */
 @Composable
@@ -89,6 +126,7 @@ fun Surface(
     content: @Composable ColumnScope.() -> Unit,
 ) = Flow(
     modifier
+        .entrance()
         .fillMaxWidth()
         .clip(CardShape)
         .background(MaterialTheme.colorScheme.surface)
@@ -162,18 +200,33 @@ fun SectionHeading(text: String, modifier: Modifier = Modifier) = Text(
 )
 
 /**
- * The specimen's caption: small, spaced wide, muted.
+ * The quiet line under something: small, muted, and in sentences.
  *
- * The tracking is what makes this read as a catalogue label rather than a UI
- * string, so it is wider than a label would normally want.
+ * It used to uppercase its own text and track it out to 2sp, which is what the
+ * light specimen wanted -- it was imitating a printed catalogue, where a label
+ * under a plate is set in small caps.
+ *
+ * The dark design does not do that anywhere. Its labels are ordinary sentence
+ * case at 11-13px in a muted grey ("Golden Hour", "Cloud Cover", "Quality"),
+ * and the reference it comes from has no capitalised line on it at all. Caps
+ * also cost real legibility at this size, and they make a line of plain
+ * English read as a heading for a table that is not there.
+ *
+ * So this no longer transforms the string it is given. Anything that wants to
+ * be shouted has to say so itself, and nothing should.
  */
 @Composable
-fun Eyebrow(text: String, modifier: Modifier = Modifier) = Text(
-    text.uppercase(),
+fun Eyebrow(
+    text: String,
+    modifier: Modifier = Modifier,
+    /** End-aligned when it is the right half of a [SectionHeader]. */
+    textAlign: TextAlign? = null,
+) = Text(
+    text,
     modifier = modifier,
-    style = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 10.sp,
-        letterSpacing = 2.0.sp,
+    textAlign = textAlign,
+    style = MaterialTheme.typography.bodySmall.copy(
+        fontSize = 13.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     ),
 )
@@ -283,9 +336,9 @@ internal val Tone.mark: Color
  * Button brings Material's own shape, elevation and ripple, and those are the
  * three things this design most wants to not have.
  *
- * Ink, not green. Every filled action in the specimen is near-black with
- * ground-coloured text and a serif label -- a green button looks plausible and
- * is not what the design does.
+ * Amber, and the only amber fill on most screens. The design draws it as a
+ * top-lit gradient rather than a flat colour, which is the one piece of
+ * shading it allows itself -- everything else is flat glass and a rim.
  */
 @Composable
 fun PrimaryAction(
@@ -293,33 +346,72 @@ fun PrimaryAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit,
-) = Box(
-    modifier
-        .fillMaxWidth()
-        .clip(ActionShape)
-        .background(
-            if (enabled) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.surfaceVariant,
-        )
-        .clickable(enabled = enabled, onClick = onClick)
-        .padding(vertical = 15.dp),
-    contentAlignment = Alignment.Center,
 ) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleLarge.copy(
-            fontSize = 17.sp,
-            color = if (enabled) MaterialTheme.colorScheme.onPrimary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+    val press = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .pressScale(press)
+            .fillMaxWidth()
+            .clip(ActionShape)
+        .background(
+            if (enabled) Brush.verticalGradient(listOf(EmberLight, Ember))
+            else SolidColor(MaterialTheme.colorScheme.surfaceVariant),
+        )
+            .clickable(
+                enabled = enabled,
+                interactionSource = press,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = 15.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+    }
+}
+
+/**
+ * A press that gives under the thumb.
+ *
+ * Three percent and a spring, which is small enough that nobody looking at a
+ * screenshot would find it and large enough that the button feels like a
+ * physical thing the moment you touch it. The ripple is turned off wherever
+ * this is used: a ripple is Material announcing that it handled a touch, and
+ * this design has no other Material tell left anywhere in it.
+ *
+ * `indication = null` on the clickable is what makes that true -- without it
+ * the scale and the ripple both play and the button does two things at once.
+ */
+@Composable
+fun Modifier.pressScale(
+    source: MutableInteractionSource,
+    down: Float = 0.97f,
+): Modifier {
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) down else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
         ),
+        label = "press",
     )
+    return graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
 /**
  * An action that must not compete with the primary one.
  *
- * The specimen's outline chip: a pill, a thin dark rule, a serif label and
- * nothing else. This is the one place the pill survives the reskin.
+ * The design's outline chip: a pill, a hairline of white, a sans label and
+ * nothing else. It is the same silhouette as [PrimaryAction] with the fill
+ * taken away, which is exactly how the design distinguishes the two.
  */
 @Composable
 fun QuietAction(
@@ -327,22 +419,31 @@ fun QuietAction(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit,
-) = Box(
-    modifier
-        .clip(ChipShape)
-        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, ChipShape)
-        .clickable(enabled = enabled, onClick = onClick)
-        .padding(horizontal = 16.dp, vertical = 10.dp),
-    contentAlignment = Alignment.Center,
 ) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleLarge.copy(
-            fontSize = 14.sp,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-    )
+    val press = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .pressScale(press)
+            .clip(ChipShape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, ChipShape)
+            .clickable(
+                enabled = enabled,
+                interactionSource = press,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = 14.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
+    }
 }
 
 /**
@@ -356,11 +457,23 @@ fun QuietAction(
 @Composable
 fun SectionHeader(title: String, meta: String, modifier: Modifier = Modifier) = Row(
     modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.Bottom,
 ) {
-    SectionHeading(title)
-    Eyebrow(meta)
+    // Both halves are given a share of the row rather than pushed to its
+    // ends.
+    //
+    // SpaceBetween puts an unbounded Text at each end and lets them overlap
+    // when the two together are wider than the row, which on Account they
+    // were - "What you call yourself" ran straight through its caption.
+    //
+    // The split favours the title 1.7 to 1. It used to be even, which was
+    // right while the caption was 10sp capitals; in sentence case at 13sp the
+    // caption grew, and an even split then wrapped every heading on the screen
+    // onto two lines ("What you call / yourself"). The caption is the half
+    // that can afford to wrap.
+    SectionHeading(title, Modifier.weight(1.7f, fill = false))
+    Eyebrow(meta, Modifier.weight(1f), textAlign = TextAlign.End)
 }
 
 /**
@@ -375,10 +488,10 @@ fun SectionHeader(title: String, meta: String, modifier: Modifier = Modifier) = 
 fun QuietRow(text: String, meta: String, modifier: Modifier = Modifier) = Row(
     modifier
         .fillMaxWidth()
-        .clip(ActionShape)
+        .clip(RowShape)
         .background(MaterialTheme.colorScheme.surface)
-        .border(1.dp, CardEdge, ActionShape)
-        .padding(horizontal = 14.dp, vertical = 11.dp),
+        .border(1.dp, CardEdge, RowShape)
+        .padding(horizontal = 16.dp, vertical = 13.dp),
     horizontalArrangement = Arrangement.spacedBy(12.dp),
     verticalAlignment = Alignment.CenterVertically,
 ) {
@@ -388,14 +501,53 @@ fun QuietRow(text: String, meta: String, modifier: Modifier = Modifier) = Row(
         style = MaterialTheme.typography.bodyMedium,
     )
     Text(
-        meta.uppercase(),
-        style = MaterialTheme.typography.labelSmall.copy(
-            fontSize = 9.sp,
-            letterSpacing = 1.3.sp,
+        meta,
+        style = MaterialTheme.typography.bodySmall.copy(
+            fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     )
 }
+
+/**
+ * A card arriving, rather than being there already.
+ *
+ * Twelve dp and a fade, once, the first time a card is composed. It is the
+ * cheapest way to make a screen feel like it was dealt rather than switched
+ * on, and at 260ms it is over before anybody could call it an animation.
+ *
+ * Deliberately not staggered. A stagger down a list is lovely on a marketing
+ * page and wrong here: these cards are a schedule and a set of controls, and
+ * making somebody wait 80ms per card to see the last one is a cost paid on
+ * every single visit for an effect that only lands on the first.
+ *
+ * Somebody who has asked for less movement gets the card, in place, with no
+ * animation at all -- that setting exists for people who find movement
+ * genuinely unpleasant, so it has to reach the small things too.
+ */
+@Composable
+fun Modifier.entrance(): Modifier {
+    if (LocalReducedMotion.current) return this
+    val arrived = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        arrived.animateTo(1f, tween(durationMillis = 260, easing = FastOutSlowInEasing))
+    }
+    val t = arrived.value
+    return graphicsLayer {
+        alpha = t
+        translationY = (1f - t) * 12.dp.toPx()
+    }
+}
+
+/**
+ * Whether this app should be still.
+ *
+ * A CompositionLocal because the setting lives in the store and the things
+ * that need to honour it are leaf composables all over the app -- threading a
+ * boolean through every card to reach [entrance] would be a worse cost than
+ * the animation.
+ */
+val LocalReducedMotion = staticCompositionLocalOf { false }
 
 /** A rule inside a card, between one row and the next. */
 @Composable

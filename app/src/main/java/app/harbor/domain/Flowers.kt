@@ -8,13 +8,22 @@ import kotlin.math.sqrt
 /**
  * The flower library, and how a call becomes one.
  *
- * The colours and petal counts are measured off the Harbor specimen sheet,
- * which is the authority on them now. They used to come from the prototype's
- * `lib/harbor/model.ts` and were considerably more muted, with nine to
- * fourteen petals each — which drew a dense little rosette rather than a
- * flower. The sheet's blooms are luminous and carry four to eight broad
- * petals, and at that count the gradient and the overlap of one petal on the
- * next are actually visible, which is where the whole look lives.
+ * The colours, petal counts and names are measured off the flower sheet,
+ * which is the authority on them now.
+ *
+ * Twenty flowers, and each of them is a specific post-call feeling rather than
+ * a species or a mood in general. What a flower is *called* is the biggest
+ * thing this file carries: the screen after a call asks how it felt, so the
+ * shelf has to be a list of answers to that question, tied to the call rather
+ * than floating free of it. "Sunflower — the long, good kind" asked somebody
+ * to translate; "Felt loved — that's the long, good kind" does not, and nor
+ * does a name generic enough to describe a Tuesday that had no call in it.
+ *
+ * The notes are the sheet's own second line, and they are addressed to the
+ * person planting them. That is why the hard ones are gentle: "Wished it was
+ * longer" says "you are not alone" and "Dreaded this one" says "still
+ * growing", because the moment somebody picks one of those is not the moment
+ * to be neutral at them.
  *
  * Changing a value here changes every flower in the app at once: the bloom
  * after a call, a person's specimen, the picker, and the field.
@@ -36,40 +45,74 @@ data class FlowerSpec(
 object Flowers {
 
     val LIBRARY: List<FlowerSpec> = listOf(
-        FlowerSpec(FlowerKind.DAISY, "Daisy", "An ordinary, easy call.",
-            0xFFFEF2DC, 0xFFF3DCA8, 0xFFFEBD3A, 6, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.MARIGOLD, "Marigold", "Warm, a little loud, full of news.",
-            0xFFFECA4D, 0xFFE3922B, 0xFF8B5A1C, 7, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.COSMOS, "Cosmos", "Light and drifting. No agenda.",
-            0xFFFEC9BC, 0xFFFD8E8C, 0xFFFEBD3A, 6, FlowerSpec.Shape.ROUND),
-        FlowerSpec(FlowerKind.POPPY, "Poppy", "Something honest got said.",
-            0xFFFE8A6B, 0xFFDE4B3C, 0xFF3B2A22, 5, FlowerSpec.Shape.CUP),
-        FlowerSpec(FlowerKind.TULIP, "Tulip", "Short, and enough.",
-            0xFFE182AD, 0xFF8E3B96, 0xFF5F1687, 4, FlowerSpec.Shape.CUP),
-        FlowerSpec(FlowerKind.BLUEBELL, "Bluebell", "Quiet. Mostly listening.",
-            0xFFA8C0FB, 0xFF5B86F5, 0xFF3F63C4, 5, FlowerSpec.Shape.POINT),
-        FlowerSpec(FlowerKind.ASTER, "Aster", "Tangled, then untangled.",
-            0xFFC9A9F5, 0xFF9366DE, 0xFFFEBD3A, 7, FlowerSpec.Shape.POINT),
-        FlowerSpec(FlowerKind.SUNFLOWER, "Sunflower", "The long, good kind.",
-            0xFFFEDC7A, 0xFFE8A81F, 0xFF6B4A22, 8, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.GLAD_WE_TALKED, "Glad we talked", "That one left me lighter.",
+            0xFFFFD95E, 0xFFF0A81E, 0xFFB9740C, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.LIGHTER_NOW, "Lighter now", "Good to get that off my chest.",
+            0xFFFF7B8A, 0xFFEE3B57, 0xFFFFD1A8, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.FELT_LOVED, "Felt loved", "That's the long, good kind.",
+            0xFFFF8A5C, 0xFFEF4B3C, 0xFFFFC26E, 6, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.SHE_REMEMBERED, "She remembered", "Small thing. Meant a lot.",
+            0xFFC98BE0, 0xFF8E3FB0, 0xFF5E1F7A, 4, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.EASY_SILENCE, "Easy silence", "We didn't have to fill it.",
+            0xFFFFF3D6, 0xFFF3E0B4, 0xFFE3C98C, 5, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.STEADIER_NOW, "Steadier now", "Feet back under me.",
+            0xFF9CC47A, 0xFF3E7A46, 0xFF2A5733, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.WORTH_SLOWING_DOWN, "Worth slowing down", "Nowhere else to be for a minute.",
+            0xFF9DBBF8, 0xFF4E76E8, 0xFF2F4FB8, 4, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.SAID_WHAT_I_MEANT, "Said what I meant", "Didn't rehearse it this time.",
+            0xFFFFDE72, 0xFFF5B92B, 0xFFD98F12, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.WANT_TO_TRY_SOMETHING, "Want to try something", "She always has a way of doing that.",
+            0xFFFF8878, 0xFFE83C3C, 0xFFFFCF9A, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.ASKED_MORE_THAN_USUAL, "Asked more than usual", "Turns out there was more to it.",
+            0xFFC4A6F5, 0xFF8B63DE, 0xFF5F3BA8, 6, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.LOOKING_FORWARD, "Looking forward", "Next time's already half-planned.",
+            0xFFFFA48C, 0xFFF2604E, 0xFFFFD0A0, 6, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.STILL_THINKING_ABOUT_IT, "Still thinking about it", "That one's going to sit with me.",
+            0xFFFDF6E4, 0xFFEDDCBE, 0xFFCBB48A, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.HARD_TO_SHAKE_OFF, "Hard to shake off", "Carrying that one a while.",
+            0xFFA8A6F7, 0xFF5F5BE0, 0xFFE8E4FF, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.TIME_TO_ACTUALLY_DO_IT, "Time to actually do it", "Said I would. Meant it this time.",
+            0xFF7FB05E, 0xFF2F6B39, 0xFF1F4B2A, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.NOTHING_LEFT_UNSAID, "Nothing left unsaid", "Said everything there was to say.",
+            0xFFFFA86B, 0xFFF06A38, 0xFFC44A22, 5, FlowerSpec.Shape.CUP),
+        FlowerSpec(FlowerKind.WONDERING_IF_THAT_LANDED, "Wondering if that landed", "It's ok. Give it a minute.",
+            0xFFB98CE8, 0xFF7C45C4, 0xFFF0E6FF, 6, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.SAID_THE_HARD_THING, "Said the hard thing", "Take the leap. You did.",
+            0xFFFF9257, 0xFFEE4426, 0xFFFFD08A, 7, FlowerSpec.Shape.POINT),
+        FlowerSpec(FlowerKind.GLAD_SHE_PICKED_UP, "Glad she picked up", "Notice more of these.",
+            0xFFFFB3B8, 0xFFF2727F, 0xFFFFD9DC, 8, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.WISHED_IT_WAS_LONGER, "Wished it was longer", "You are not alone.",
+            0xFF9CB6F7, 0xFF5B7DE8, 0xFF3E5BB8, 5, FlowerSpec.Shape.ROUND),
+        FlowerSpec(FlowerKind.DREADED_THIS_ONE, "Dreaded this one", "Still growing. Called anyway.",
+            0xFFFFE07A, 0xFFF2B62E, 0xFFCF8A12, 5, FlowerSpec.Shape.POINT),
     )
 
+    /**
+     * The spec for a kind, falling back to the first rather than throwing.
+     *
+     * The fallback is why `FlowersTest` insists every kind has one: a new
+     * variant added to the enum and forgotten here would not crash, it would
+     * quietly draw daisies for a flower somebody chose on purpose, and nothing
+     * on screen would look wrong enough to notice.
+     */
     fun spec(kind: FlowerKind?): FlowerSpec =
         LIBRARY.firstOrNull { it.kind == kind } ?: LIBRARY.first()
 
     /**
-     * What to offer after a call: the flower that matches how it felt, then a
-     * few others.
+     * How many flowers one call grows: one for every minute of it.
      *
-     * The feeling's own flower comes first because it is the honest default,
-     * but the rest are there so nobody feels sorted into a box by a question
-     * they answered in two seconds.
+     * It used to be one flower per call, which is tidy and made the field
+     * almost impossible to fill — a week of good calls put seven dots on a
+     * meadow built to hold thousands, and the reward surface read as empty no
+     * matter how well the week had gone. A minute is the honest unit anyway:
+     * what grows a garden is time spent talking, not the number of times you
+     * pressed dial.
+     *
+     * A call with no duration recorded still counts for one, because it
+     * happened. The ceiling matches `Thresholds`' own bound on call length, so
+     * a mis-tapped three-hour call cannot flood somebody's patch.
      */
-    fun suggestions(feeling: Feeling, count: Int = 4): List<FlowerKind> {
-        val primary = feeling.flower
-        return (listOf(primary) + LIBRARY.map { it.kind }.filter { it != primary })
-            .take(count)
-    }
+    fun flowerCount(minutes: Int?): Int = (minutes ?: 1).coerceIn(1, 180)
 
     /**
      * How wide the bloom opens, from how long the call ran.

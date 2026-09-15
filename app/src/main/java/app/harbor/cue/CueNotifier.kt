@@ -9,6 +9,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
+import android.provider.Settings
 import android.os.Build
 import app.harbor.R
 import app.harbor.domain.Contact
@@ -37,6 +38,16 @@ object CueNotifier {
     const val EXTRA_CUE_ID = "cue_id"
     const val EXTRA_CONTACT_ID = "contact_id"
     const val EXTRA_SOURCE = "trigger_source"
+
+    /**
+     * Set only by onboarding's preview cue.
+     *
+     * "Was this a good moment to be asked?" is stage 8, asked after a real
+     * call — asking it again during the walkthrough, before any real call has
+     * happened, doubles the same study question without adding a second real
+     * answer to it.
+     */
+    const val EXTRA_SKIP_PULSE = "skip_pulse"
 
     /** One id, so a second cue replaces rather than stacks. */
     private const val NOTIFICATION_ID = 1
@@ -70,6 +81,14 @@ object CueNotifier {
             .setContentText("Call $who?")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            // Shown on the lock screen rather than hidden behind "Harbor has a
+            // notification". The channel's own lockscreenVisibility is PRIVATE,
+            // which is the right default for a channel but wrong for this one
+            // message: a cue somebody cannot read from the lock screen is a cue
+            // they have to unlock the phone to understand, which is most of the
+            // friction the cue exists to remove. Nothing in it is private -- a
+            // first name and an offer.
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(open, true)
             .setContentIntent(open)
             .setAutoCancel(true)
@@ -82,6 +101,43 @@ object CueNotifier {
 
     fun cancel(context: Context) {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+    }
+
+    /**
+     * Whether the cue can actually take the screen, or will only ever be a
+     * notification.
+     *
+     * This is the difference between the cue working and the cue not working,
+     * and it is invisible: from Android 14 the system grants
+     * `USE_FULL_SCREEN_INTENT` only to apps it considers calling or alarm
+     * apps, and silently downgrades everyone else's full-screen intent to a
+     * heads-up notification. Declaring the permission is not enough and there
+     * is no error -- [post] succeeds, the notification appears, the surface
+     * never opens, and a participant who was not looking at their phone at
+     * that second simply never sees the cue.
+     *
+     * That is the whole study's measurement, so the app has to be able to
+     * report it. See [fullScreenSettings] for the way to fix it.
+     */
+    fun canTakeTheScreen(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        return context.getSystemService(NotificationManager::class.java)
+            .canUseFullScreenIntent()
+    }
+
+    /**
+     * The one screen where a person can grant it.
+     *
+     * There is no runtime prompt for this permission -- it can only be turned
+     * on by hand in settings, which is why the app has to take somebody there
+     * rather than asking.
+     */
+    fun fullScreenSettings(context: Context): Intent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+        return Intent(
+            Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+            Uri.fromParts("package", context.packageName, null),
+        )
     }
 
     /**
@@ -105,7 +161,7 @@ object CueNotifier {
         if (manager.getNotificationChannel(id) == null) {
             val channel = NotificationChannel(
                 id,
-                "Gentle cues",
+                "Gentle reminders",
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = "The moment after a walk, when calling home is easy."

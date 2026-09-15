@@ -3,105 +3,173 @@ package app.harbor.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Harbor's palette, taken from "Harbor Specimen - All Screens".
+ * Harbor's palette, taken from "Harbor Reskin" — the dark glass language.
  *
- * The design is a botanical catalogue: a flat warm-grey ground, frosted white
- * plinth cards, near-black Newsreader for anything the app says, and letter-
- * spaced captions for everything secondary. Colour is held right back, so the
- * only saturated things on a page are a flower and the occasional gold mark.
+ * The design is a lit dusk: a gradient behind every screen, cards that are
+ * nothing but white held at seven percent *over* it, and a single amber that
+ * appears on the current tab, the primary action and the selected chip. Nowhere else. Everything the
+ * app *says* is white or a muted warm grey; everything it *asks for* is amber.
  *
- * Two things about this palette are easy to get wrong, and both were wrong in
- * the first pass of this reskin:
+ * ## What the dark pass changed, and what it kept
  *
- *  - **The action colour is ink, not green.** Every filled button in the
- *    specimen is `#22211F` with ground-coloured text. Green appears only
- *    inside flower artwork and on a switch that is on. A green button looks
- *    plausible and is not what the design does.
- *  - **Cards are lighter than the ground, not darker.** They are white at
- *    around 70% with a *white* rim, so a card reads as frosted glass laid on
- *    the page. The dark hairline belongs to outline chips, not to cards.
+ * The names in this file are the same names the light specimen used, because
+ * every screen already refers to them and the reskin is meant to move the
+ * colour without moving the code. Two of them now mean something subtler:
+ *
+ *  - **[Ink] is still dark.** It was the page's text colour *and* the fill of
+ *    every action. On a dark ground those split: text is [Chalk], and [Ink]
+ *    survives as what sits *on top of* a light thing — the initials on an
+ *    avatar, the label on an amber button. Reading [Ink] as "the text colour"
+ *    is the one mistake that paints a screen black on black.
+ *  - **A card is no longer a colour.** It is an alpha, and what it looks like
+ *    depends entirely on what it is lying on. See the next section, which is
+ *    the part of this file worth reading.
+ *
+ * ## The cards are translucent, and that is the whole design
+ *
+ * The light specimen composited its card fill to an opaque colour, because on
+ * a flat bone page a translucent white and a composited one are the same
+ * pixels and the opaque one is cheaper and safer.
+ *
+ * That reasoning does not carry over, and carrying it over is what made the
+ * first dark pass look like a different app to the drawing. This design puts a
+ * lit gradient behind every screen and then lays `rgba(255,255,255,0.07)` over
+ * it. The card is a *window onto the gradient*: warm where it crosses the
+ * ember, cold where it crosses the blue, near-black at the bottom of the page.
+ * Composite that to one flat grey and every card becomes a box, the gradient
+ * only survives in the gaps between them, and the screen reads as "dark mode"
+ * rather than as glass on a sunset.
+ *
+ * So these are alpha, not colour, and they are meant to be laid over something
+ * worth seeing. The reference the design was drawn from is a sunset with the
+ * card sitting straight across the middle of it.
  *
  * The garden field does not read from here. Its terrain lives in
- * [app.harbor.domain.Field] (`VEG`, `WATER`, `BARE`) and its weather in
- * `FieldSky`, both hardcoded, so nothing in this file can repaint the field.
+ * [app.harbor.domain.Field] and its weather in `FieldSky`, both hardcoded.
  */
 
-/** The ground everything sits on. */
-val Paper = Color(0xFFEDECEA)
+// --- the ground and the glass -------------------------------------------
+
+/** The ground everything sits on. The design's `Ground` token. */
+val Paper = Color(0xFF0D0E11)
 
 /**
- * A card.
+ * A card: white at seven percent, laid over whatever is behind it.
  *
- * The specimen paints `rgba(255,255,255,.68)` over the ground; this is that,
- * already composited. It is kept opaque on purpose — a card that is genuinely
- * translucent stops being legible the moment it is laid over the garden, and
- * over the ground the two are indistinguishable.
+ * Not composited. See the note above — over the dusk this is the design's
+ * glass, and flattened it is a grey box.
  */
-val Cream = Color(0xFFFAFAF9)
+val Cream = Color(0x12FFFFFF)
 
-/** A surface that should recede rather than advance. */
-val Sand = Color(0xFFF3F2F0)
-
-/** Ink, and the fill of every action the app is actually asking for. */
-val Ink = Color(0xFF22211F)
-
-/** Captions and labels — ink at about half strength, over the ground. */
-val Muted = Color(0xFF82817F)
+/** A surface that should recede rather than advance: white at five percent. */
+val Sand = Color(0x0DFFFFFF)
 
 /**
- * The frosted rim.
+ * The floating navigation pill.
  *
- * White at 90%, sitting between a near-white card and the grey ground. It is
- * *lighter* than both the card edge and the page, which is what makes a card
- * read as glass rather than as a box. Cards use this; chips use [Hairline].
+ * Denser than a card and darker than the ground it crosses, because it has to
+ * stay readable while the field scrolls underneath it. The design writes it as
+ * `rgba(18,18,22,0.72)`, which is the one surface in the whole language that
+ * is tinted *down* rather than up.
  */
-val CardEdge = Color(0xE6FFFFFF)
+val NavGlass = Color(0xB8121216)
+
+/**
+ * Ink — what sits on top of a *light* thing.
+ *
+ * The label on an amber button, the initials on an avatar. Never the page's
+ * text colour; that is [Chalk]. The design writes this as `#1a1206`, a brown
+ * black rather than a neutral one, so it belongs to the amber it sits on.
+ */
+val Ink = Color(0xFF1A1206)
+
+/** What the app says. The design's `Ink` token, which on a dark ground is white. */
+val Chalk = Color(0xFFFFFFFF)
+
+/** Captions and labels. The design's `Muted ink`. */
+val Muted = Color(0xFF9C978F)
+
+/**
+ * The rim.
+ *
+ * White at nine percent, and deliberately translucent: a card's edge has to
+ * catch the dusk gradient behind it on Home and the flat ground everywhere
+ * else, and a composited rim can only do one of those. This is the whole of
+ * the design's elevation — there is no shadow anywhere in it.
+ */
+val CardEdge = Color(0x17FFFFFF)
 
 /** The drawn line: outline chips, dividers, anything that must read as a rule. */
-val Hairline = Color(0xFFD5D4D2)
+val Hairline = Color(0x2EFFFFFF)
 
-/** Gold. The accent, and deliberately rare. */
-val Gold = Color(0xFFE7B23F)
+/**
+ * The stripe down every other day column on the week grid.
+ *
+ * White at eight percent, translucent like every other piece of glass in this
+ * design — it used to be an opaque near-black that read as almost nothing on
+ * the specimen's own near-black ground, which usability testing flagged: the
+ * seven columns were not actually countable without reading the labels. This
+ * is the same alpha tier as [Cream], and it is meant to be seen.
+ */
+val BandWarm = Color(0x14FFFFFF)
 
-/** The one green the interface uses: a switch that is on. */
-val Leaf = Color(0xFF6E9443)
+// --- the one accent -----------------------------------------------------
+//
+// The design is strict about this: amber is the current tab, the primary
+// action and the selected chip, and it appears nowhere else. Everything that
+// wants to be noticed and is not one of those three gets brightness instead.
+
+/** Amber. The design's `Accent`, and the brighter of the two. */
+val Gold = Color(0xFFF0BD3E)
+
+/** The primary action's fill. The design's `Primary action`. */
+val Ember = Color(0xFFE08A3C)
+
+/** The top of the primary action's gradient, which runs [EmberLight] to [Ember]. */
+val EmberLight = Color(0xFFF5B85C)
+
+/** The cool end of the dusk, behind the cards on Account and Schedule. */
+val Dusk = Color(0xFF2F4A63)
+
+/** Brown rather than red: this app has nothing angry to say. */
+val Bark = Color(0xFF78513D)
+
+/** The green a switch takes when it is on — see the note in `SettingsScreen`. */
+val Leaf = Color(0xFF8FB25C)
 
 // --- the greens of the garden -------------------------------------------
 //
-// Only ever illustration: a stem, a leaf, a bloom. The interface itself uses
-// green in exactly one place, the switch above, and nowhere else.
+// Only ever illustration: a stem, a leaf, a bloom. Lifted from the light
+// specimen's values, which were chosen to sit *under* a near-white page and
+// vanish almost completely against a near-black one.
 
 /** The deep green of a stem. */
-val Stem = Color(0xFF2E4B2A)
+val Stem = Color(0xFF5C7F4E)
 
 /** A leaf in shadow. */
-val Forest = Color(0xFF3E6B33)
+val Forest = Color(0xFF6F9A56)
 
 /** A leaf in light. */
-val LeafLight = Color(0xFF4A7A3C)
-
-/** Brown rather than red: this app has nothing angry to say. */
-val Bark = Color(0xFF8A6A4F)
+val LeafLight = Color(0xFF8FB25C)
 
 // --- contact tones ------------------------------------------------------
 //
-// In the specimen a person's tone is their hue at 35-45% over the card, which
-// keeps every one of them light enough to sit under [Ink]. These are those,
-// composited, so there is one ink and never a second rule about contrast.
+// The design's four tones, and they are pale on purpose: a person's avatar is
+// one of the few genuinely light objects in the app, so it reads as a lit
+// thing on a dark page. All four carry [Ink] rather than [Chalk].
 
-val SurfaceGreen = Color(0xFFC9D6B9)
-val SurfaceGold = Color(0xFFF1D9A5)
-val SurfaceOrange = Color(0xFFE7C4B6)
-val SurfaceSky = Color(0xFFBECCF8)
+val SurfaceGreen = Color(0xFFCFE0C6)
+val SurfaceGold = Color(0xFFF5C77A)
+val SurfaceOrange = Color(0xFFE9C7A1)
+val SurfaceSky = Color(0xFFC9D8E9)
 
 // --- the marks ----------------------------------------------------------
 //
-// The same four tones at full strength, for the little petal mark on a
-// specimen's plinth. The Surface* fills above are hues at 35-45% and are
-// meant for an area -- an avatar, a card. At 11dp they simply disappear, so
-// the mark gets the hue itself.
+// The same four tones for a mark too small to carry a tint. On a light page
+// these had to be darkened to stay visible; here they need the opposite, so
+// the mark and the surface are much closer than they used to be.
 
-val MarkGreen = Leaf
+val MarkGreen = Color(0xFFCFE0C6)
 val MarkGold = Gold
-val MarkOrange = Color(0xFFD9604A)
-val MarkSky = Color(0xFF507AF5)
+val MarkOrange = Color(0xFFF0A35F)
+val MarkSky = Color(0xFFC9D8E9)

@@ -1,34 +1,33 @@
 package app.harbor.cue
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import app.harbor.domain.FeedbackPulse
-import app.harbor.ui.theme.Paper
-import app.harbor.ui.theme.PrimaryAction
-import app.harbor.ui.theme.QuietAction
-import app.harbor.ui.theme.SurfaceGold
-import app.harbor.ui.theme.SurfaceGreen
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,23 +35,56 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.harbor.domain.CallStats
-import app.harbor.domain.Feeling
+import app.harbor.domain.FeedbackPulse
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.Flowers
 import app.harbor.ui.FlowerMark
+import app.harbor.ui.theme.Paper
+import app.harbor.ui.theme.PrimaryAction
+import app.harbor.ui.theme.QuietAction
+import app.harbor.ui.theme.SurfaceGreen
+import kotlin.math.abs
 
 /**
  * What a call leaves behind.
  *
- * Three steps after the dialer hands control back: how it felt, which flower
- * it becomes, and the bloom itself. Ported from `components/harbor/call.tsx`.
+ * Two steps after the dialer hands control back: which flower it becomes, and
+ * the bloom itself.
  *
- * The reflection is the reward. It is asked once, it is optional in substance
- * — every answer grows something — and nothing here can be failed. That is the
- * point: the garden records that calls happened, it does not score them.
+ * The reward is the whole of it. It is asked once, nothing here can be failed,
+ * and every answer grows something — the garden records that calls happened,
+ * it does not score them.
+ *
+ * ## Why the feeling and the flower are one screen, not two
+ *
+ * There used to be a screen in front of this one: four feelings, a stepper for
+ * how many minutes, and a box for what it was about. It was three questions
+ * standing between somebody and their reward, asked in the minute after they
+ * hung up on their mother, and the only one of the three that did any work was
+ * the feeling — which existed to narrow the library down to four.
+ *
+ * Picking the flower answers that question better than a menu of adjectives
+ * does, so the menu is gone and all of them are offered — the headline still
+ * asks how the call felt, but the flower itself is the answer rather than a
+ * label attached afterwards. The length of the call is the gap between the
+ * cue appearing and this screen appearing, which Harbor already knows and no
+ * longer needs anyone to type; it is stated here rather than asked, so it can
+ * still be seen to be wrong.
+ *
+ * What survives from that screen is the way out — "we did not get to talk" —
+ * because the ledger row is written the moment the dialer opens, and without
+ * this the word `called` would quietly count conversations that never
+ * happened.
  */
 @Composable
 fun CallFlow(
@@ -60,128 +92,120 @@ fun CallFlow(
     /** Measured from handing off to the dialer until the user came back. */
     measuredMinutes: Int,
     initialTopic: String?,
-    onPlant: (minutes: Int, feeling: Feeling, flower: FlowerKind, topic: String?) -> Unit,
+    reducedMotion: Boolean = false,
+    /**
+     * False only for onboarding's preview cue. "Was this a good moment to be
+     * asked?" is the reflection after a real call; asking it again before any
+     * real call has happened would double the same study question rather than
+     * add a second real answer to it.
+     */
+    askPulse: Boolean = true,
+    onPlant: (minutes: Int, flower: FlowerKind, topic: String?) -> Unit,
     onPulse: (FeedbackPulse) -> Unit,
     /** They went to call and no conversation happened. */
     onNotReached: () -> Unit,
     onDone: () -> Unit,
 ) {
-    var step by remember { mutableStateOf(Step.Reflect) }
-    var minutes by remember { mutableStateOf(measuredMinutes.coerceIn(1, 180)) }
-    var feeling by remember { mutableStateOf(Feeling.STEADY) }
-    var flower by remember { mutableStateOf(Feeling.STEADY.flower) }
-    var about by remember { mutableStateOf(initialTopic.orEmpty()) }
-    var wholeLibrary by remember { mutableStateOf(false) }
-    var pulsed by remember { mutableStateOf(false) }
+    var step by remember { mutableStateOf(Step.Flower) }
+    val minutes = measuredMinutes.coerceIn(1, 180)
+
+    val shelf = FlowerKind.entries
+    val pager = rememberPagerState(initialPage = 0) { shelf.size }
+    val chosen by remember { derivedStateOf { shelf[pager.currentPage] } }
+
+    // The ground takes a wash of whatever is in front of it.
+    //
+    // Mixed from the petal's *deep* tone rather than its light one. Washing
+    // the paper with the light tone put a daisy — which is very nearly white
+    // to begin with — on a ground the same colour as itself, and the flower
+    // all but vanished. The deep tone is darker than any petal it belongs to,
+    // so every bloom has something to sit against and the change of colour is
+    // easier to see, not harder.
+    val ground by animateColorAsState(
+        targetValue = lerp(Paper, Color(Flowers.spec(chosen).petalDeep), 0.38f),
+        animationSpec = tween(420),
+        label = "flower-ground",
+    )
 
     Column(
         Modifier
             .fillMaxSize()
-            // .call-screen — the same ground as every other screen.
-            .background(Paper)
+            .background(ground)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 26.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         when (step) {
-            Step.Reflect -> {
-                Text("Just for you", style = MaterialTheme.typography.labelMedium)
+            Step.Flower -> {
+                Text("$who's patch", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.size(8.dp))
-                Text("How did that feel?", style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.size(20.dp))
+                // The headline asks the feeling; the flower is how you answer
+                // it, not a fact being reported. "Which flower was it?" read as
+                // a memory test the first time somebody saw it.
+                Text("How did that call leave you feeling?", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    "Choose the flower that matches.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.size(18.dp))
 
-                Feeling.entries.chunked(2).forEach { row ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        row.forEach { option ->
-                            val selected = option == feeling
-                            Column(
-                                Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(
-                                        if (selected) SurfaceGold
-                                        else MaterialTheme.colorScheme.surface,
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (selected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.outlineVariant,
-                                        shape = RoundedCornerShape(16.dp),
-                                    )
-                                    .clickable {
-                                        feeling = option
-                                        // Changing how it felt re-picks the
-                                        // flower, so the suggestion always
-                                        // matches the answer.
-                                        flower = option.flower
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                            ) {
-                                Text(
-                                    option.label,
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                    ),
-                                )
-                                Text(
-                                    option.caption,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    ),
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.size(10.dp))
+                // A shelf you push along rather than a grid you scan.
+                //
+                // Four at a time in a grid meant the library had to be pruned
+                // to four before it was shown, which is what the feelings
+                // question was for. They all fit on a shelf, the one in
+                // the middle is the one you are choosing, and moving between
+                // them is the good part.
+                HorizontalPager(
+                    state = pager,
+                    contentPadding = PaddingValues(horizontal = 104.dp),
+                    pageSpacing = 4.dp,
+                    modifier = Modifier.fillMaxWidth().height(184.dp),
+                ) { page ->
+                    val away = abs(page - pager.currentPage - pager.currentPageOffsetFraction)
+                    val near = (1f - away).coerceIn(0f, 1f)
+                    FlowerMark(
+                        kind = shelf[page],
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(184.dp)
+                            .graphicsLayer {
+                                val s = 0.54f + 0.46f * near
+                                scaleX = s
+                                scaleY = s
+                                alpha = 0.35f + 0.65f * near
+                            },
+                    )
                 }
 
-                Spacer(Modifier.size(2.dp))
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("About how long?", style = MaterialTheme.typography.titleSmall)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Coarser steps once a call is long enough that a
-                        // single minute stops being a meaningful difference.
-                        OutlinedButton(onClick = {
-                            minutes = (minutes - if (minutes > 15) 5 else 1).coerceAtLeast(1)
-                        }) { Text("−") }
-                        Spacer(Modifier.size(12.dp))
-                        Text(
-                            CallStats.formatDuration(minutes),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Spacer(Modifier.size(12.dp))
-                        OutlinedButton(onClick = {
-                            minutes = (minutes + if (minutes >= 15) 5 else 1).coerceAtMost(180)
-                        }) { Text("+") }
-                    }
-                }
-
-                Spacer(Modifier.size(16.dp))
-                OutlinedTextField(
-                    value = about,
-                    onValueChange = { about = it.take(90) },
-                    label = { Text("What was it about? (optional)") },
-                    placeholder = { Text("the tomatoes, mostly") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                Spacer(Modifier.size(6.dp))
+                Text(
+                    Flowers.spec(chosen).name,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 22.sp),
+                )
+                Spacer(Modifier.size(4.dp))
+                Text(
+                    Flowers.spec(chosen).note,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
                 )
 
-                Spacer(Modifier.size(20.dp))
-                PrimaryAction("Choose a flower") { step = Step.Flower }
+                Spacer(Modifier.size(14.dp))
+                // Stated, not asked. Harbor timed it from the cue to this
+                // screen; saying so is what lets somebody notice it is wrong.
+                Text(
+                    "About ${CallStats.formatDuration(minutes)}, by the look of it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.size(8.dp))
+                PrimaryAction("Grow ${Flowers.spec(chosen).name.lowercase()}") {
+                    onPlant(minutes, chosen, initialTopic)
+                    step = Step.Bloom
+                }
 
                 // The row was written the moment the dialer opened, before
                 // anything was known. Without this, changing your mind at the
@@ -191,73 +215,9 @@ fun CallFlow(
                 CallOut("We did not get to talk", onNotReached)
             }
 
-            Step.Flower -> {
-                Text("$who's patch", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.size(8.dp))
-                Text("Which flower was it?", style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    if (wholeLibrary) "The whole library. Pick whatever fits."
-                    else "Picked for a ${feeling.label.lowercase()} call — or open the library.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.size(20.dp))
-
-                val offered =
-                    if (wholeLibrary) FlowerKind.entries else Flowers.suggestions(feeling)
-
-                offered.chunked(4).forEach { row ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        row.forEach { kind ->
-                            val selected = kind == flower
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (selected) MaterialTheme.colorScheme.secondaryContainer
-                                        else MaterialTheme.colorScheme.surface,
-                                    )
-                                    .clickable { flower = kind }
-                                    .padding(8.dp),
-                            ) {
-                                FlowerMark(kind, Modifier.size(56.dp))
-                                Text(
-                                    Flowers.spec(kind).name,
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            }
-                        }
-                    }
-                    Spacer(Modifier.size(12.dp))
-                }
-
-                Spacer(Modifier.size(4.dp))
-                Text(
-                    Flowers.spec(flower).note,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                )
-
-                Spacer(Modifier.size(12.dp))
-                TextButton(onClick = { wholeLibrary = !wholeLibrary }) {
-                    Text(
-                        if (wholeLibrary) "Back to the suggestions"
-                        else "Open the flower library",
-                    )
-                }
-
-                PrimaryAction("Plant ${Flowers.spec(flower).name.lowercase()}") {
-                    onPlant(minutes, feeling, flower, about.trim().ifEmpty { null })
-                    step = Step.Bloom
-                }
-            }
-
             Step.Bloom -> {
+                var pulsed by remember { mutableStateOf(false) }
+
                 Text(
                     "${CallStats.formatDuration(minutes)} together",
                     style = MaterialTheme.typography.labelMedium,
@@ -272,12 +232,12 @@ fun CallFlow(
                             .clip(RoundedCornerShape(50))
                             .background(SurfaceGreen),
                     )
-                    // A longer call opens a fuller bloom, bounded at both ends
-                    // so a short call is still a whole flower.
-                    FlowerMark(
-                        kind = flower,
-                        modifier = Modifier.size(200.dp),
-                        scale = Flowers.bloomScale(minutes).toFloat(),
+                    Opening(
+                        kind = chosen,
+                        // A longer call opens a fuller bloom, bounded at both
+                        // ends so a short call is still a whole flower.
+                        full = Flowers.bloomScale(minutes).toFloat(),
+                        reducedMotion = reducedMotion,
                     )
                 }
 
@@ -295,7 +255,7 @@ fun CallFlow(
 
                 // Stage 8, for calls. Asked after the reward rather than
                 // before it, so it never reads as the price of the flower.
-                if (!pulsed) {
+                if (!pulsed && askPulse) {
                     Text(
                         "Was this a good moment to be asked?",
                         style = MaterialTheme.typography.bodyMedium,
@@ -323,23 +283,59 @@ fun CallFlow(
     }
 }
 
-private enum class Step { Reflect, Flower, Bloom }
+private enum class Step { Flower, Bloom }
 
-private val Feeling.label: String
-    get() = when (this) {
-        Feeling.LIGHT -> "Lighter"
-        Feeling.WARM -> "Warm"
-        Feeling.STEADY -> "Steady"
-        Feeling.TENDER -> "Tender"
+/**
+ * The flower opening, from a bud.
+ *
+ * It used to appear at full size the instant the screen did, which made the
+ * reward a picture of a flower rather than something that happened. So the
+ * casing is there first, the bloom pushes out of it, and the twist comes off
+ * as the petals settle — which is the shape of the thing it is drawing.
+ *
+ * Somebody who has asked for less movement gets the flower, open, immediately.
+ */
+@Composable
+private fun Opening(kind: FlowerKind, full: Float, reducedMotion: Boolean) {
+    val open = remember { Animatable(if (reducedMotion) 1f else 0f) }
+
+    LaunchedEffect(kind) {
+        if (!reducedMotion) {
+            open.animateTo(1f, tween(durationMillis = 1250, easing = FastOutSlowInEasing))
+        }
     }
 
-private val Feeling.caption: String
-    get() = when (this) {
-        Feeling.LIGHT -> "Something lifted."
-        Feeling.WARM -> "Glad you picked up."
-        Feeling.STEADY -> "Ordinary, in a good way."
-        Feeling.TENDER -> "A lot, but worth it."
+    val t = open.value
+    Box(contentAlignment = Alignment.Center) {
+        // The casing, gone by the time the bloom is half out.
+        val casing = (1f - t * 2.4f).coerceIn(0f, 1f)
+        if (casing > 0f) {
+            Canvas(Modifier.size(200.dp).graphicsLayer { alpha = casing }) {
+                val r = size.minDimension * 0.13f
+                val cx = size.width / 2f
+                val cy = size.height / 2f
+                drawOval(
+                    brush = Brush.verticalGradient(
+                        listOf(Color(0xFF7E9C5A), Color(0xFF3E6B33)),
+                        startY = cy - r * 1.7f,
+                        endY = cy + r * 1.7f,
+                    ),
+                    topLeft = Offset(cx - r * 0.72f, cy - r * 1.7f),
+                    size = Size(r * 1.44f, r * 3.4f),
+                )
+            }
+        }
+
+        FlowerMark(
+            kind = kind,
+            modifier = Modifier
+                .size(200.dp)
+                .graphicsLayer { rotationZ = -26f * (1f - t) },
+            // Starts inside the casing and pushes out of it.
+            scale = 0.10f + (full - 0.10f) * t,
+        )
     }
+}
 
 /** A way out that is not a failure. Quiet, and never the loudest thing here. */
 @Composable

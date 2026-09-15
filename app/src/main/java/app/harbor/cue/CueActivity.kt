@@ -1,10 +1,9 @@
 package app.harbor.cue
 
-import android.content.Intent
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,6 +47,7 @@ import app.harbor.domain.FeedbackPulse
 import app.harbor.domain.Feeling
 import app.harbor.domain.FlowerKind
 import app.harbor.domain.LedgerEntry
+import app.harbor.domain.Moment
 import app.harbor.domain.Resolution
 import app.harbor.domain.TriggerSource
 import app.harbor.ui.theme.HarborTheme
@@ -91,6 +92,7 @@ class CueActivity : ComponentActivity() {
      */
     private var source: TriggerSource = TriggerSource.WALKING_STOP
     private var entryId: UUID? = null
+    private var skipPulse = false
 
     /** The row as last written, so a partial amendment can build on it. */
     private var lastEntry: LedgerEntry? = null
@@ -146,7 +148,10 @@ class CueActivity : ComponentActivity() {
         source = intent.getStringExtra(CueNotifier.EXTRA_SOURCE)
             ?.let { runCatching { TriggerSource.valueOf(it) }.getOrNull() }
             ?: TriggerSource.WALKING_STOP
+        skipPulse = intent.getBooleanExtra(CueNotifier.EXTRA_SKIP_PULSE, false)
         val contact = store.contacts.value.firstOrNull { it.id == contactId }
+
+        lifecycleScope.launch { store.note(Moment.CUE_SHOWN, source.name) }
 
         // The notification has done its job; the surface takes over the sound.
         CueNotifier.cancel(this)
@@ -163,7 +168,7 @@ class CueActivity : ComponentActivity() {
 
         setContent {
             HarborTheme {
-                Surface(Modifier.fillMaxSize()) {
+                Surface(Modifier.fillMaxSize().imePadding()) {
                     when (phase) {
                         Phase.CUE -> CueSurface(
                             contact = contact,
@@ -178,11 +183,12 @@ class CueActivity : ComponentActivity() {
                             who = contact?.label ?: "them",
                             measuredMinutes = measuredMinutes,
                             initialTopic = chosenTopic,
-                            onPlant = { minutes, feeling, flower, topic ->
+                            reducedMotion = store.settings.value.reducedMotion,
+                            askPulse = !skipPulse,
+                            onPlant = { minutes, flower, topic ->
                                 record(
                                     resolution = Resolution.CALLED,
                                     callMinutes = minutes,
-                                    feeling = feeling,
                                     flower = flower,
                                     topic = topic,
                                 )
@@ -268,30 +274,51 @@ class CueActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { store.append(entry) }
+            store.note(Moment.CUE_RESOLVED, resolution.name)
+            if (flower != null) {
+                store.note(Moment.FLOWER_PLANTED, flower.name, callMinutes)
+            }
         }
     }
 
     /**
      * Hand off to the phone's own dialer and start the clock.
      *
-     * The entry is written now rather than after the reflection, so a call
-     * that happened is recorded even if the user never comes back to say how
-     * it went. The reflection amends that same row.
+     * The entry is written as soon as the dialer is in front of the user
+     * rather than after the reflection, so a call that happened is recorded
+     * even if they never come back to say how it went. The reflection amends
+     * that same row.
+     *
+     * It is written *after* [Dialer] confirms the handoff, not before. This
+     * cue is shown over the keyguard, and Android will not bring the dialer
+     * over a locked screen: the old order recorded a call, watched the intent
+     * quietly go nowhere, and then asked the user how it had gone.
      */
     private fun placeCall(topic: String?, number: String?) {
         chosenTopic = topic
-        record(Resolution.CALLED, topic = topic)
-        dialedAt = Instant.now()
         ringer.stop()
 
-        if (number != null) {
-            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
-        } else {
-            // No number to dial, so there is nothing to time. Go straight to
-            // the reflection rather than stranding them on the cue.
-            phase = Phase.CALL
+        Dialer.open(this, number) { outcome ->
+            when (outcome) {
+                Dialer.Outcome.Dialing -> {
+                    record(Resolution.CALLED, topic = topic)
+                    dialedAt = Instant.now()
+                }
+
+                // They were asked to unlock and said no. That is not a call,
+                // and it is not a dismissal either: leave the cue standing.
+                Dialer.Outcome.Locked -> Unit
+
+                Dialer.Outcome.NoNumber ->
+                    say("There is no number saved for them yet.")
+
+                Dialer.Outcome.NoDialer ->
+                    say("This phone has no app to make calls with.")
+            }
         }
     }
+
+    private fun say(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     /** Dismissal costs nothing, but it is still an answer, so it is recorded. */
     private fun dismissAndFinish() {

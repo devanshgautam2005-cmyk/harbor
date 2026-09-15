@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -121,11 +122,16 @@ fun Specimen(
                 )
                 Box(Modifier.size(11.dp).clip(MarkShape).background(tone.mark))
             }
+            // Sentence case, not the sheet's small caps.
+            //
+            // The flower sheet does set this line in tracked capitals, and it
+            // is the one place in the whole design that does. Everywhere else
+            // -- and in the reference the language comes from -- a quiet line
+            // is just a quiet line, so it is one here too.
             Text(
-                caption.uppercase(),
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 9.sp,
-                    letterSpacing = 1.3.sp,
+                caption,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             )
@@ -140,7 +146,7 @@ fun Specimen(
  * shape is a function of the flower's spec, so adding a flower to the library
  * stays a data change.
  */
-internal fun DrawScope.drawSpecimen(kind: FlowerKind, bloom: Float = 0.17f) {
+internal fun DrawScope.drawSpecimen(kind: FlowerKind, bloom: Float = 0.30f) {
     val cx = size.width / 2f
     val foot = size.height * 0.97f
     val bloomY = size.height * 0.30f
@@ -156,11 +162,18 @@ internal fun DrawScope.drawSpecimen(kind: FlowerKind, bloom: Float = 0.17f) {
             )
         },
         color = Stem,
-        style = Stroke(width = unit * 0.035f, cap = StrokeCap.Round),
+        style = Stroke(width = unit * 0.045f, cap = StrokeCap.Round),
     )
 
-    drawLeaf(cx, foot - unit * 0.20f, -1f, unit * 0.30f, Forest)
-    drawLeaf(cx, foot - unit * 0.38f, 1f, unit * 0.26f, LeafLight)
+    // Broader leaves and a bigger bloom, to the sheet's proportions.
+    //
+    // The flower was drawn at 0.17 of the tile with thin leaves, which on a
+    // bone page read as a delicate botanical plate. The sheet's flowers are
+    // the opposite -- a big saturated head on a sturdy stem with two wide
+    // leaves, filling most of the arch -- and at the old size, on this ground,
+    // a specimen read as a bare stalk with a bud on it.
+    drawLeaf(cx, foot - unit * 0.20f, -1f, unit * 0.38f, Forest)
+    drawLeaf(cx, foot - unit * 0.40f, 1f, unit * 0.33f, LeafLight)
 
     translate(left = cx, top = bloomY) {
         drawFlower(Flowers.spec(kind), unit * bloom)
@@ -217,14 +230,24 @@ fun LittleWindow(
     flower: FlowerKind,
     modifier: Modifier = Modifier,
     action: String? = null,
+    /**
+     * What the card is made of, for screens that are not on the specimen's
+     * bone ground.
+     *
+     * The default is frosted white over bone, which is invisible on white:
+     * the schedule now runs on the onboarding flow's white, so it passes the
+     * flow's own warm tile instead. One parameter rather than a second card.
+     */
+    container: Color = Color.Unspecified,
+    edge: Color = Color.Unspecified,
     onAction: (() -> Unit)? = null,
 ) {
     Box(
         modifier
             .fillMaxWidth()
             .clip(WindowShape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, CardEdge, WindowShape),
+            .background(container.takeOrElse { MaterialTheme.colorScheme.surface })
+            .border(1.dp, edge.takeOrElse { CardEdge }, WindowShape),
     ) {
         Canvas(
             Modifier

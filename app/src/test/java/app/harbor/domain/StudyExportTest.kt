@@ -48,8 +48,20 @@ class StudyExportTest {
                 photoRef = "SECRET_PHOTO",
             ),
         ),
-        busy = listOf(
-            BusyWindow(DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(11, 0), "SECRET_CLASS"),
+        blocks = listOf(
+            WeekBlock(
+                DayOfWeek.MONDAY,
+                LocalTime.of(9, 0),
+                LocalTime.of(11, 0),
+                BlockKind.BUSY,
+                "SECRET_CLASS",
+            ),
+            WeekBlock(
+                DayOfWeek.SUNDAY,
+                LocalTime.of(19, 0),
+                LocalTime.of(21, 0),
+                BlockKind.FREE,
+            ),
         ),
         cues = listOf(Cue(cueId, LocalDate.of(2026, 9, 11), TriggerSource.WALKING_STOP, at)),
         entries = listOf(
@@ -65,13 +77,18 @@ class StudyExportTest {
                 feedbackPulse = FeedbackPulse.GOOD_TIME,
                 callMinutes = 15,
                 feeling = Feeling.WARM,
-                flower = FlowerKind.MARIGOLD,
+                flower = FlowerKind.LIGHTER_NOW,
                 topic = topic,
                 note = note,
                 occurredAt = at,
             ),
         ),
         lastTransitionAt = at,
+        beats = listOf(
+            Beat(at, Moment.APP_OPENED),
+            Beat(at, Moment.CALL_STARTED, TriggerSource.WALKING_STOP.name),
+            Beat(at, Moment.ANSWER_KEPT),
+        ),
     )
 
     // --- redaction ----------------------------------------------------------
@@ -93,6 +110,16 @@ class StudyExportTest {
     }
 
     @Test
+    fun `a beat carries a category and never a word`() {
+        // The whole safety of the study log: it says which kind of thing
+        // happened, and when, and nothing about what was in it.
+        val json = StudyExport.json(bundle())
+        assertTrue(json.contains("app_opened"))
+        assertTrue(json.contains("call_started"))
+        assertTrue("the daily word must not ride out with the beat", !json.contains("SECRET_NOTE"))
+    }
+
+    @Test
     fun `what you called a busy block stays yours`() {
         // "Therapy, 4pm" is exactly the sort of label this protects.
         assertFalse(StudyExport.json(bundle()).contains("SECRET_CLASS"))
@@ -103,6 +130,16 @@ class StudyExportTest {
         val json = StudyExport.json(bundle())
         assertTrue(json.contains("MONDAY"))
         assertTrue(json.contains("09:00"))
+    }
+
+    @Test
+    fun `which kind a block was goes too, because that is the study's question`() {
+        // A cue that landed in a stretch the participant had marked good is
+        // the closest thing week one gets to ground truth, and the times
+        // alone cannot say which stretches those were.
+        val json = StudyExport.json(bundle())
+        assertTrue(json.contains("\"kind\":\"busy\""))
+        assertTrue(json.contains("\"kind\":\"free\""))
     }
 
     @Test
@@ -139,7 +176,7 @@ class StudyExportTest {
     fun `enum names match the wire names Postgres uses`() {
         val json = StudyExport.json(bundle())
         assertTrue(json.contains("\"feeling\":\"warm\""))
-        assertTrue(json.contains("\"flower\":\"marigold\""))
+        assertTrue(json.contains("\"flower\":\"lighter_now\""))
     }
 
     @Test
@@ -169,7 +206,7 @@ class StudyExportTest {
 
     @Test
     fun `an empty week still produces a valid file`() {
-        val empty = bundle().copy(contacts = emptyList(), busy = emptyList(), cues = emptyList(), entries = emptyList())
+        val empty = bundle().copy(contacts = emptyList(), blocks = emptyList(), cues = emptyList(), entries = emptyList())
         val json = StudyExport.json(empty)
         assertValid(json)
         assertTrue(json.contains("\"entries\":[]"))

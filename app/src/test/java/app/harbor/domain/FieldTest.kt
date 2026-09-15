@@ -27,6 +27,51 @@ class FieldTest {
         )
     }
 
+    // --- what is growing, and what is not ------------------------------------
+
+    private fun flowersIn(calls: Int): Int {
+        val patches = Field.patches(people(calls))
+        val ids = patches.indices.map { Field.PATCH_PAINT_FROM + it * 2 }
+            .flatMap { listOf(it, it + 1) }.toSet()
+        return Field.cells(patches).count { it.paint in ids }
+    }
+
+    @Test
+    fun `a patch nobody has called has nothing growing in it`() {
+        // The garden is the entire reward. A contact who exists but has never
+        // been called used to open onto a patch in full bloom, which gave away
+        // for nothing the one thing the app has to give.
+        assertEquals(0, flowersIn(0))
+    }
+
+    @Test
+    fun `flowers arrive roughly one to a call`() {
+        // Scattered by a hash, so the count is approximate by design -- what
+        // matters is that it tracks the calls rather than the patch size.
+        val few = flowersIn(4)
+        assertTrue("4 calls grew $few flowers", few in 1..12)
+    }
+
+    @Test
+    fun `more calls grow more flowers`() {
+        assertTrue(flowersIn(40) > flowersIn(4))
+        assertTrue(flowersIn(4) > flowersIn(0))
+    }
+
+    @Test
+    fun `a patch never fills solid`() {
+        // Somebody with a year of calls has earned a full patch, not a
+        // coloured rectangle: past about three quarters it stops reading as
+        // flowers at all.
+        val patches = Field.patches(people(100_000))
+        val cells = Field.cells(patches)
+        val ids = patches.indices.map { Field.PATCH_PAINT_FROM + it * 2 }
+            .flatMap { listOf(it, it + 1) }.toSet()
+        val inside = cells.count { Field.patchAt(patches, it.x, it.y) >= 0 }
+        val bloomed = cells.count { it.paint in ids }
+        assertTrue("$bloomed of $inside cells bloomed", bloomed < inside)
+    }
+
     // --- noise --------------------------------------------------------------
 
     @Test
@@ -146,7 +191,7 @@ class FieldTest {
     @Test
     fun `every person gets a place, however many there are`() {
         val many = Field.patches(List(12) {
-            Field.Person(UUID.randomUUID(), "P$it", 3, FlowerKind.DAISY)
+            Field.Person(UUID.randomUUID(), "P$it", 3, FlowerKind.GLAD_WE_TALKED)
         })
         assertEquals(12, many.size)
         many.forEach {

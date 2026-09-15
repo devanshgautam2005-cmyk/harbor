@@ -64,7 +64,7 @@ Ordered by how badly the study breaks without it.
 | 4 | Cues turned on | **Yes** — `cuesEnabled` is false until someone says yes | `UserSettings.cuesEnabled` | toggle in `CuesSetupScreen` |
 | 5 | Their name | No | `UserSettings.name` | `SettingsScreen` |
 | 6 | Pace: walk length, daily cap, cooldown | No — defaults are sane | `Thresholds` | `SettingsScreen` |
-| 7 | Busy times | No — but cues will land in class without it | `BusyWindow` | the week grid in `ScheduleScreen` |
+| 7 | Busy and free times | No — but cues will land in class without it | `WeekBlock` | the thorns-and-flowers grid in `ScheduleScreen` |
 
 Shipped defaults for #6, so the design knows what it is showing:
 **walk 10 min · at most 2 cues a day · 120 min between them.**

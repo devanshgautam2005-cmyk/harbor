@@ -1,15 +1,16 @@
 package app.harbor.ui
 
-import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,33 +36,44 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.net.toUri
 import app.harbor.data.HarborRepository
-import app.harbor.domain.BusyWindow
-import app.harbor.domain.FlowerKind
+import app.harbor.domain.BlockKind
+import app.harbor.domain.Moment
+import app.harbor.domain.WeekBlock
 import app.harbor.domain.Windows
+import app.harbor.ui.theme.BandWarm
+import app.harbor.ui.theme.Chalk
+import app.harbor.ui.theme.Gold
+import app.harbor.ui.theme.Hairline
+import app.harbor.ui.theme.Ink
+import app.harbor.ui.theme.Muted
+import app.harbor.ui.theme.Paper
+import app.harbor.ui.theme.Sand
 import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Eyebrow
-import app.harbor.ui.theme.SectionHeader
-import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.pageContent
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
-import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * When the user is not reachable.
+ * The week, as something you plant.
  *
  * The data source the in-class suppression rule was built without (ADR-011).
  * Self-entered: no campus API to depend on, no calendar permission, and
@@ -76,7 +87,7 @@ import kotlin.math.roundToInt
  *
  * This used to be day pills, two hour steppers and an "Add this block"
  * button. Entering an ordinary week of five classes ran to something like
- * sixty taps, and you never saw the week you were describing -- only a list
+ * sixty taps, and you never saw the week you were describing — only a list
  * of times underneath it. People do not hold a timetable as text. They hold
  * it as a shape.
  *
@@ -90,6 +101,33 @@ import kotlin.math.roundToInt
  * a scrolling page, and if a plain vertical drag drew blocks instead of
  * scrolling, the page would become a trap. The press is also the right feel
  * for putting something down.
+ *
+ * ## Thorns and flowers
+ *
+ * The Figma flow gives the grid two things to place, and they are not
+ * opposites. A thorn is busy, and stops a cue. A flower is time you would
+ * welcome a call, and stops nothing — see [BlockKind] for why that asymmetry
+ * is the whole safety of the feature. A flower is what makes an hour somebody
+ * wrote down beat an hour that merely happened to be unbooked, wherever the
+ * app goes on to offer one.
+ *
+ * The "a little window" card that used to sit above this grid is gone. It
+ * showed your free hours and offered to ring somebody with them, which is the
+ * parent's side of the product rather than this one - a student marking their
+ * timetable is not publishing their availability.
+ *
+ * The frames show a hand cursor hovering over the thorn to say which one you
+ * are holding. A phone has no cursor, so the palette is a pair of chips and
+ * the chosen one is lit. The gesture on the grid is unchanged.
+ *
+ * ## Why the grid runs midnight to midnight
+ *
+ * It used to run 7am to 11pm, on the reasoning that nobody is awake outside
+ * that. But the cue pipeline has no hour-of-day rule in it at all — walk at
+ * six in the morning and it will happily offer you your mother — so sleep is
+ * exactly the kind of thing a person needs to be able to mark, and the old
+ * grid gave them nowhere to mark it. The 8am–10pm clamp still applies to the
+ * windows Harbor works out on its own, in [Windows.free].
  */
 @Composable
 fun ScheduleScreen(
@@ -97,168 +135,406 @@ fun ScheduleScreen(
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val saved by store.busyWindows.collectAsState()
-    val contacts by store.contacts.collectAsState()
+    val skin = WeekSkin.specimen()
 
-    // The window card dials, so it needs somebody to dial. The first person
-    // with a number is the one Harbor would have cued anyway.
-    val callable = contacts.firstOrNull { it.phoneE164 != null }
+    WeekEditor(
+        store = store,
+        skin = skin,
+        modifier = modifier,
+        footer = {
+            // Importing a calendar sits under the grid, not over it.
+            //
+            // It was the third thing on the screen, above the grid it is an
+            // alternative to -- so the first offer Harbor made was a way not
+            // to do the thing it had just asked for, and the offer is not even
+            // available yet. Below the week it reads as what it is: something
+            // coming later, for people who would rather not draw this.
+            BringACalendar(skin)
+
+            // The promise moves to the foot rather than disappearing. It is
+            // the one line on this screen that is not about times, and the
+            // screen where somebody types their week is the screen where it
+            // most needs saying — but it does not need saying above the grid.
+            Eyebrow("Only the times · no subjects, no locations · nothing leaves this phone")
+            TextLink("Back", onDone)
+        },
+    ) {
+        WeekHeading(skin)
+        WeekPurpose(skin)
+    }
+}
+
+/**
+ * Why this screen exists, above the thing it is asking you to do.
+ *
+ * The two lines from the frames say what the gesture is and what Harbor does
+ * with it, and testers still asked what the calendar was *for*. It is worth
+ * three sentences: a cue arrives on its own, so the only way it knows to stay
+ * out of a lecture is this.
+ */
+@Composable
+private fun WeekPurpose(skin: WeekSkin) {
+    Text(
+        "Harbor decides on its own when to offer you a call — usually just " +
+            "after a walk. It has no way of knowing you are in a seminar unless " +
+            "you tell it here. Mark the hours you are busy and a reminder will not " +
+            "arrive in the middle of them.",
+        style = MaterialTheme.typography.bodyMedium.copy(
+            fontSize = 13.sp,
+            color = skin.muted,
+        ),
+    )
+}
+
+/**
+ * Bringing a week in from a calendar you already keep.
+ *
+ * Drawn and switched off. Reading a calendar means a calendar permission and
+ * an account connection, and the study's whole permission budget is spent on
+ * activity recognition, which is the one the product cannot work without.
+ * Worth showing that it is the plan, worth not pretending it is here.
+ */
+@Composable
+private fun BringACalendar(skin: WeekSkin) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, skin.line.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Bring in a calendar",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = 15.sp,
+                    color = skin.muted,
+                ),
+            )
+            Text(
+                "Outlook or Google, instead of drawing it",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
+                    color = skin.muted,
+                ),
+            )
+        }
+        Text(
+            "Soon",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 11.sp,
+                color = skin.muted,
+            ),
+        )
+    }
+}
+
+/**
+ * The two lines the frames put at the top, and nothing else.
+ *
+ * This screen used to open with a page title, a subtitle, a privacy caption
+ * and a section header before you reached the grid — four pieces of copy in
+ * front of a thing whose whole job is to be looked at. The frames have two
+ * lines and they are enough.
+ */
+@Composable
+private fun WeekHeading(skin: WeekSkin) {
+    Spacer(Modifier.height(4.dp))
+    Text(
+        "Drag and drop slots on your calendar",
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+        style = MaterialTheme.typography.titleLarge.copy(fontSize = 21.sp, color = skin.ink),
+    )
+    // The frame says "We won't disturb you when you're busy". There is no "we"
+    // in this product — nothing about this week leaves the phone, and nobody
+    // is on the other end of it — so it is Harbor that stays quiet.
+    Text(
+        "Harbor stays quiet when you're busy",
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+        style = MaterialTheme.typography.titleLarge.copy(fontSize = 15.sp, color = skin.muted),
+    )
+}
+
+/**
+ * The last step of the first run: the Figma screen, on its own white ground.
+ *
+ * The same editor in different clothes. Finish stays dim until there is at
+ * least one block on the week, which is the frames' own rule — an empty week
+ * is the state this screen exists to fix. The way past it is the skip the
+ * step before already offered, kept here so nobody is cornered.
+ */
+@Composable
+fun WeekSetupScreen(
+    store: HarborRepository,
+    onFinish: () -> Unit,
+    onSkip: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    WeekEditor(
+        store = store,
+        skin = WeekSkin.flow(),
+        modifier = modifier,
+        footer = { live ->
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                GreyPill("Finish", enabled = live.isNotEmpty(), onClick = onFinish)
+            }
+            TextLink("Skip for now", onSkip)
+        },
+    ) {
+        Spacer(Modifier.height(16.dp))
+        WeekHeading(WeekSkin.flow())
+    }
+}
+
+/**
+ * The colours the week is drawn in.
+ *
+ * Two dressings, one editor. The first run is drawn on the Figma flow's white
+ * with its grey pills; the Schedule tab is drawn on the specimen's bone. Which
+ * of those two grounds the app settles on is still open, and keeping the
+ * difference to this one object is what makes it a single edit when it closes.
+ */
+internal data class WeekSkin(
+    val ground: Color,
+    val band: Color,
+    val line: Color,
+    val ink: Color,
+    val muted: Color,
+    val tile: Color,
+) {
+    companion object {
+        @Composable
+        fun specimen() = WeekSkin(
+            ground = MaterialTheme.colorScheme.background,
+            // Its own colour rather than surfaceVariant, which sits too close
+            // to a card to read as banding. This is barely anything -- white at
+            // three percent -- and it only has to make seven narrow columns
+            // countable without anybody reading the day labels.
+            band = BandWarm,
+            line = MaterialTheme.colorScheme.outlineVariant,
+            ink = MaterialTheme.colorScheme.onSurface,
+            muted = MaterialTheme.colorScheme.onSurfaceVariant,
+            tile = MaterialTheme.colorScheme.secondaryContainer,
+        )
+
+        /**
+         * The onboarding flow's grid.
+         *
+         * This used to be a second, lighter palette, because the flow was
+         * drawn on white while the app was drawn on bone. Both are the dusk
+         * ground now, so the two skins differ only in the tile -- the flow
+         * wants a plainer one, without the theme's warmth behind it.
+         */
+        @Composable
+        fun flow() = WeekSkin(
+            ground = Paper,
+            band = BandWarm,
+            line = Hairline,
+            ink = Chalk,
+            muted = Muted,
+            tile = Color(0xFF202124),
+        )
+    }
+}
+
+/**
+ * The editor both screens are.
+ *
+ * [header] is whatever the screen wants above the palette, and [footer]
+ * whatever it wants below; both are handed the live list, so a Finish button
+ * can know whether anything has been planted yet.
+ */
+@Composable
+private fun WeekEditor(
+    store: HarborRepository,
+    skin: WeekSkin,
+    modifier: Modifier = Modifier,
+    footer: @Composable ColumnScope.(List<WeekBlock>) -> Unit = {},
+    header: @Composable ColumnScope.(List<WeekBlock>) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val saved by store.weekBlocks.collectAsState()
 
     // Held locally only while a gesture is in flight. Writing every frame of a
     // drag through to storage would be a prefs write per pointer event.
-    var draft by remember { mutableStateOf<List<BusyWindow>?>(null) }
-    var selected by remember { mutableStateOf<Int?>(null) }
+    var draft by remember { mutableStateOf<List<WeekBlock>?>(null) }
+    var selected by remember { mutableStateOf<WeekBlock?>(null) }
+    var planting by remember { mutableStateOf(BlockKind.BUSY) }
 
     val blocks = draft ?: saved
 
-    LaunchedEffect(saved.size) {
-        if ((selected ?: -1) >= saved.size) selected = null
-    }
-
-    fun commit(next: List<BusyWindow>) {
+    fun commit(next: List<WeekBlock>) {
         draft = null
-        scope.launch { store.setBusyWindows(next) }
+        val grew = next.size > blocks.size
+        scope.launch {
+            store.setWeekBlocks(next)
+            store.note(
+                Moment.WEEK_EDITED,
+                if (grew) planting.name.lowercase() else "removed",
+                next.size,
+            )
+        }
     }
 
     Column(
         modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(skin.ground)
             .verticalScroll(rememberScrollState()),
     ) {
-        Box(Modifier.padding(horizontal = 28.dp)) {
-            PageIntro(
-                eyebrow = "Room for real life",
-                title = "When you are busy.",
-                subtitle = "Press and drag to lay down a block. Harbor stays quiet " +
-                    "during these.",
-            )
-        }
-
         Flow(Modifier.pageContent(), gap = 14) {
-            // The sheet sets this promise as a caption rather than a notice:
-            // the same words, in the voice the rest of the page labels things
-            // in. Nothing is dropped from what it says.
-            Eyebrow(
-                "Only the times · no subjects, no locations · " +
-                    "nothing leaves this phone",
-            )
+            header(blocks)
 
-            // The sheet leads its schedule with this card, and it is the
-            // best thing on the screen. Its copy says "your window" and never
-            // "together": Harbor has no way to know anyone else's evening and
-            // must never look as though it does. See domain/Windows.
-            Windows.next(blocks, LocalDate.now().dayOfWeek, LocalTime.now())?.let { window ->
-                LittleWindow(
-                    headline = timeLabel(window.start) + " – " + timeLabel(window.end),
-                    caption = Windows.phrase(window) + ", free today",
-                    flower = FlowerKind.POPPY,
-                    action = callable?.let { "Call " + it.label },
-                    onAction = callable?.phoneE164?.let { number ->
-                        {
-                            // ACTION_DIAL, never CALL_PHONE: Harbor hands the
-                            // number to the dialer and the person presses the
-                            // green button themselves (ADR-002).
-                            context.startActivity(
-                                Intent(Intent.ACTION_DIAL, "tel:$number".toUri()),
-                            )
-                        }
-                    },
-                )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                PaletteChip(
+                    kind = BlockKind.BUSY,
+                    label = "Busy time",
+                    selected = planting == BlockKind.BUSY,
+                    tile = skin.tile,
+                    ink = skin.ink,
+                ) { planting = BlockKind.BUSY }
+                PaletteChip(
+                    kind = BlockKind.FREE,
+                    label = "Free time",
+                    selected = planting == BlockKind.FREE,
+                    tile = skin.tile,
+                    ink = skin.ink,
+                ) { planting = BlockKind.FREE }
             }
-
-            SectionHeader("Your week", "press and drag to block time")
 
             WeekGrid(
                 blocks = blocks,
+                planting = planting,
                 selected = selected,
+                skin = skin,
                 onSelect = { selected = it },
                 onPreview = { draft = it },
-                onCommit = { commit(it) },
+                onCommit = { next, landed ->
+                    selected = landed
+                    commit(next)
+                },
             )
 
-            val chosen = selected?.let { blocks.getOrNull(it) }
+            val chosen = selected?.takeIf { it in blocks }
             if (chosen != null) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    SmallCopy(
+                    BlockGlyph(chosen.kind, Modifier.size(width = 18.dp, height = 24.dp))
+                    Text(
                         chosen.day.getDisplayName(TextStyle.SHORT, Locale.getDefault()) +
                             "  " + timeLabel(chosen.start) + " to " + timeLabel(chosen.end),
                         modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontSize = 13.sp,
+                            color = skin.muted,
+                        ),
                     )
+                    // A timetable is the same hour on five days far more
+                    // often than it is five different hours, and drawing the
+                    // same block five times is the tedium this screen exists
+                    // to remove.
+                    Pill(text = "Copy to next day", selected = false) {
+                        val copy = chosen.copy(day = chosen.day.plus(1))
+                        selected = copy
+                        commit(Windows.place(blocks, copy))
+                    }
                     Pill(text = "Remove", selected = false) {
-                        val index = selected
-                        if (index != null) {
-                            selected = null
-                            commit(blocks.filterIndexed { i, _ -> i != index })
-                        }
+                        selected = null
+                        commit(blocks.filterNot { it == chosen })
                     }
                 }
             } else {
                 SmallCopy(
                     if (blocks.isEmpty()) {
-                        "Nothing yet. Without any blocks, a cue can land during a class."
+                        "Nothing yet. Double tap the week to plant your first one."
                     } else {
-                        "Tap a block to remove it. Drag its bottom edge to make it longer."
+                        "Double tap to plant one. Drag its bottom edge to make it " +
+                            "longer, or drag it down into the bin."
                     },
                     size = 13,
                 )
             }
 
-            TextLink("Back", onDone)
+            footer(blocks)
         }
     }
 }
 
-// The window the grid shows. Before 7am and after 11pm someone is either
-// asleep or already covered by the cue thresholds.
-private const val FIRST_HOUR = 7
-private const val LAST_HOUR = 23
+// The whole day, because the cue pipeline has no hour-of-day rule of its own
+// and sleep is worth being able to mark. Lines and labels every three hours,
+// as the frames have them.
+private const val FIRST_HOUR = 0
+private const val LAST_HOUR = 24
+private const val LABEL_EVERY = 3
 private const val SNAP_MINUTES = 30
-private val HOUR_HEIGHT = 46.dp
-private val GUTTER = 38.dp
+private val HOUR_HEIGHT = 21.dp
+private val GUTTER = 40.dp
+
+/** Sunday first, as the frames draw it. */
+private val DAYS = listOf(
+    DayOfWeek.SUNDAY,
+    DayOfWeek.MONDAY,
+    DayOfWeek.TUESDAY,
+    DayOfWeek.WEDNESDAY,
+    DayOfWeek.THURSDAY,
+    DayOfWeek.FRIDAY,
+    DayOfWeek.SATURDAY,
+)
 
 private enum class Grab { Move, ResizeEnd }
 
 /**
  * The week, as something you draw on.
  *
- * Blocks are addressed by index, which is stable for the length of one
- * gesture because nothing else writes the list in that time.
+ * Everything on it is painted onto one canvas rather than laid out as boxes,
+ * because a thorn's spikes and a flower's head both sit outside their own time
+ * span and a box would clip them.
+ *
+ * The block under the finger is carried separately from the rest of the list
+ * for the length of a gesture. That is what lets [Windows.place] run once, at
+ * the end, instead of reshuffling the list under a drag that is still going.
  */
 @Composable
 private fun WeekGrid(
-    blocks: List<BusyWindow>,
-    selected: Int?,
-    onSelect: (Int?) -> Unit,
-    onPreview: (List<BusyWindow>) -> Unit,
-    onCommit: (List<BusyWindow>) -> Unit,
+    blocks: List<WeekBlock>,
+    planting: BlockKind,
+    selected: WeekBlock?,
+    skin: WeekSkin,
+    onSelect: (WeekBlock?) -> Unit,
+    onPreview: (List<WeekBlock>) -> Unit,
+    /** The second argument is null when the block was dropped in the bin. */
+    onCommit: (List<WeekBlock>, WeekBlock?) -> Unit,
 ) {
-    val days = DayOfWeek.entries
     val hours = LAST_HOUR - FIRST_HOUR
     val density = LocalDensity.current
 
-    val line = MaterialTheme.colorScheme.outlineVariant
-    val blockFill = MaterialTheme.colorScheme.primary
-    val blockInk = MaterialTheme.colorScheme.onPrimary
-    val accent = MaterialTheme.colorScheme.tertiary
-    val edgeInk = MaterialTheme.colorScheme.onBackground
+    // Raised while a block is being held below the foot of the grid. The bin
+    // sits directly under it, so dragging something off the bottom of your
+    // week is the gesture, and the pointer stays captured once a drag starts.
+    var overBin by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
             Spacer(Modifier.width(GUTTER))
-            days.forEach { d ->
+            DAYS.forEach { d ->
                 Text(
-                    d.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                    d.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                     modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = skin.muted,
                     ),
                 )
             }
@@ -268,23 +544,38 @@ private fun WeekGrid(
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
-                .height(HOUR_HEIGHT * hours)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surface),
+                .height(HOUR_HEIGHT * hours),
         ) {
-            val columnWidth = (maxWidth - GUTTER) / days.size
+            val columnWidth = (maxWidth - GUTTER) / DAYS.size
             val colPx = with(density) { columnWidth.toPx() }
             val gutterPx = with(density) { GUTTER.toPx() }
             val hourPx = with(density) { HOUR_HEIGHT.toPx() }
-            val edgePx = with(density) { 16.dp.toPx() }
+            val edgePx = with(density) { 14.dp.toPx() }
+            val slackPx = with(density) { 5.dp.toPx() }
 
-            fun dayAt(x: Float): Int =
-                ((x - gutterPx) / colPx).toInt().coerceIn(0, days.size - 1)
+            fun dayAt(x: Float): DayOfWeek =
+                DAYS[((x - gutterPx) / colPx).toInt().coerceIn(0, DAYS.size - 1)]
 
             fun minuteAt(y: Float): Int {
                 val raw = FIRST_HOUR * 60 + (y / hourPx) * 60f
                 val snapped = (raw / SNAP_MINUTES).roundToInt() * SNAP_MINUTES
                 return snapped.coerceIn(FIRST_HOUR * 60, LAST_HOUR * 60)
+            }
+
+            fun topOf(block: WeekBlock): Float =
+                (block.start.toMinutes() - FIRST_HOUR * 60) / 60f * hourPx
+
+            fun bottomOf(block: WeekBlock): Float =
+                (block.end.toMinutes() - FIRST_HOUR * 60) / 60f * hourPx
+
+            fun boxOf(block: WeekBlock): Rect {
+                val x = gutterPx + colPx * DAYS.indexOf(block.day)
+                return Rect(
+                    left = x + colPx * 0.12f,
+                    top = topOf(block),
+                    right = x + colPx * 0.88f,
+                    bottom = bottomOf(block),
+                )
             }
 
             // Read through a snapshot rather than closing over `blocks`.
@@ -294,113 +585,117 @@ private fun WeekGrid(
             // tore down the detector that was producing it: a block could be
             // created but never sized, and every drag ended as a cancel.
             val latest by rememberUpdatedState(blocks)
+            val nowPlanting by rememberUpdatedState(planting)
 
-            fun hitTest(at: Offset): Pair<Int, Grab>? {
-                latest.forEachIndexed { i, b ->
-                    val x = gutterPx + colPx * days.indexOf(b.day)
-                    val top = (b.start.toMinutes() - FIRST_HOUR * 60) / 60f * hourPx
-                    val bottom = (b.end.toMinutes() - FIRST_HOUR * 60) / 60f * hourPx
-                    if (at.x >= x && at.x < x + colPx && at.y >= top && at.y <= bottom) {
-                        return i to if (at.y > bottom - edgePx) Grab.ResizeEnd else Grab.Move
+            fun hitTest(at: Offset): Pair<WeekBlock, Grab>? {
+                latest.forEach { b ->
+                    val x = gutterPx + colPx * DAYS.indexOf(b.day)
+                    val top = topOf(b)
+                    val bottom = bottomOf(b)
+                    // A half-hour block is only ten points tall, so the hit
+                    // box gets a little slack it does not draw.
+                    if (at.x >= x && at.x < x + colPx &&
+                        at.y >= top - slackPx && at.y <= bottom + slackPx
+                    ) {
+                        val handle = minOf(edgePx, (bottom - top) * 0.4f)
+                        return b to if (at.y > bottom - handle) Grab.ResizeEnd else Grab.Move
                     }
                 }
                 return null
             }
 
-            var index by remember { mutableStateOf(-1) }
+            var carried by remember { mutableStateOf<WeekBlock?>(null) }
+            var rest by remember { mutableStateOf<List<WeekBlock>>(emptyList()) }
             var grab by remember { mutableStateOf(Grab.Move) }
-            var working by remember { mutableStateOf<List<BusyWindow>>(emptyList()) }
             var cursor by remember { mutableStateOf(Offset.Zero) }
             var grabOffset by remember { mutableStateOf(0) }
 
             Canvas(Modifier.fillMaxSize()) {
-                for (h in 0..hours) {
-                    val y = h * hourPx
-                    drawLine(
-                        color = line,
-                        start = Offset(gutterPx, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = 1f,
-                    )
-                }
-                for (d in 1 until days.size) {
-                    val x = gutterPx + colPx * d
-                    drawLine(
-                        color = line,
-                        start = Offset(x, 0f),
-                        end = Offset(x, size.height),
-                        strokeWidth = 1f,
-                    )
-                }
-            }
-
-            for (h in 0 until hours) {
-                Text(
-                    shortHour(FIRST_HOUR + h),
-                    modifier = Modifier
-                        .offset(y = HOUR_HEIGHT * h + 4.dp)
-                        .width(GUTTER)
-                        .padding(start = 7.dp, end = 5.dp),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 9.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
-            }
-
-            blocks.forEachIndexed { i, b ->
-                val top = (b.start.toMinutes() - FIRST_HOUR * 60) / 60f
-                val span = (b.end.toMinutes() - b.start.toMinutes()) / 60f
-                val isSelected = i == selected
-                val ink = if (isSelected) edgeInk else blockInk
-                Box(
-                    Modifier
-                        .offset(
-                            x = GUTTER + columnWidth * days.indexOf(b.day),
-                            y = HOUR_HEIGHT * top,
-                        )
-                        .width(columnWidth)
-                        .height(HOUR_HEIGHT * span)
-                        .padding(1.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(if (isSelected) accent else blockFill)
-                        .then(
-                            if (isSelected) {
-                                Modifier.border(2.dp, edgeInk, RoundedCornerShape(7.dp))
-                            } else {
-                                Modifier
-                            },
-                        ),
-                ) {
-                    if (span >= 0.75f) {
-                        Text(
-                            timeLabel(b.start),
-                            modifier = Modifier.padding(start = 4.dp, top = 2.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 9.sp,
-                                color = ink,
-                            ),
+                // Warm bands down every other column, so seven narrow
+                // columns can be counted without reading the labels.
+                for (i in DAYS.indices) {
+                    if (i % 2 == 1) {
+                        drawRect(
+                            color = skin.band,
+                            topLeft = Offset(gutterPx + colPx * i, 0f),
+                            size = Size(colPx, size.height),
                         )
                     }
-                    // The grip. Visible so that "drag the edge" is something
-                    // you can see rather than something you have to be told.
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 3.dp)
-                            .width(18.dp)
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(ink.copy(alpha = 0.55f)),
+                }
+
+                val dash = PathEffect.dashPathEffect(floatArrayOf(7f, 5f), 0f)
+                for (h in 0..hours step LABEL_EVERY) {
+                    val y = h * hourPx
+                    drawLine(
+                        color = skin.line,
+                        start = Offset(gutterPx, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 1.2f,
+                        pathEffect = dash,
                     )
                 }
+
+                blocks.forEach { b ->
+                    val box = boxOf(b)
+                    when (b.kind) {
+                        BlockKind.BUSY -> drawThorn(box)
+                        BlockKind.FREE -> drawFlowerBlock(box)
+                    }
+                }
+
+                selected?.takeIf { it in blocks }?.let { b ->
+                    val box = boxOf(b)
+                    drawRoundRect(
+                        color = skin.ink,
+                        topLeft = Offset(box.left - 3f, box.top - 3f),
+                        size = Size(box.width + 6f, box.height + 6f),
+                        cornerRadius = CornerRadius(box.width * 0.3f),
+                        style = Stroke(width = 2f),
+                    )
+                }
+            }
+
+            for (h in FIRST_HOUR..LAST_HOUR step LABEL_EVERY) {
+                Text(
+                    clockLabel(h),
+                    modifier = Modifier
+                        .offset(y = HOUR_HEIGHT * (h - FIRST_HOUR) - 7.dp)
+                        .width(GUTTER)
+                        .padding(start = 2.dp, end = 6.dp),
+                    textAlign = TextAlign.End,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 9.sp,
+                        color = skin.muted,
+                    ),
+                )
             }
 
             Box(
                 Modifier
                     .fillMaxSize()
                     .pointerInput(colPx, hourPx) {
-                        detectTapGestures { at -> onSelect(hitTest(at)?.first) }
+                        detectTapGestures(
+                            onTap = { at -> onSelect(hitTest(at)?.first) },
+                            // Two taps puts an hour down where you tapped.
+                            // Press-and-drag still draws one at whatever
+                            // length you like; this is the quick way to say
+                            // "here", which is most of what anybody does.
+                            onDoubleTap = { at ->
+                                if (hitTest(at) == null) {
+                                    val start = minuteAt(at.y)
+                                    val end = (start + 60).coerceAtMost(LAST_HOUR * 60)
+                                    if (end > start) {
+                                        val block = WeekBlock(
+                                            day = dayAt(at.x),
+                                            start = minutesToTime(start),
+                                            end = minutesToTime(end),
+                                            kind = nowPlanting,
+                                        )
+                                        onCommit(Windows.place(latest, block), block)
+                                    }
+                                }
+                            },
+                        )
                     }
                     .pointerInput(colPx, hourPx) {
                         detectDragGesturesAfterLongPress(
@@ -408,49 +703,51 @@ private fun WeekGrid(
                                 cursor = at
                                 val hit = hitTest(at)
                                 if (hit == null) {
-                                    // Lay a block down and start sizing it at
-                                    // once, so a single press-and-drag both
-                                    // creates it and sets how long it runs.
+                                    // Plant one and start sizing it at once,
+                                    // so a single press-and-drag both puts it
+                                    // down and sets how long it runs.
                                     val start = minuteAt(at.y)
                                     val end = (start + SNAP_MINUTES)
                                         .coerceAtMost(LAST_HOUR * 60)
                                     if (end > start) {
-                                        working = latest + BusyWindow(
-                                            day = days[dayAt(at.x)],
+                                        rest = latest
+                                        carried = WeekBlock(
+                                            day = dayAt(at.x),
                                             start = minutesToTime(start),
                                             end = minutesToTime(end),
+                                            kind = nowPlanting,
                                         )
-                                        index = working.lastIndex
                                         grab = Grab.ResizeEnd
                                         grabOffset = 0
-                                        onSelect(index)
-                                        onPreview(working)
                                     }
                                 } else {
-                                    working = latest
-                                    index = hit.first
+                                    rest = latest.filterNot { it == hit.first }
+                                    carried = hit.first
                                     grab = hit.second
-                                    grabOffset = minuteAt(at.y) -
-                                        latest[hit.first].start.toMinutes()
-                                    onSelect(index)
+                                    grabOffset = minuteAt(at.y) - hit.first.start.toMinutes()
+                                }
+                                carried?.let {
+                                    onSelect(it)
+                                    onPreview(rest + it)
                                 }
                             },
                             onDrag = { change, amount ->
                                 change.consume()
-                                if (index in working.indices) {
+                                val held = carried
+                                if (held != null) {
                                     cursor += amount
-                                    val b = working[index]
+                                    overBin = cursor.y > size.height
                                     val next = when (grab) {
                                         Grab.Move -> {
                                             val length =
-                                                b.end.toMinutes() - b.start.toMinutes()
+                                                held.end.toMinutes() - held.start.toMinutes()
                                             val start = (minuteAt(cursor.y) - grabOffset)
                                                 .coerceIn(
                                                     FIRST_HOUR * 60,
                                                     LAST_HOUR * 60 - length,
                                                 )
-                                            b.copy(
-                                                day = days[dayAt(cursor.x)],
+                                            held.copy(
+                                                day = dayAt(cursor.x),
                                                 start = minutesToTime(start),
                                                 end = minutesToTime(start + length),
                                             )
@@ -458,30 +755,115 @@ private fun WeekGrid(
 
                                         Grab.ResizeEnd -> {
                                             val end = minuteAt(cursor.y).coerceIn(
-                                                b.start.toMinutes() + SNAP_MINUTES,
+                                                held.start.toMinutes() + SNAP_MINUTES,
                                                 LAST_HOUR * 60,
                                             )
-                                            b.copy(end = minutesToTime(end))
+                                            held.copy(end = minutesToTime(end))
                                         }
                                     }
-                                    working =
-                                        working.toMutableList().also { it[index] = next }
-                                    onPreview(working)
+                                    carried = next
+                                    onSelect(next)
+                                    onPreview(rest + next)
                                 }
                             },
                             onDragEnd = {
-                                if (index >= 0) onCommit(working)
-                                index = -1
+                                carried?.let {
+                                    // Dropped past the foot of the week: the
+                                    // bin takes it, and nothing is placed.
+                                    if (overBin) onCommit(rest, null)
+                                    // Placing is also erasing: whatever this
+                                    // landed on gets cut back out of the week.
+                                    else onCommit(Windows.place(rest, it), it)
+                                }
+                                carried = null
+                                overBin = false
                             },
                             onDragCancel = {
-                                if (index >= 0) onCommit(working)
-                                index = -1
+                                carried?.let { onCommit(Windows.place(rest, it), it) }
+                                carried = null
+                                overBin = false
                             },
                         )
                     },
             )
         }
+
+        // The bin, directly under the foot of the week.
+        //
+        // Removing a block used to mean tapping it and then finding a pill
+        // further down the page, which is a two-step answer to a one-step
+        // thought. Dragging something off the bottom of your week and letting
+        // go of it is the same gesture as throwing it away.
+        Spacer(Modifier.size(8.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (overBin) skin.band else Color.Transparent)
+                .border(
+                    1.dp,
+                    if (overBin) skin.ink else skin.line.copy(alpha = 0.5f),
+                    RoundedCornerShape(12.dp),
+                )
+                .padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Canvas(Modifier.size(width = 13.dp, height = 15.dp)) {
+                val w = size.width
+                val h = size.height
+                val ink = skin.muted
+                // A lid, and a tub under it.
+                drawRect(
+                    color = ink,
+                    topLeft = Offset(0f, h * 0.10f),
+                    size = Size(w, h * 0.10f),
+                )
+                drawRect(
+                    color = ink,
+                    topLeft = Offset(w * 0.34f, 0f),
+                    size = Size(w * 0.32f, h * 0.10f),
+                )
+                drawRect(
+                    color = ink,
+                    topLeft = Offset(w * 0.12f, h * 0.26f),
+                    size = Size(w * 0.76f, h * 0.74f),
+                )
+            }
+            Spacer(Modifier.size(8.dp))
+            Text(
+                if (overBin) "Let go to remove it" else "Drag one here to remove it",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 11.sp,
+                    color = skin.muted,
+                ),
+            )
+        }
     }
+}
+
+/**
+ * The flow's pill, so the last step matches the ten before it.
+ *
+ * Named for the grey it used to be. It is amber now, like every other enabled
+ * control in onboarding, and the name is kept only because this is the step
+ * that closes that flow and the two files are read together.
+ */
+@Composable
+private fun GreyPill(label: String, enabled: Boolean, onClick: () -> Unit) = Box(
+    Modifier
+        .clip(RoundedCornerShape(29.dp))
+        .background(if (enabled) Gold else Sand)
+        .clickable(enabled = enabled, onClick = onClick)
+        .padding(horizontal = 26.dp, vertical = 8.dp),
+) {
+    Text(
+        label,
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontSize = 17.sp,
+            color = if (enabled) Ink else Muted,
+        ),
+    )
 }
 
 private fun LocalTime.toMinutes(): Int = hour * 60 + minute
@@ -491,10 +873,9 @@ private fun minutesToTime(total: Int): LocalTime {
     return LocalTime.of(clamped / 60, clamped % 60)
 }
 
-private fun shortHour(hour: Int): String {
-    val display = if (hour % 12 == 0) 12 else hour % 12
-    return display.toString() + if (hour < 12) "a" else "p"
-}
+/** "00:00", as the frames label the hours. */
+private fun clockLabel(hour: Int): String =
+    (hour % 24).toString().padStart(2, '0') + ":00"
 
 private fun timeLabel(at: LocalTime): String {
     val display = if (at.hour % 12 == 0) 12 else at.hour % 12

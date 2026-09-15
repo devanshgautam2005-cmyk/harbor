@@ -1,0 +1,141 @@
+package app.harbor.domain
+
+import java.time.Instant
+
+/**
+ * What the week-one study needs to know, recorded as it happens.
+ *
+ * The study asks three questions (`docs/03-week-one-study.md`) and the ledger
+ * only answers the third. It knows a cue fired and what the user chose; it has
+ * nothing to say about whether anybody opened the app, how long they stayed,
+ * what they looked at, or how many of their calls Harbor had anything to do
+ * with. Those were being collected by asking participants afterwards, which
+ * is the least reliable instrument there is.
+ *
+ * So Harbor keeps a beat for each of them, on the phone, as it happens.
+ *
+ * ## The one rule
+ *
+ * **This records shapes, never content.** [Beat.detail] is a category from a
+ * fixed vocabulary — a screen name, an enum, a source — and never a string
+ * somebody typed. No names, no numbers, no note text, no daily answers, no
+ * block labels. If a new call site wants to put a person's words in here, the
+ * answer is no; put a category in and leave the words where they are.
+ *
+ * That is not only privacy hygiene. A study file that carries content has to
+ * be handled as personal data by whoever receives it, and the whole design of
+ * [StudyExport] is an argument for not having to.
+ *
+ * ## What this is not
+ *
+ * Not analytics. Nothing here leaves the device on its own: Harbor holds no
+ * `INTERNET` permission (ADR-004) and this adds none. The beats ride out in
+ * the same study export the participant hands over at the end of the week,
+ * and they are listed in that file's `omitted`/`included` preamble like
+ * everything else. Somebody who never exports has told us nothing.
+ */
+enum class Moment {
+    /** Harbor came to the front. */
+    APP_OPENED,
+
+    /** Harbor went to the back. Carries seconds spent, so sessions have length. */
+    APP_LEFT,
+
+    /** A screen was shown. `detail` is the screen's own name. */
+    SCREEN,
+
+    /** A step of the first run was reached. `value` is the step index. */
+    ONBOARDING_STEP,
+
+    /** The first run finished. */
+    ONBOARDING_DONE,
+
+    /** A cue was put in front of the user. `detail` is the trigger source. */
+    CUE_SHOWN,
+
+    /** The user answered a cue. `detail` is the resolution. */
+    CUE_RESOLVED,
+
+    /**
+     * A call was placed. `detail` says from where — the cue, home, a person's
+     * page, the window on the schedule.
+     *
+     * The difference between these is the study's second question: whether the
+     * trigger is doing the work, or whether people are opening Harbor and
+     * calling on their own.
+     */
+    CALL_STARTED,
+
+    /** They came back from a call. `value` is minutes away. */
+    CALL_RETURNED,
+
+    /** A flower was planted. `detail` is its kind, `value` the minutes. */
+    FLOWER_PLANTED,
+
+    /** A petal went out. `detail` is line, picture or kept. */
+    PETAL_SENT,
+
+    /** The week was edited. `detail` is what was placed or removed. */
+    WEEK_EDITED,
+
+    /** The mood was set. `detail` is the weather. */
+    WEATHER_SET,
+
+    /** The daily word was answered. The word itself is not recorded. */
+    ANSWER_KEPT,
+}
+
+/**
+ * One thing that happened, and when.
+ *
+ * [detail] is a category, never anybody's words. See [Moment].
+ */
+data class Beat(
+    val at: Instant,
+    val moment: Moment,
+    val detail: String? = null,
+    val value: Int? = null,
+)
+
+/** Reading a week of beats back into the numbers the study actually asks for. */
+object Telemetry {
+
+    /**
+     * How many beats are kept.
+     *
+     * A week of ordinary use is a few hundred. The cap exists so a participant
+     * who leaves the app installed for a month does not end up with a
+     * SharedPreferences entry measured in megabytes; when it is hit the oldest
+     * go first, because the end of the week is the part being studied.
+     */
+    const val KEEP = 4000
+
+    data class Summary(
+        val opens: Int,
+        val days: Int,
+        val minutesInApp: Int,
+        val cuesShown: Int,
+        val callsFromCue: Int,
+        val callsOnTheirOwn: Int,
+        val flowers: Int,
+        val petals: Int,
+    )
+
+    fun summarise(beats: List<Beat>): Summary {
+        val calls = beats.filter { it.moment == Moment.CALL_STARTED }
+        return Summary(
+            opens = beats.count { it.moment == Moment.APP_OPENED },
+            days = beats.map { it.at.epochSecond / 86_400 }.toSet().size,
+            minutesInApp = beats
+                .filter { it.moment == Moment.APP_LEFT }
+                .sumOf { it.value ?: 0 } / 60,
+            cuesShown = beats.count { it.moment == Moment.CUE_SHOWN },
+            // A call the cue asked for, against one the user went and made.
+            // The gap between these two numbers is the product's whole claim.
+            callsFromCue = calls.count { it.detail == TriggerSource.WALKING_STOP.name },
+            callsOnTheirOwn = calls.count { it.detail != TriggerSource.WALKING_STOP.name },
+            flowers = beats.count { it.moment == Moment.FLOWER_PLANTED },
+            petals = beats.count { it.moment == Moment.PETAL_SENT },
+        )
+    }
+}

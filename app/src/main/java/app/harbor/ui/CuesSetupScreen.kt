@@ -1,6 +1,7 @@
 package app.harbor.ui
 
 import android.Manifest
+import androidx.core.app.NotificationManagerCompat
 import android.content.Context
 import android.os.Build
 import android.content.Intent
@@ -38,6 +39,10 @@ import app.harbor.ui.theme.Flow
 import app.harbor.ui.theme.Notice
 import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.PrimaryAction
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
+import androidx.compose.runtime.DisposableEffect
 import app.harbor.ui.theme.QuietAction
 import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
@@ -82,16 +87,37 @@ fun CuesSetupScreen(
     var hasPermission by remember { mutableStateOf(ActivityTransitions.hasPermission(context)) }
     var refused by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
+    // Re-read on every resume rather than once: the only way to grant this is
+    // in Settings, so the interesting moment is the return from there.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var canTakeScreen by remember { mutableStateOf(true) }
+    var canNotify by remember { mutableStateOf(true) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                canTakeScreen = CueNotifier.canTakeTheScreen(context)
+                canNotify = NotificationManagerCompat.from(context).areNotificationsEnabled()
+                hasPermission = ActivityTransitions.hasPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val request = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
-        // Activity recognition is the one that decides whether sensing can run
-        // at all. Notifications are asked for in the same breath because a cue
-        // nobody can see is not a cue, but refusing them does not stop sensing.
+        // Activity recognition decides whether sensing can run at all, so it
+        // is the one that decides whether cues are "on". Notifications are
+        // asked for in the same breath and do not gate sensing -- but a cue
+        // posted without them is dropped by the system in silence, which looks
+        // from the inside exactly like a trigger that never fired. That is why
+        // the answer is kept rather than discarded: the screen has to be able
+        // to say so afterwards.
         val granted = results[Manifest.permission.ACTIVITY_RECOGNITION] ?: hasPermission
         hasPermission = granted
         refused = !granted
+        canNotify = NotificationManagerCompat.from(context).areNotificationsEnabled()
         if (granted) {
             scope.launch { failed = !Sensing.enable(context, store) }
         }
@@ -120,13 +146,15 @@ fun CuesSetupScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            // No ground of its own: HarborShell paints the ground and the
+            // dusk over it, and a second opaque background here covered
+            // that gradient -- which is what made every screen read flat.
             .verticalScroll(rememberScrollState()),
     ) {
         Flow(Modifier.pageContent()) {
             PageIntro(
-                eyebrow = "Gentle cues",
-                title = "A cue, never a demand.",
+                eyebrow = "Gentle reminders",
+                title = "A reminder, never a demand.",
                 subtitle = "Harbor can notice the quiet moment just after a walk " +
                     "ends, and offer you the chance to call home. That is the " +
                     "whole of it.",
@@ -145,12 +173,12 @@ fun CuesSetupScreen(
                     "On this phone. Your movement is never sent to us and never " +
                         "shared with your family — not as a summary, not ever. " +
                         "The only things that leave are the ones you chose: that " +
-                        "a cue appeared, and what you decided to do about it.",
+                        "a reminder appeared, and what you decided to do about it.",
                 )
 
                 SectionHeading("What you keep control of")
                 SmallCopy(
-                    "Every cue can be dismissed, and dismissing costs nothing — " +
+                    "Every reminder can be dismissed, and dismissing costs nothing — " +
                         "there is no streak to break. At most " +
                         "${settings.thresholds.dailyCap} a day, with at least " +
                         "${settings.thresholds.cooldownMinutes} minutes between " +
@@ -171,7 +199,7 @@ fun CuesSetupScreen(
                     }
                     SmallCopy(
                         who?.let { "${it.label} — ${it.phoneE164}" }
-                            ?: "Nobody yet. A cue needs someone to be about.",
+                            ?: "Nobody yet. A reminder needs someone to be about.",
                     )
                 }
                 QuietAction(if (who == null) "Choose someone" else "Change") {
@@ -185,7 +213,7 @@ fun CuesSetupScreen(
                     // and CuePolicy already lets a manual request past every
                     // gate, on the grounds that someone standing there asking
                     // for the prompt should get it.
-                    QuietAction("Show me a cue now") {
+                    QuietAction("Show me a reminder now") {
                         scope.launch { showManualCue(context, store, who) }
                     }
                     SmallCopy(
@@ -199,7 +227,7 @@ fun CuesSetupScreen(
             when {
                 Sensing.isActive(context, store) -> {
                     SmallCopy(
-                        "Cues are on. Harbor will wait for a walk of at least " +
+                        "Reminders are on. Harbor will wait for a walk of at least " +
                             "${settings.thresholds.walkingMinutes} minutes.",
                         size = 15,
                     )
@@ -227,7 +255,7 @@ fun CuesSetupScreen(
                                 "then keeps it awake.",
                         )
                     }
-                    QuietAction("Turn cues off") {
+                    QuietAction("Turn reminders off") {
                         scope.launch { Sensing.disable(context, store) }
                     }
                 }
@@ -237,7 +265,7 @@ fun CuesSetupScreen(
                 // the user has no way to catch.
                 settings.cuesEnabled && !hasPermission -> {
                     SmallCopy(
-                        "Cues are paused. Harbor no longer has permission to " +
+                        "Reminders are paused. Harbor no longer has permission to " +
                             "notice when you stop walking.",
                         size = 15,
                     )
@@ -245,7 +273,7 @@ fun CuesSetupScreen(
                 }
 
                 else -> {
-                    PrimaryAction("Turn on gentle cues", onClick = ::turnOn)
+                    PrimaryAction("Turn on gentle reminders", onClick = ::turnOn)
                     SmallCopy(
                         "You can do this later. Harbor works without it — you " +
                             "can always start a moment yourself.",
@@ -254,10 +282,53 @@ fun CuesSetupScreen(
                 }
             }
 
+            // Everything a cue needs that is not "cues are on".
+            //
+            // Three separate things have to be true before a cue reaches
+            // somebody, and turning cues on only settles the first. The other
+            // two fail silently, which is the whole problem: Harbor senses the
+            // walk, writes the beat, posts the cue, and the person sees
+            // nothing. Reading "moving, 3 minutes ago" on this screen while
+            // never having seen a cue is what that looks like from the
+            // outside, and nothing anywhere said why.
+            if (settings.cuesEnabled && hasPermission && (!canNotify || !canTakeScreen)) {
+                Surface {
+                    SectionHeading("A reminder would not reach you yet")
+                    if (!canNotify) {
+                        SmallCopy(
+                            "Notifications are off for Harbor. A reminder is posted " +
+                                "as one, so with these off it is thrown away " +
+                                "the moment it is made and nothing appears.",
+                            size = 14,
+                        )
+                        PrimaryAction("Allow notifications") {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                            )
+                        }
+                    }
+                    if (!canTakeScreen) {
+                        SmallCopy(
+                            "Android only lets an app take over the screen if " +
+                                "you allow it by hand. Without it a reminder arrives " +
+                                "as a banner that fades on its own, so if your " +
+                                "phone is in your pocket you will miss it.",
+                            size = 14,
+                        )
+                        CueNotifier.fullScreenSettings(context)?.let { intent ->
+                            PrimaryAction("Let a reminder open the screen") {
+                                context.startActivity(intent)
+                            }
+                        }
+                    }
+                }
+            }
+
             if (refused) {
                 Surface {
                     SmallCopy(
-                        "That is completely fine. Cues stay off, and nothing " +
+                        "That is completely fine. Reminders stay off, and nothing " +
                             "else changes. If you change your mind, Android may " +
                             "not ask again — you can grant it from system settings.",
                     )
@@ -274,7 +345,7 @@ fun CuesSetupScreen(
             if (failed) {
                 Notice(
                     "Harbor could not start listening. Google Play services may " +
-                        "be unavailable on this phone. Cues stay off rather than " +
+                        "be unavailable on this phone. Reminders stay off rather than " +
                         "pretending to work.",
                 )
             }
@@ -305,6 +376,8 @@ internal suspend fun showManualCue(
     context: Context,
     store: HarborRepository,
     who: Contact,
+    /** True only for onboarding's own preview — see [CueNotifier.EXTRA_SKIP_PULSE]. */
+    skipPulse: Boolean = false,
 ) {
     val now = Instant.now()
     val cue = Cue(
@@ -319,6 +392,7 @@ internal suspend fun showManualCue(
             putExtra(CueNotifier.EXTRA_CUE_ID, cue.id.toString())
             putExtra(CueNotifier.EXTRA_CONTACT_ID, who.id.toString())
             putExtra(CueNotifier.EXTRA_SOURCE, TriggerSource.MANUAL.name)
+            putExtra(CueNotifier.EXTRA_SKIP_PULSE, skipPulse)
         },
     )
 }

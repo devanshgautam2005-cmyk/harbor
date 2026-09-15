@@ -15,6 +15,16 @@
     <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
 
     <!-- Re-register transition updates after a reboot; they do not survive it. -->
+    <!--
+      Placing the call itself, rather than handing the number to the dialer
+      for the user to press the green button. Reverses the 2026-09-10
+      amendment to ADR-002; see that ADR for what the reversal costs.
+
+      READ_PHONE_STATE is deliberately still absent. Harbor does not watch the
+      call, it times how long you were away.
+    -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- The cue itself. POST_NOTIFICATIONS is a runtime prompt on API 33+. -->
@@ -62,7 +72,10 @@
             android:exported="false"
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:taskAffinity=".cue"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Harbor" />
 
         <!--
