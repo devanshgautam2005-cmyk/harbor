@@ -17,8 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,17 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.harbor.data.HarborRepository
 import app.harbor.ui.theme.Flow
-import app.harbor.ui.theme.Hairline
-import app.harbor.ui.theme.Gold
-import app.harbor.ui.theme.Ink
-import app.harbor.ui.theme.Muted
 import app.harbor.ui.theme.PageIntro
 import app.harbor.ui.theme.SectionHeader
-import app.harbor.ui.theme.SectionHeading
 import app.harbor.ui.theme.SmallCopy
 import app.harbor.ui.theme.Surface
 import app.harbor.ui.theme.pageContent
-import app.harbor.domain.CueSound
 import app.harbor.domain.Thresholds
 import app.harbor.domain.UserSettings
 import androidx.compose.material3.OutlinedTextField
@@ -159,62 +151,6 @@ fun SettingsScreen(
                 SmallCopy("Suggested values, always editable.")
             }
 
-            Surface {
-                SectionHeader("Your gentle sound", "unless someone has their own")
-                SmallCopy("Someone you have chosen a ringtone for overrides this.")
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CueSound.entries.forEach { option ->
-                        Pill(
-                            text = option.label,
-                            selected = option == settings.sound,
-                            modifier = Modifier.weight(1f),
-                        ) { save(settings.copy(sound = option)) }
-                    }
-                }
-            }
-
-            Surface {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        SectionHeading("A little less movement")
-                        SmallCopy(
-                            "Accessibility. Flowers appear rather than bloom, " +
-                                "and a petal arrives rather than drifting off. " +
-                                "Nothing is lost; it simply stops moving.",
-                        )
-                    }
-                    // Amber, not green.
-                    //
-                    // The light specimen let the interface use exactly one
-                    // colour of its own, and spent it here: a switch that is
-                    // on. The dark design is stricter still -- amber is the
-                    // current tab, the primary action and the selected thing,
-                    // and nothing else gets a colour at all -- so a green
-                    // switch would now be the only green in the whole app and
-                    // would read as a stray rather than as an accent. A switch
-                    // that is on is a selected thing, so it takes the amber.
-                    Switch(
-                        checked = settings.reducedMotion,
-                        onCheckedChange = { save(settings.copy(reducedMotion = it)) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Ink,
-                            checkedTrackColor = Gold,
-                            checkedBorderColor = Gold,
-                            uncheckedThumbColor = Muted,
-                            uncheckedTrackColor = androidx.compose.ui.graphics.Color.Transparent,
-                            uncheckedBorderColor = Hairline,
-                        ),
-                    )
-                }
-            }
-
             // Handing over the week is no longer something the participant
             // has to do. Harbor records what the study needs as it happens
             // (domain/Telemetry) and the file is assembled from that, so the
@@ -306,10 +242,3 @@ internal fun Pill(
         ),
     )
 }
-
-internal val CueSound.label: String
-    get() = when (this) {
-        CueSound.CHIME -> "Little chime"
-        CueSound.SOFT -> "Soft note"
-        CueSound.SILENT -> "Silence"
-    }
