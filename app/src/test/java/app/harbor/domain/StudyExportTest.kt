@@ -176,7 +176,7 @@ class StudyExportTest {
     fun `enum names match the wire names Postgres uses`() {
         val json = StudyExport.json(bundle())
         assertTrue(json.contains("\"feeling\":\"warm\""))
-        assertTrue(json.contains("\"flower\":\"upbeat\""))
+        assertTrue(json.contains("\"flower\":\"lighter_now\""))
     }
 
     @Test
