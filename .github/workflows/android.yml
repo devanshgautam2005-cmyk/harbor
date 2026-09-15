@@ -17,6 +17,16 @@ jobs:
           java-version: '25'
 
       - uses: android-actions/setup-android@v3
+        with:
+          # Default is "tools platform-tools". `tools` is the pre-2018
+          # legacy SDK bundle, unrelated to what Gradle/AGP need to build
+          # (they fetch platforms and build-tools themselves once licenses
+          # are accepted, which this action still does) -- and Google has
+          # stopped serving it from the SDK repository entirely, which
+          # started failing every build with "Failed to find package
+          # 'tools'" regardless of branch or diff. platform-tools (adb)
+          # still resolves fine and stays.
+          packages: 'platform-tools'
 
       - uses: gradle/actions/setup-gradle@v4
 
